@@ -47,6 +47,25 @@ diagnostics:
     scripts: null
 
 
+  CloudSat-level2:
+    description: CloudSat-level2 check
+    variables:
+      clw:
+        mip: Amon
+        start_year: 2007
+        end_year: 2007
+    additional_datasets:
+      - {dataset: CloudSat-level2, project: OBS, tier: 2, type: sat,
+         version: P1-R05-gridbox-average-all}
+      - {dataset: CloudSat-level2, project: OBS, tier: 2, type: sat,
+         version: P1-R05-gridbox-average-noprecip}
+      - {dataset: CloudSat-level2, project: OBS, tier: 2, type: sat,
+         version: P1-R05-in-cloud-all}
+      - {dataset: CloudSat-level2, project: OBS, tier: 2, type: sat,
+         version: P1-R05-in-cloud-noprecip}
+    scripts: null
+
+
   CRU:
     description: CRU check
     variables:
