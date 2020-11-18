@@ -21,14 +21,46 @@
 ;       ftp.cloudsat.cira.colostate.edu (e.g. using wget):
 ;
 ;       wget -nd -N -r --user=<user name> --password=<password>
-;          ftp://ftp.cloudsat.cira.colostate.edu/2B-CWC-RO.P1_R05/
+;          ftp://ftp.cloudsat.cira.colostate.edu/2B-CWC-RO.P1_R05/2007
 ;       wget -nd -N -r --user=<user name> --password=<passsword>
-;          ftp://ftp.cloudsat.cira.colostate.edu/2C-PRECIP-COLUMN.P1_R05/
+;          ftp://ftp.cloudsat.cira.colostate.edu/2C-PRECIP-COLUMN.P1_R05/2007
+;
+;       Note: replace "2007" with the year to download. In the examples
+;             above, only data from 2007 will be downloaded.
 ;
 ;    3) Put all files under a single directory (no subdirectories with
 ;       years and days). The wget commands given above do this automatically.
 ;
+; Description:
+;
+; This script bins 3-dim cloud liquid water content from individual CloudSat
+; orbits (level 2 data: 2B_CWC_RO "radar only") onto a 2x2 degree grid with
+; 40 vertical levels ("alt40"). Individual orbits and days are then averaged
+; to monthly means. Precipitating gridboxes are identified using the CloudSat
+; level 2 data for column precipitation (2C_PRECIP_COLUMN). The CloudSat data
+; are converted from kg/m3 to kg/kg using the air density from the US
+; standard atmosphere. The script calculates four datasets:
+;
+;   1) in-cloud values averaged over all available data points
+;   2) in-cloud values averaged over all data points for which no
+;      precipitation has been detected
+;   3) grid-box averages assuming that missing values are cloud-free, i.e.
+;      cloud liquid water content = 0
+;   4) grid-box averages calculated over all data points for which no
+;      precipitation has been detected
+;
+; The results are written to four different output files: 1) in-cloud-all,
+; 2) in-cloud-noprecip, 3) gridbox-average, 4) gridbox-average-noprecip.
+;
+; Note: one year of data consists of approximately 110 GB and 10,000 files.
+;       Processing one year takes about 5-6 hours. It is therefore recommended
+;       to process only one year at a time instead of multiple years. The
+;       year(s) to process are specified below by "year1" (first year) and
+;       "year2" (last year).
+;
 ; Modification history
+;    20201117-lauer_axel: code completely rewritten to reduce cpu time per
+;                         orbit from ~ 120 s to ~ 4 s
 ;    20201109-lauer_axel: written.
 ;
 ; #############################################################################
@@ -81,8 +113,8 @@ begin
 
   nx = 180
   ny = 90
-  dx = 360.0 / nx
-  dy = 180.0 / ny
+  dx = 360. / nx
+  dy = 180. / ny
 
   ; alt40 from CMIP6 table "coordinates"
   gridhgt = (/240., 720., 1200., 1680., 2160., 2640., 3120., 3600., 4080.,   \
@@ -96,10 +128,17 @@ begin
 
   ; define output longitudes and latitudes
 
-  gridlon = fspan(dx / 2.0, 360.0 - dx / 2.0, nx)
-  gridlat = fspan(-90.0 + dy / 2.0, 90.0 - dy / 2.0, ny)
+;  gridlon = fspan(dx / 2., 360. - dx / 2., nx)
+;  gridlat = fspan(-90. + dy / 2., 90. - dy / 2., ny)
+  gridlat = latGlobeFo(ny, "lat", "latitude", "degrees_north")
+  gridlon = lonGlobeFo(nx, "lon", "longitude", "degrees_east")
 
-  ; define work arrays
+  ; work arrays (NCL (v6.6.2) procedure bin_sum did not work properly with
+  ; subsetting the output arrays)
+  work = new((/ny, nx/), float)
+  workpts = new((/ny, nx/), integer)
+  work = 0.
+  workpts = 0
 
   ; "in-cloud" (all points)
   grid = new((/nt, nz, ny, nx/), float)
@@ -122,7 +161,7 @@ begin
   gridhgt_bnds = new(nz + 1, float)
   gridhgt_bnds(0) = 0.
   do i = 1, nz - 1
-    gridhgt_bnds(i) = (gridhgt(i - 1) + gridhgt(i)) / 2.0
+    gridhgt_bnds(i) = (gridhgt(i - 1) + gridhgt(i)) / 2.
   end do
   gridhgt_bnds(nz) = gridhgt(nz - 1) + gridhgt(nz - 1) - gridhgt_bnds(nz - 1)
 
@@ -170,11 +209,12 @@ begin
     ; process all days of the year
 
     do dayofyear = 1, day_of_year(calyear, 12, 31)
+      print("day = " + tostring(dayofyear))
       caldate = yyyyddd_to_yyyymmdd(calyear * 10000 + dayofyear)
       calmonth = mod(caldate / 100, 100)
       calday = mod(caldate, 100)
 
-      time_idx = calmonth - 1
+      itime = calmonth - 1
 
       fn = tostring(calyear) + sprinti("%0.3i", dayofyear)
       fs = systemfunc("ls " + input_dir_path + fn + "*2B-CWC-RO_GRANULE*.hdf")
@@ -191,10 +231,13 @@ begin
       ; start loop over all orbits for one day
 
       do orbit = 0, norbits - 1
+        begTime = get_cpu_time()
+        print("orbit = " + tostring(orbit + 1))
         ; combine filename for precipitation data
         ssplit = str_split(fs(orbit), "/")
         strs = str_split(ssplit(dimsizes(ssplit) - 1), "_")
-        fs_precip = input_dir_path + strs(0) + "_" + strs(1) + \
+        sorbit = strs(1)
+        fs_precip = input_dir_path + strs(0) + "_" + sorbit + \
           "_CS_2C-PRECIP-COLUMN_GRANULE_P1_R05_E02_F00.hdf"
         delete(ssplit)
         delete(strs)
@@ -218,7 +261,6 @@ begin
         if (fileexists(slink1)) then
           system("rm -f " + link1)
         end if
-
         if (fileexists(slink2)) then
           system("rm -f " + link2)
         end if
@@ -231,146 +273,150 @@ begin
         ;***************************************************************
         ; Read hdf-eos
         ;***************************************************************
-
         print("processing " + fs(orbit) + " + " + fs_precip + "...")
 
         f = addfile(slink1, "r")
-        x = f->$var$
+        x2d = f->$var$
 
-        if (isatt(x, "_FillValue")) then
-          delete(x@_FillValue)
+        if (isatt(x2d, "_FillValue")) then
+          delete(x2d@_FillValue)
         end if
-        if (isatt(x, "missing")) then
-          delete(x@missing)
-        end if
-
-        dimd    = dimsizes(x)
-        nray    = dimd(0)
-        nbin    = dimd(1)
 
         f_precip = addfile(slink2, "r")
         x_flag = f_precip->$var_flag$
 
-        ; remove '_FillValue' and 'missing' (unused) attributes to prevent NCL
-        ; from handling missing values
+        ; remove attribute '_FillValue' to prevent NCL from handling
+        ; missing values
 
         if (isatt(x_flag, "_FillValue")) then
           delete(x_flag@_FillValue)
         end if
-        if (isatt(x_flag, "missing")) then
-          delete(x_flag@missing)
-        end if
 
         ; check if array dimensions match
 
-        dimd2 = dimsizes(x_flag)
-
-        if (dimd(0) .ne. dimd2) then
-          print("Error: dimsize does not match. " + fs(orbit) + ", " + \
-            fs_precip + " Abort.")
-          exit
+        dimx = dimsizes(x2d)
+        if (dimx(0) .ne. dimsizes(x_flag)) then
+          log_info("Warning: dimsizes do not match. " + fs(orbit) + ", " + \
+            fs_precip + " Skipping orbit " + sorbit + ".")
+          continue
         end if
 
-        lat     = f->Latitude_2B_CWC_RO
-        lon     = f->Longitude_2B_CWC_RO
-        hgt     = f->Height_2B_CWC_RO
-;        time    = f->Profile_time_2B_CWC_RO
+        lat   = f->Latitude_2B_CWC_RO
+        lon   = f->Longitude_2B_CWC_RO
+        hgt1d = ndtooned(f->Height_2B_CWC_RO)
+;        time  = f->Profile_time_2B_CWC_RO
 
         ; convert longitudes from -180...180 to 0...360
-        ; convert latitudes from -90...90 to 0...180
-
         lon = where(lon .lt. 0., lon + 360., lon)
-        lat = lat + 90.
 
         ; --------------------------------------------------------------------
 
-        do i = 0, nray - 1
-          ; apply modulo function because some input files contain
-          ; points with longitude = 360.0
-          ; --> mapped to ilon = 0
-          ilat = mod(toint(lat(i) / dy), ny)
-          ilon = mod(toint(lon(i) / dx), nx)
-          do ilev = 0, nz - 1
-            iz = ind((hgt(i, :) .ge. gridhgt_bnds(ilev)) .and. (hgt(i, :) \
-              .lt. gridhgt_bnds(ilev + 1)))
-            if (.not.ismissing(iz(0))) then
+        x = ndtooned(x2d)
+        delete(x2d)
 
-              ; *** Calculate "in-cloud" average ***
-              ; Filter invalid (x < 0) and missing values (x = 0) before
-              ; averaging.
+        x_flag_ext = ndtooned(conform_dims(dimx, x_flag, 0))
+        delete(x_flag)
 
-              iz_valid = ind(x(i, iz) .gt. 0.)
-              if (.not.ismissing(iz_valid(0))) then
-                idx = iz(iz_valid)
-                vpts = dimsizes(idx)
-                vsum = sum(x(i, idx))
-                gridpts(time_idx, ilev, ilat, ilon) = \
-                  gridpts(time_idx, ilev, ilat, ilon) + vpts
-                grid(time_idx, ilev, ilat, ilon) = \
-                  grid(time_idx, ilev, ilat, ilon) + vsum
+        lon_ext = ndtooned(conform_dims(dimx, lon, 0))
+        lat_ext = ndtooned(conform_dims(dimx, lat, 0))
 
-                ; Now also filter cases that have been flagged with
-                ; precipitation or as unknown. The following CloudSat flags
-                ; are defined (see http://www.cloudsat.cira.colostate.edu/
-                ; sites/default/files/
-                ; products/files/2C-PRECIP-COLUMN_PDICD.P2_R04.20130124.pdf):
-                ;
-                ; flag 0 = no precipitation detected
-                ;      1 = rain possible
-                ;      2 = rain probable
-                ;      3 = rain certain
-                ;      4 = snow possible
-                ;      5 = snow certain
-                ;      6 = mixed precipitation possible
-                ;      7 = mixed precipitation certain
-                ;      9 = uncertain
+        delete(lat)
+        delete(lon)
 
-                if (x_flag(i) .ne. 0) then
-                  gridpts_noprecip(time_idx, ilev, ilat, ilon) = \
-                    gridpts_noprecip(time_idx, ilev, ilat, ilon) + vpts
-                  grid_noprecip(time_idx, ilev, ilat, ilon) = \
-                    grid_noprecip(time_idx, ilev, ilat, ilon) + vsum
-                end if
+        do ilev = 0, nz - 1
+          ; Find all values that are within a given height level (output grid)
+          ; and that contain valid (x > 0) or missing (x = 0) values;
+          ; invalid values (x < 0) are filtered out.
+          ii = ind((hgt1d .ge. gridhgt_bnds(ilev)) .and. \
+              (hgt1d .lt. gridhgt_bnds(ilev + 1)) .and. (x .ge. 0.))
+          ; check if there are input data on the given output level and
+          ; output gridbox
+          if (.not. ismissing(ii(0))) then
+            xselected = x(ii)
+            xlon = lon_ext(ii)
+            xlat = lat_ext(ii)
+            x_flag_selected = x_flag_ext(ii)
+            ; *** gridbox average, all ***
+            ; Includes all points with missing cloud liquid water
+            ; content (x = 0) when calculating the average. This assumes
+            ; that all grid points with "missing" but not invalid values
+            ; are cloud-free. Invalid values (x < 0) are filtered out.
+            bin_sum(work, workpts, gridlon, gridlat, xlon, xlat, xselected)
+            grid_avg(itime, ilev, :, :) = grid_avg(itime, ilev, :, :) + work
+            gridpts_avg(itime, ilev, :, :) = gridpts_avg(itime, ilev, :, :) \
+              + workpts
+            work = 0.
+            workpts = 0
+            ; *** in-cloud average, all ***
+            ; Filter invalid (x < 0) and missing values (x = 0).
+            idx = ind(xselected .gt. 0.)
+            if (.not. ismissing(idx(0))) then
+              bin_sum(work, workpts, gridlon, gridlat, \
+                xlon(idx), xlat(idx), xselected(idx))
+              grid(itime, ilev, :, :) = grid(itime, ilev, :, :) + work
+              gridpts(itime, ilev, :, :) = gridpts(itime, ilev, :, :) \
+                + workpts
+              work = 0.
+              workpts = 0
+            end if
+            delete(idx)
+            ; *** gridbox average, no precipitation ***
+            ; Filter cases that have been flagged with
+            ; precipitation or as unknown. The following CloudSat flags
+            ; are defined (see http://www.cloudsat.cira.colostate.edu/
+            ; sites/default/files/
+            ; products/files/2C-PRECIP-COLUMN_PDICD.P2_R04.20130124.pdf):
+            ;
+            ; flag 0 = no precipitation detected
+            ;      1 = rain possible
+            ;      2 = rain probable
+            ;      3 = rain certain
+            ;      4 = snow possible
+            ;      5 = snow certain
+            ;      6 = mixed precipitation possible
+            ;      7 = mixed precipitation certain
+            ;      9 = uncertain
+            idx = ind(x_flag_selected .gt. 0)
+            if (.not. ismissing(idx(0))) then
+              bin_sum(work, workpts, gridlon, gridlat, \
+                xlon(idx), xlat(idx), xselected(idx))
+              grid_avg_noprecip(itime, ilev, :, :) = \
+                grid_avg_noprecip(itime, ilev, :, :) + work
+              gridpts_avg_noprecip(itime, ilev, :, :) = \
+                gridpts_avg_noprecip(itime, ilev, :, :) + workpts
+              work = 0.
+              workpts = 0
+            end if
+            delete(idx)
+            ; *** in-cloud average, no precipitation ***
+            ; Filter cases that have been flagged with
+            ; precipitation or as unknown.
+            idx = ind((xselected .gt. 0.) .and. (x_flag_selected .gt. 0))
+            if (.not. ismissing(idx(0))) then
+              bin_sum(work, workpts, gridlon, gridlat, \
+                xlon(idx), xlat(idx), xselected(idx))
+              grid_noprecip(itime, ilev, :, :) = \
+                grid_noprecip(itime, ilev, :, :) + work
+              gridpts_noprecip(itime, ilev, :, :) = \
+                gridpts_noprecip(itime, ilev, :, :) + workpts
+              work = 0.
+              workpts = 0
+            end if
+            delete(idx)
 
-                delete(idx)
-              end if
-              delete(iz_valid)
-
-              ; *** Calculate "gridbox average" ***
-              ; Also include all points with missing cloud liquid water
-              ; content (x = 0) when calculating the average. This assumes
-              ; that all grid points with "missing" but not invalid values
-              ; are cloud-free. Invalid values (x < 0) are filtered out.
-
-              data = where(x(i, iz) .lt. 0., 0., x(i, iz))
-              vsum = sum(data)
-              vpts = dimsizes(iz)
-              delete(data)
-
-              grid_avg(time_idx, ilev, ilat, ilon) = \
-                grid_avg(time_idx, ilev, ilat, ilon) + vsum
-              gridpts_avg(time_idx, ilev, ilat, ilon) = \
-                gridpts_avg(time_idx, ilev, ilat, ilon) + vpts
-
-              ; Now also filter cases that have been flagged with
-              ; precipitation or as unknown (see definition of flags above).
-
-              if (x_flag(i) .ne. 0) then
-                gridpts_avg_noprecip(time_idx, ilev, ilat, ilon) = \
-                  gridpts_avg_noprecip(time_idx, ilev, ilat, ilon) + vpts
-                grid_avg_noprecip(time_idx, ilev, ilat, ilon) = \
-                  grid_avg_noprecip(time_idx, ilev, ilat, ilon) + vsum
-              end if
-            end if  ; if cloudsat point are available for this height bin
-            delete(iz)
-          end do  ; loop over all (ouput) height bins
-        end do  ; loop over all points along satellite track
+            delete(xselected)
+            delete(x_flag_selected)
+            delete(xlon)
+            delete(xlat)
+          end if
+          delete(ii)
+        end do  ; loop over output levels
 
         delete(x)
-        delete(x_flag)
-            delete(lat)
-        delete(lon)
-        delete(hgt)
+        delete(x_flag_ext)
+        delete(lat_ext)
+        delete(lon_ext)
+        delete(hgt1d)
 ;        delete(time)
 
         ; remove temporary symbolic links
@@ -378,6 +424,8 @@ begin
         system("rm -f " + slink1)
         system("rm -f " + slink2)
 
+        print("CPU time for orbit: " + tostring(get_cpu_time() - begTime) \
+          + " s")
       end do  ; loop over all orbits per day
       delete(fs)
     end do  ; loop over days
@@ -399,12 +447,12 @@ begin
     ; convert from mg/m3 to kg/kg using air density from
     ; US standard atmosphere
 
-    grid = grid / conform(grid, air_density, 1) * 1.0e-6
-    grid_avg = grid_avg / conform(grid_avg, air_density, 1) * 1.0e-6
+    grid = grid / conform(grid, air_density, 1) * 1.e-6
+    grid_avg = grid_avg / conform(grid_avg, air_density, 1) * 1.e-6
     grid_noprecip = grid_noprecip / \
-      conform(grid_noprecip, air_density, 1) * 1.0e-6
+      conform(grid_noprecip, air_density, 1) * 1.e-6
     grid_avg_noprecip = grid_avg_noprecip / \
-      conform(grid_avg_noprecip, air_density, 1) * 1.0e-6
+      conform(grid_avg_noprecip, air_density, 1) * 1.e-6
 
     ; ------------------------------------------------------------------------
 
