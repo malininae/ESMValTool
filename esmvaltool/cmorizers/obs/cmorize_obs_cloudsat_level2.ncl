@@ -28,7 +28,8 @@
 ;       Note: replace "2007" with the year to download. In the examples
 ;             above, only data from 2007 will be downloaded.
 ;
-;    3) Put all files under a single directory (no subdirectories with
+;    3) Put all files for a specific year under a single directory
+;       named like the year (e.g. 2007), no subdirectories with
 ;       years and days). The wget commands given above do this automatically.
 ;
 ; Description:
@@ -59,6 +60,8 @@
 ;       "year2" (last year).
 ;
 ; Modification history
+;    20201119-lauer_axel: allowing more flexible filenames for precipitation
+;                         data 
 ;    20201117-lauer_axel: code completely rewritten to reduce cpu time per
 ;                         orbit from ~ 120 s to ~ 4 s
 ;    20201109-lauer_axel: written.
@@ -206,6 +209,8 @@ begin
     grid_noprecip&time = gridtime
     grid_avg_noprecip&time = gridtime
 
+    inpath = input_dir_path + tostring(calyear) + "/"
+
     ; process all days of the year
 
     do dayofyear = 1, day_of_year(calyear, 12, 31)
@@ -217,7 +222,7 @@ begin
       itime = calmonth - 1
 
       fn = tostring(calyear) + sprinti("%0.3i", dayofyear)
-      fs = systemfunc("ls " + input_dir_path + fn + "*2B-CWC-RO_GRANULE*.hdf")
+      fs = systemfunc("ls " + inpath + fn + "*2B-CWC-RO_GRANULE*.hdf")
 
       if (ismissing(fs(0))) then
          log_info("Warning: no input file(s) for " + tostring(calyear) + \
@@ -237,8 +242,8 @@ begin
         ssplit = str_split(fs(orbit), "/")
         strs = str_split(ssplit(dimsizes(ssplit) - 1), "_")
         sorbit = strs(1)
-        fs_precip = input_dir_path + strs(0) + "_" + sorbit + \
-          "_CS_2C-PRECIP-COLUMN_GRANULE_P1_R05_E02_F00.hdf"
+        fs_precip = systemfunc("ls " + inpath + strs(0) + "_" + sorbit + \
+          "_CS_2C-PRECIP-COLUMN_GRANULE_P1_R05_*.hdf")
         delete(ssplit)
         delete(strs)
 
