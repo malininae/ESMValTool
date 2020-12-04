@@ -329,8 +329,8 @@ begin
         delete(lon)
 
         do ilev = 0, nz - 1
-          ; Find all values that are within a given height level (output grid)
-          ; and that contain valid (x > 0) or missing (x = 0) values;
+          ; Find all elements that are within a given height level
+          ; (output grid) that contain valid (x > 0) or missing (x = 0) values;
           ; invalid values (x < 0) are filtered out.
           ii = ind((hgt1d .ge. gridhgt_bnds(ilev)) .and. \
                    (hgt1d .lt. gridhgt_bnds(ilev + 1)) .and. (x .ge. 0.))
@@ -381,7 +381,7 @@ begin
             ;      6 = mixed precipitation possible
             ;      7 = mixed precipitation certain
             ;      9 = uncertain
-            idx = ind(x_flag_selected .gt. 0)
+            idx = ind(x_flag_selected .eq. 0)
             if (.not. ismissing(idx(0))) then
               bin_sum(work, workpts, gridlon, gridlat, \
                       xlon(idx), xlat(idx), xselected(idx))
@@ -396,7 +396,7 @@ begin
             ; *** in-cloud average, no precipitation ***
             ; Filter cases that have been flagged with
             ; precipitation or as unknown.
-            idx = ind((xselected .gt. 0.) .and. (x_flag_selected .gt. 0))
+            idx = ind((xselected .gt. 0.) .and. (x_flag_selected .eq. 0))
             if (.not. ismissing(idx(0))) then
               bin_sum(work, workpts, gridlon, gridlat, \
                       xlon(idx), xlat(idx), xselected(idx))
