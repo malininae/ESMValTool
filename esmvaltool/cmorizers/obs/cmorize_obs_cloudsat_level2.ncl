@@ -61,7 +61,7 @@
 ;
 ; Modification history
 ;    20201119-lauer_axel: allowing more flexible filenames for precipitation
-;                         data 
+;                         data
 ;    20201117-lauer_axel: code completely rewritten to reduce cpu time per
 ;                         orbit from ~ 120 s to ~ 4 s
 ;    20201109-lauer_axel: written.
@@ -121,10 +121,10 @@ begin
 
   ; alt40 from CMIP6 table "coordinates"
   gridhgt = (/240., 720., 1200., 1680., 2160., 2640., 3120., 3600., 4080.,   \
-              4560., 5040., 5520., 6000., 6480., 6960., 7440., 7920., 8400., \
-              8880., 9360., 9840., 10320., 10800., 11280., 11760., 12240.,   \
-              12720., 13200., 13680., 14160., 14640., 15120., 15600., 16080.,\
-              16560., 17040., 17520., 18000., 18480., 18960./)
+             4560., 5040., 5520., 6000., 6480., 6960., 7440., 7920., 8400., \
+             8880., 9360., 9840., 10320., 10800., 11280., 11760., 12240.,   \
+             12720., 13200., 13680., 14160., 14640., 15120., 15600., 16080.,\
+             16560., 17040., 17520., 18000., 18480., 18960./)
 
   nz = dimsizes(gridhgt)
   nt = 12
@@ -225,10 +225,10 @@ begin
       fs = systemfunc("ls " + inpath + fn + "*2B-CWC-RO_GRANULE*.hdf")
 
       if (ismissing(fs(0))) then
-         log_info("Warning: no input file(s) for " + tostring(calyear) + \
-           "-" + sprinti("%03d", dayofyear) + ", skipping day.")
-         delete(fs)
-         continue
+        log_info("Warning: no input file(s) for " + tostring(calyear) + \
+                 "-" + sprinti("%03d", dayofyear) + ", skipping day.")
+        delete(fs)
+        continue
       end if
 
       norbits = dimsizes(fs)
@@ -243,7 +243,7 @@ begin
         strs = str_split(ssplit(dimsizes(ssplit) - 1), "_")
         sorbit = strs(1)
         fs_precip = systemfunc("ls " + inpath + strs(0) + "_" + sorbit + \
-          "_CS_2C-PRECIP-COLUMN_GRANULE_P1_R05_*.hdf")
+                               "_CS_2C-PRECIP-COLUMN_GRANULE_P1_R05_*.hdf")
         delete(ssplit)
         delete(strs)
 
@@ -275,9 +275,9 @@ begin
         system("ln -s " + fs(orbit) + " " + slink1)
         system("ln -s " + fs_precip + " " + slink2)
 
-        ;***************************************************************
+        ; ***************************************************************
         ; Read hdf-eos
-        ;***************************************************************
+        ; ***************************************************************
         print("processing " + fs(orbit) + " + " + fs_precip + "...")
 
         f = addfile(slink1, "r")
@@ -302,7 +302,7 @@ begin
         dimx = dimsizes(x2d)
         if (dimx(0) .ne. dimsizes(x_flag)) then
           log_info("Warning: dimsizes do not match. " + fs(orbit) + ", " + \
-            fs_precip + " Skipping orbit " + sorbit + ".")
+                   fs_precip + " Skipping orbit " + sorbit + ".")
           continue
         end if
 
@@ -333,7 +333,7 @@ begin
           ; and that contain valid (x > 0) or missing (x = 0) values;
           ; invalid values (x < 0) are filtered out.
           ii = ind((hgt1d .ge. gridhgt_bnds(ilev)) .and. \
-              (hgt1d .lt. gridhgt_bnds(ilev + 1)) .and. (x .ge. 0.))
+                   (hgt1d .lt. gridhgt_bnds(ilev + 1)) .and. (x .ge. 0.))
           ; check if there are input data on the given output level and
           ; output gridbox
           if (.not. ismissing(ii(0))) then
@@ -357,7 +357,7 @@ begin
             idx = ind(xselected .gt. 0.)
             if (.not. ismissing(idx(0))) then
               bin_sum(work, workpts, gridlon, gridlat, \
-                xlon(idx), xlat(idx), xselected(idx))
+                      xlon(idx), xlat(idx), xselected(idx))
               grid(itime, ilev, :, :) = grid(itime, ilev, :, :) + work
               gridpts(itime, ilev, :, :) = gridpts(itime, ilev, :, :) \
                 + workpts
@@ -384,7 +384,7 @@ begin
             idx = ind(x_flag_selected .gt. 0)
             if (.not. ismissing(idx(0))) then
               bin_sum(work, workpts, gridlon, gridlat, \
-                xlon(idx), xlat(idx), xselected(idx))
+                      xlon(idx), xlat(idx), xselected(idx))
               grid_avg_noprecip(itime, ilev, :, :) = \
                 grid_avg_noprecip(itime, ilev, :, :) + work
               gridpts_avg_noprecip(itime, ilev, :, :) = \
@@ -399,7 +399,7 @@ begin
             idx = ind((xselected .gt. 0.) .and. (x_flag_selected .gt. 0))
             if (.not. ismissing(idx(0))) then
               bin_sum(work, workpts, gridlon, gridlat, \
-                xlon(idx), xlat(idx), xselected(idx))
+                      xlon(idx), xlat(idx), xselected(idx))
               grid_noprecip(itime, ilev, :, :) = \
                 grid_noprecip(itime, ilev, :, :) + work
               gridpts_noprecip(itime, ilev, :, :) = \
@@ -430,7 +430,7 @@ begin
         system("rm -f " + slink2)
 
         print("CPU time for orbit: " + tostring(get_cpu_time() - begTime) \
-          + " s")
+              + " s")
       end do  ; loop over all orbits per day
       delete(fs)
     end do  ; loop over days
@@ -438,11 +438,13 @@ begin
     ; calculate monthly averages
 
     gridpts = where(gridpts .eq. 0, gridpts@_FillValue, gridpts)
-    gridpts_avg = where(gridpts_avg .eq. 0, gridpts_avg@_FillValue, gridpts_avg)
+    gridpts_avg = where(gridpts_avg .eq. 0, gridpts_avg@_FillValue, \
+                        gridpts_avg)
     gridpts_noprecip = where(gridpts_noprecip .eq. 0, \
-      gridpts_noprecip@_FillValue, gridpts_noprecip)
+                             gridpts_noprecip@_FillValue, gridpts_noprecip)
     gridpts_avg_noprecip = where(gridpts_avg_noprecip .eq. 0, \
-      gridpts_avg_noprecip@_FillValue, gridpts_avg_noprecip)
+                                 gridpts_avg_noprecip@_FillValue, \
+                                 gridpts_avg_noprecip)
 
     grid = grid / gridpts
     grid_avg = grid_avg / gridpts_avg
@@ -538,23 +540,12 @@ begin
     ; output filename
     datestr = calyear + "01-" + calyear + "12"
     fout = output_dir_path + \
-      str_join((/"OBS", obsname, type, version + \
-        "-gridbox-average-noprecip", mip, outvar, datestr/), "_") + ".nc"
+      str_join((/"OBS", obsname, type, version + "-gridbox-average-noprecip", \
+                 mip, outvar, datestr/), "_") + ".nc"
     ; write variable
     write_nc(fout, outvar, output, bounds, gAtt)
     delete(output)
     delete(gAtt)
-
-;    system("rm debug.nc")
-;    debugfile = addfile("debug.nc", "c")
-;    debugfile->clw = grid
-;    debugfile->clw_avg = grid_avg
-;    debugfile->clw_noprecip = grid_noprecip
-;    debugfile->clw_avg_noprecip = grid_avg_noprecip
-;    debugfile->pts = gridpts
-;    x1d = ndtooned(x)
-;    xreshape = reshape(x1d(0:4633999), (/2000, 2317/))
-;    debugfile->x = xreshape
 
   end do  ; loop over years
 
