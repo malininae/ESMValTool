@@ -81,8 +81,14 @@ begin
   tier = 2
 
   ; Period
-  year1 = 2007
-  year2 = 2007
+  year1 = toint(getenv("year1"))
+  year2 = toint(getenv("year2"))
+  if (ismissing(year1)) then
+    year1 = 2007
+  end if
+  if (ismissing(year2)) then
+    year2 = 2007
+  end if
 
   ; output variable (standard name)
   outvar = "clw"
