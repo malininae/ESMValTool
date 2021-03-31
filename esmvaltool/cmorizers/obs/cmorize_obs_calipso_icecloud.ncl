@@ -6,25 +6,27 @@
 ;    Tier 2: other freely-available dataset.
 ;
 ; Source
-;    EarthData via https://eosweb.larc.nasa.gov/project/calipso/
-;            cal_lid_l3_ice_cloud_standard_v1_00
+;    EarthData via https://eosweb.larc.nasa.gov/project/CALIPSO/
+;      CAL_LID_L3_Ice_Cloud-Standard_V1-00
 ;
 ; Last access
 ;    20200408
 ;
 ; Download and processing instructions
 ; (requires EarthData login; see https://urs.earthdata.nasa.gov/)
-;    1) Go to https://eosweb.larc.nasa.gov/project/calipso/
-;                    cal_lid_l3_ice_cloud_standard_v1_00
-;    2) Click on "Order data"
-;    3) Select Granules containing both (day and night)
+;    1) Go to https://eosweb.larc.nasa.gov/project/CALIPSO/
+;       CAL_LID_L3_Ice_Cloud-Standard_V1-00
+;    2) Click on "Get Dataset"
+;    3) Select Granules "A" containing both, day and night (Day/Night filter
+;       = "Both")
 ;    4) Download selected granules
 ;    5) Enter EarthData login and password (https://urs.earthdata.nasa.gov/)
 ;    6) Follow download instructions in email from EarthData and put all
 ;       files in the same directory
 ;
 ; Modification history
-;    20200414-laue_axel: written
+;    20210331-lauer_axel: updated download information
+;    20200414-lauer_axel: written
 ;
 ; #############################################################################
 loadscript(getenv("esmvaltool_root") + \
@@ -65,9 +67,9 @@ begin
   VERSION = "1-00"
 
   ; Global attributes
-  SOURCE = "https://eosweb.larc.nasa.gov/project/calipso/" + \
-    "cal_lid_l3_ice_cloud_standard_v1_00"
-  REF = "doi:10.5067/CALIOP/CALIPSO/L3_Ice_Cloud-Standard-V1-00"
+  SOURCE = "https://eosweb.larc.nasa.gov/project/CALIPSO/" + \
+    "CAL_LID_L3_Ice_Cloud-Standard_V1-00"
+  REF = "doi:10.5067/CALIOP/CALIPSO/L3_ICE_CLOUD-STANDARD-V1-00"
   COMMENT = "Atmospheric Science Data Center (ASDC)"
 
 end
