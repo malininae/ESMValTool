@@ -135,7 +135,7 @@ diagnostics:
 
     scripts:
       xcbox_volc:
-        script: ipcc_ar6/diagnostic_volcanic_xcb.py
+        script: volcanic_response/diagnostic_volcanic_xcb.py 
         mpl_style: ipcc_ar6_fgd
         volcano_name: 'Krakatoa'
         eruption_date: '1883-08-27'
