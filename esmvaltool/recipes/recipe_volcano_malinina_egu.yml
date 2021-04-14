@@ -190,7 +190,7 @@ diagnostics:
         exp: historical
         start_year: 1878
         end_year: 1893
-        preprocessor: preproc_se_pr
+        preprocessor: preproc_tot_pr
         additional_datasets: *models_hist
       rx1day:
         short_name: pr
@@ -199,7 +199,7 @@ diagnostics:
         exp: historical
         start_year: 1881
         end_year: 1878
-        preprocessor: preproc_se_pr
+        preprocessor: preproc_rx1day
         additional_datasets: *models_hist
       txx:
         short_name: tasmax
