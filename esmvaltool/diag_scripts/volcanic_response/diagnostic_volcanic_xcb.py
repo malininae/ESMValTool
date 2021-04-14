@@ -73,10 +73,10 @@ def make_plot(data_dic, cfg):
 
     plt.style.use(st_file)
     fig = plt.figure()
-    fig.set_size_inches(9., 9.)
+    fig.set_size_inches(9., 12.)
 
     for nv, var in enumerate(data_dic.keys()):
-        ax = plt.subplot(2,2,nv+1)
+        ax = plt.subplot(4,2,nv+1)
         mean = data_dic[var]['mean']
         p5 = data_dic[var]['p5']
         p95 = data_dic[var]['p95']
@@ -99,6 +99,9 @@ def make_plot(data_dic, cfg):
         if var == 'tas':
             ax.set_title('GMST anomaly')
             ax.set_ylabel(r'$\Delta$ T ($^o$C)')
+        elif var == 'tasmax':
+            ax.set_title('TXx anomaly')
+            ax.set_ylabel(r'$\Delta$ TXx ($^o$C)')
         elif var == 'tos':
             ax.set_title('Nino 3.4 SST')
             ax.set_ylabel(r'$\Delta$ T ($^o$C)')
@@ -111,7 +114,7 @@ def make_plot(data_dic, cfg):
         elif var == 'pr':
             ax.set_title('SE Asia pr totals')
             ax.set_ylabel(r'pr_tot (10$^6$ mm)')
-            ax.set_ylim(0, 1)
+            ax.set_ylim(6.2, 7.7)
         ylims = ax.get_ylim()
         ax.set_ylim(ylims[0], ylims[1])
         ax.vlines(dt.datetime.fromisoformat(cfg['eruption_date']),

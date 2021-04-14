@@ -25,7 +25,7 @@ preprocessors:
         end_month: 12
         end_day: 31
 
-  preproc_sia:
+  preproc_sia_nh:
     custom_order: true
     regrid:
       target_grid: 1x1
@@ -33,6 +33,17 @@ preprocessors:
     extract_region:
       start_latitude: 50.
       end_latitude: 90.
+      start_longitude: 0.
+      end_longitude: 360.
+
+  preproc_sia_sh:
+    custom_order: true
+    regrid:
+      target_grid: 1x1
+      scheme: nearest
+    extract_region:
+      start_latitude: -90.
+      end_latitude: -50.
       start_longitude: 0.
       end_longitude: 360.
 
@@ -47,15 +58,37 @@ preprocessors:
       start_longitude: 190.
       end_longitude: 240.
 
-  preproc_se_pr:
+  preproc_tot_pr:
     custom_order: true
     mask_inside_range:
       minimum: 0
       maximum: 1.1574074074074073e-05
+    regrid:
+      target_grid: 1x1
+      scheme: linear
     annual_statistics:
       operator: sum
     area_statistics:
       operator: sum
+
+  preproc_rx1day:
+    custom_order: true
+    annual_statistics:
+      operator: max
+    regrid:
+      target_grid: 1x1
+      scheme: linear
+    area_statistics:
+      operator: mean
+    anomalies:
+      period: 'full'
+      reference:
+        start_year: 1878
+        start_month: 1
+        start_day: 1
+        end_year: 1882
+        end_month: 12
+        end_day: 31
 
   preproc_txx:
     custom_order: true
@@ -66,7 +99,15 @@ preprocessors:
       scheme: linear
     area_statistics:
       operator: mean
-
+    anomalies:
+      period: 'full'
+      reference:
+        start_year: 1878
+        start_month: 1
+        start_day: 1
+        end_year: 1882
+        end_month: 12
+        end_day: 31
 
 models_hist: &models_hist
   - { dataset: ACCESS-ESM1-5, grid: gn, ensemble: "r(1:6)i1p1f1" }
@@ -108,7 +149,8 @@ diagnostics:
   xcbox_vol:
     description: Figure for volcanic cross-chapter box Chapter 4 IPCC AR6 report
     variables:
-      tas:
+      gsat:
+        short_name: tas
         mip: Amon
         project: CMIP6
         exp: historical
@@ -116,13 +158,23 @@ diagnostics:
         end_year: 1893
         preprocessor: preproc_gsat
         additional_datasets: *models_hist
-      siconc:
+      sia_arctic:
+        short_name: siconc
         mip: SImon
         project: CMIP6
         exp: historical
         start_year: 1878
         end_year: 1893
-        preprocessor: preproc_sia
+        preprocessor: preproc_sia_nh
+        additional_datasets: *models_hist
+      sia_antarctic:
+        short_name: siconc
+        mip: SImon
+        project: CMIP6
+        exp: historical
+        start_year: 1878
+        end_year: 1893
+        preprocessor: preproc_sia_sh
         additional_datasets: *models_hist
       tos:
         mip: Omon
@@ -136,15 +188,25 @@ diagnostics:
         mip: day
         project: CMIP6
         exp: historical
-        start_year: 1881
+        start_year: 1878
         end_year: 1893
         preprocessor: preproc_se_pr
         additional_datasets: *models_hist
-      tasmax:
+      rx1day:
+        short_name: pr
         mip: day
         project: CMIP6
         exp: historical
         start_year: 1881
+        end_year: 1878
+        preprocessor: preproc_se_pr
+        additional_datasets: *models_hist
+      txx:
+        short_name: tasmax
+        mip: day
+        project: CMIP6
+        exp: historical
+        start_year: 1878
         end_year: 1893
         preprocessor: preproc_txx
         additional_datasets: *models_hist
