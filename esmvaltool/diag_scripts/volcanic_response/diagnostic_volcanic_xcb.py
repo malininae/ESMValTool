@@ -83,23 +83,22 @@ def make_plot(data_dic, cfg):
         time_raw = data_dic[var]['mean'].coord('time')
         times = cftime.num2pydate(time_raw.points, time_raw.units.origin,
                                   time_raw.units.calendar)
-        # if var == 'tas':
-        #     ax.plot(times, mean.data - 273.15, c='#1f77b4', linewidth = 1.5)
-        #     [ax.plot(times, dtst.data - 273.15, c='#1f77b4', linewidth=0.5, alpha = 0.2) for
-        #      dtst in data_dic[var]['all_data']]
-        #     # ax.fill_between(times, (p5 - 273.15).data, (p95- 273.15).data, alpha = 0.2, linewidth=0, color='#1f77b4')
         if var == 'pr':
             ax.plot(times, mean.data / (86400*10e6), c='#1f77b4', linewidth=1.5)
             [ax.plot(times, dtst.data / (86400*10e6), c='#1f77b4', linewidth=0.5, alpha=0.2) for
+             dtst in data_dic[var]['all_data']]
+        elif var == 'rx1day':
+            ax.plot(times, mean.data / 86400, c='#1f77b4', linewidth=1.5)
+            [ax.plot(times, dtst.data / 86400, c='#1f77b4', linewidth=0.5, alpha=0.2) for
              dtst in data_dic[var]['all_data']]
         else:
             ax.plot(times, mean.data, c = '#1f77b4', linewidth = 1.5)
             [ax.plot(times, dtst.data , c='#1f77b4', linewidth=0.5, alpha = 0.2) for
              dtst in data_dic[var]['all_data']]
-        if var == 'tas':
+        if var == 'gsat':
             ax.set_title('GMST anomaly')
             ax.set_ylabel(r'$\Delta$ T ($^o$C)')
-        elif var == 'tasmax':
+        elif var == 'txx':
             ax.set_title('TXx anomaly')
             ax.set_ylabel(r'$\Delta$ TXx ($^o$C)')
         elif var == 'tos':
@@ -108,13 +107,17 @@ def make_plot(data_dic, cfg):
             xlims = ax.get_xlim()
             ax.set_xlim(xlims[0], xlims[1])
             ax.fill_between((xlims[0], xlims[1]), -0.4, 0.4, color='silver', linewidth=0, alpha=0.3)
-        elif var == 'siconc':
-            ax.set_title('Arctic SIA anomaly')
+        elif (var == 'sia_arctic') | (var == 'sia_antarctic'):
+            location = var.split('_')[1][1:]
+            ax.set_title('A'+location+' SIA anomaly')
             ax.set_ylabel(r'$\Delta$ sia (10$^6$ km$^2$)')
         elif var == 'pr':
-            ax.set_title('SE Asia pr totals')
+            ax.set_title('Precipitation totals')
             ax.set_ylabel(r'pr_tot (10$^6$ mm)')
-            ax.set_ylim(6.2, 7.7)
+            # ax.set_ylim(6.2, 7.7)
+        elif var == 'rx1day':
+            ax.set_title('Rx1day anomaly')
+            ax.set_ylabel(r'pr_tot (10$^6$ mm)')
         ylims = ax.get_ylim()
         ax.set_ylim(ylims[0], ylims[1])
         ax.vlines(dt.datetime.fromisoformat(cfg['eruption_date']),
@@ -129,19 +132,20 @@ def make_plot(data_dic, cfg):
 def main(cfg):
 
     input_data = cfg ['input_data'].values()
-    variables = group_metadata(input_data, 'short_name').keys()
+    var_groups = group_metadata(input_data, 'variable_group').keys()
 
     plot_data_dict = dict()
 
-    for var in variables:
-        var_info_list = select_metadata(input_data, short_name=var)
+    for var_group in var_groups:
+        var_info_list = select_metadata(input_data, variable_group=var_group)
+        var_name = select_metadata(input_data, variable_group=var_group)[0]['short_name']
         datasets = set([var_info_list[i]['dataset'] for i in range(len(var_info_list))])
         datasets_cubelist = iris.cube.CubeList()
         dataset_cubelist_perc = iris.cube.CubeList()
         for dataset in datasets:
-            entries = select_metadata(input_data, short_name=var, dataset=dataset)
+            entries = select_metadata(input_data, variable_group=var_group, dataset=dataset)
             data_cubelist = iris.load([entries[i]['filename'] for i in range(len(entries))])
-            data_cubelist = derive_vars(var, data_cubelist, cfg)
+            data_cubelist = derive_vars(var_name, data_cubelist, cfg)
             for d_cube in data_cubelist:
                 dataset_cubelist_perc.append(d_cube)
             data_cube = epreproc.multi_model_statistics(data_cubelist, span='full', statistics=['mean'])
@@ -153,7 +157,7 @@ def main(cfg):
         var_cube.update({'all_data': datasets_cubelist})
         # perc_cubes = epreproc.multi_model_statistics(dataset_cubelist_perc, span='full', statistics=['p5','p95'])
         # plot_data_dict [var] = var.update(perc_cubes)
-        plot_data_dict [var] = var_cube
+        plot_data_dict [var_group] = var_cube
 
     make_plot(plot_data_dict, cfg)
 
