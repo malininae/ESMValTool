@@ -197,8 +197,8 @@ diagnostics:
         mip: day
         project: CMIP6
         exp: historical
-        start_year: 1881
-        end_year: 1878
+        start_year: 1878
+        end_year: 1893
         preprocessor: preproc_rx1day
         additional_datasets: *models_hist
       txx:
