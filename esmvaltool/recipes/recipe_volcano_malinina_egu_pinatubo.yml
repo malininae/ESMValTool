@@ -25,6 +25,13 @@ preprocessors:
         end_month: 12
         end_day: 31
 
+  preproc_gsat_ref_per:
+    custom_order: true
+    area_statistics:
+      operator: mean
+    annual_statistics:
+      operator: mean
+
   preproc_sia_nh:
     custom_order: true
     regrid:
@@ -166,7 +173,16 @@ diagnostics:
         start_year: 1986
         end_year: 2001
         preprocessor: preproc_gsat
-        additional_datasets: *models_hist 
+        additional_datasets: *models_hist
+      gsat_ref_period:
+        short_name: tas
+        mip: Amon
+        project: CMIP6
+        exp: historical
+        start_year: 1986
+        end_year: 1990
+        preprocessor: preproc_gsat_ref_per
+        additional_datasets: *models_hist
       sia_arctic:
         short_name: siconc
         mip: SImon
@@ -209,7 +225,7 @@ diagnostics:
         start_year: 1986
         end_year: 2001
         preprocessor: preproc_txx
-        additional_datasets: *models_hist 
+        additional_datasets: *models_hist
 
     scripts:
       xcbox_volc:

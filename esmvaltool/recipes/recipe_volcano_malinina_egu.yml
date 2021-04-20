@@ -25,6 +25,13 @@ preprocessors:
         end_month: 12
         end_day: 31
 
+  preproc_gsat_ref_per:
+    custom_order: true
+    area_statistics:
+      operator: mean
+    annual_statistics:
+      operator: mean
+
   preproc_sia_nh:
     custom_order: true
     regrid:
@@ -161,54 +168,63 @@ diagnostics:
         short_name: tas
         mip: Amon
         project: CMIP6
-        exp: hist-nat  
+        exp: historical
         start_year: 1878
         end_year: 1893
         preprocessor: preproc_gsat
-        additional_datasets: *models_nat  
+        additional_datasets: *models_hist
+      gsat_ref_period:
+        short_name: tas
+        mip: Amon
+        project: CMIP6
+        exp: historical
+        start_year: 1878
+        end_year: 1882
+        preprocessor: preproc_gsat_ref_per
+        additional_datasets: *models_hist
       sia_arctic:
         short_name: siconc
         mip: SImon
         project: CMIP6
-        exp: hist-nat  
+        exp: historical
         start_year: 1878
         end_year: 1893
         preprocessor: preproc_sia_nh
-        additional_datasets: *models_nat  
+        additional_datasets: *models_hist
       sia_antarctic:
         short_name: siconc
         mip: SImon
         project: CMIP6
-        exp: hist-nat  
+        exp: historical
         start_year: 1878
         end_year: 1893
         preprocessor: preproc_sia_sh
-        additional_datasets: *models_nat  
+        additional_datasets: *models_hist
       tos:
         mip: Omon
         project: CMIP6
-        exp: hist-nat  
+        exp: historical
         start_year: 1868
         end_year: 1897
         preprocessor: preproc_nino34
-        additional_datasets: *models_nat  
+        additional_datasets: *models_hist
       pr:
         mip: day
         project: CMIP6
-        exp: hist-nat  
+        exp: historical
         start_year: 1878
         end_year: 1893
         preprocessor: preproc_tot_pr
-        additional_datasets: *models_nat  
+        additional_datasets: *models_hist
       txx:
         short_name: tasmax
         mip: day
         project: CMIP6
-        exp: hist-nat  
+        exp: historical
         start_year: 1878
         end_year: 1893
         preprocessor: preproc_txx
-        additional_datasets: *models_nat  
+        additional_datasets: *models_hist
 
     scripts:
       xcbox_volc:
