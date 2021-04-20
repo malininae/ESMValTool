@@ -51,7 +51,7 @@ def derive_vars(variable, cubelist, cfg):
             derived_cubelist.append(der_cube)
     elif variable == 'tos':
         derived_cubelist = calculate_nino34(cubelist, cfg)
-    elif variable == 'tas':
+    elif (variable == 'tas') | (variable == 'tasmax') | (variable == 'pr'):
         derived_cubelist = iris.cube.CubeList()
         for cube in cubelist:
             der_cube = epreproc.extract_time(cube,
@@ -73,10 +73,10 @@ def make_plot(data_dic, cfg):
 
     plt.style.use(st_file)
     fig = plt.figure()
-    fig.set_size_inches(9., 12.)
+    fig.set_size_inches(12., 6.)
 
     for nv, var in enumerate(data_dic.keys()):
-        ax = plt.subplot(4,2,nv+1)
+        ax = plt.subplot(2,3,nv+1)
         mean = data_dic[var]['mean']
         p5 = data_dic[var]['p5']
         p95 = data_dic[var]['p95']
@@ -96,32 +96,40 @@ def make_plot(data_dic, cfg):
             [ax.plot(times, dtst.data , c='#1f77b4', linewidth=0.5, alpha = 0.2) for
              dtst in data_dic[var]['all_data']]
         if var == 'gsat':
-            ax.set_title('GMST anomaly')
+            ax.set_title('GSAT anomaly')
             ax.set_ylabel(r'$\Delta$ T ($^o$C)')
+            ax.set_ylim(-0.5, 0.5)
         elif var == 'txx':
             ax.set_title('TXx anomaly')
-            ax.set_ylabel(r'$\Delta$ TXx ($^o$C)')
+            ax.set_ylabel(r'$\Delta$ T ($^o$C)')
+            ax.set_ylim(-1.1, 0.6)
         elif var == 'tos':
             ax.set_title('Nino 3.4 SST')
             ax.set_ylabel(r'$\Delta$ T ($^o$C)')
             xlims = ax.get_xlim()
             ax.set_xlim(xlims[0], xlims[1])
+            ax.set_ylim(-2.1, 1.5)
             ax.fill_between((xlims[0], xlims[1]), -0.4, 0.4, color='silver', linewidth=0, alpha=0.3)
         elif (var == 'sia_arctic') | (var == 'sia_antarctic'):
             location = var.split('_')[1][1:]
             ax.set_title('A'+location+' SIA anomaly')
             ax.set_ylabel(r'$\Delta$ sia (10$^6$ km$^2$)')
+            ax.set_ylim(-3.5, 2.5)
         elif var == 'pr':
             ax.set_title('Precipitation totals')
-            ax.set_ylabel(r'pr_tot (10$^6$ mm)')
-            # ax.set_ylim(6.2, 7.7)
+            ax.set_ylabel(r'$\Delta$ pr (10$^6$ mm)')
+            ax.set_ylim(-0.12, 0.07)
         elif var == 'rx1day':
             ax.set_title('Rx1day anomaly')
-            ax.set_ylabel(r'pr_tot (10$^6$ mm)')
+            ax.set_ylabel(r'$\Delta$ pr (mm)')
         ylims = ax.get_ylim()
+        xlims = ax.get_xlim()
         ax.set_ylim(ylims[0], ylims[1])
+        ax.set_xlim(xlims[0], xlims[1])
+        ax.plot([xlims[0], xlims[1]], [0, 0], c='silver', zorder=0, alpha=0.5)
         ax.vlines(dt.datetime.fromisoformat(cfg['eruption_date']),
                   ylims[0], ylims[1]*1.1, alpha=0.7, colors='silver', linestyle='dashed')
+
 
     fig.suptitle('Changes in climate variables after '+cfg['volcano_name']+' eruption on ' + cfg['eruption_date'])
 
