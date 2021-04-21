@@ -115,27 +115,37 @@ preprocessors:
         end_month: 12
         end_day: 31
 
+  preproc_sce:
+    custom_order: true
+    mask_landsea:
+      mask_out: sea
+    extract_region:
+      start_longitude: 0.
+      end_longitude: 360.
+      start_latitude: 0.
+      end_latitude: 90.
+
 models_hist: &models_hist
   - { dataset: ACCESS-ESM1-5, grid: gn, ensemble: "r(1:6)i1p1f1" }
   - { dataset: ACCESS-CM2, institute: CSIRO-ARCCSS, grid: gn, ensemble: "r(1:3)i1p1f1" }
   - {dataset: BCC-CSM2-MR, grid: gn, ensemble: "r(2:3)i1p1f1"}
-  - {dataset: CAMS-CSM1-0, grid: gn, ensemble: r2i1p1f1}
+#  - {dataset: CAMS-CSM1-0, grid: gn, ensemble: r2i1p1f1}
   - { dataset: CanESM5, grid: gn, ensemble: "r(1:15)i1p1f1" }
   - { dataset: CanESM5, grid: gn, ensemble: "r(1:15)i1p2f1" }
-  - { dataset: CMCC-ESM2, grid: gn, ensemble: r1i1p1f1 }
+#  - { dataset: CMCC-ESM2, grid: gn, ensemble: r1i1p1f1 }
   - { dataset: HadGEM3-GC31-LL, grid: gn, ensemble: r1i1p1f3 }
   - { dataset: HadGEM3-GC31-LL, grid: gn, ensemble: "r(3:4)i1p1f3" }
   - { dataset: HadGEM3-GC31-MM, grid: gn, ensemble: "r(1:4)i1p1f3" }
-  - {dataset: INM-CM4-8, grid: gr1, ensemble: r1i1p1f1}
-  - {dataset: INM-CM5-0, grid: gr1, ensemble: "r(1:10)i1p1f1"}
+#  - {dataset: INM-CM4-8, grid: gr1, ensemble: r1i1p1f1}
+#  - {dataset: INM-CM5-0, grid: gr1, ensemble: "r(1:10)i1p1f1"}
   - {dataset: MIROC6, grid: gn, ensemble: "r(1:10)i1p1f1"}
   - {dataset: MIROC-ES2L, grid: gn, ensemble: "r(1:10)i1p1f2"}
   - { dataset: MPI-ESM-1-2-HAM, grid: gn, ensemble: "r(1:3)i1p1f1" }
   - {dataset: MPI-ESM1-2-HR, grid: gn, ensemble: "r(1:10)i1p1f1"}
   - {dataset: MPI-ESM1-2-LR, grid: gn, ensemble: "r(1:10)i1p1f1"}
   - {dataset: MRI-ESM2-0, grid: gn, ensemble: "r(1:5)i1p1f1"}
-  - { dataset: NESM3, grid: gn, ensemble: r1i1p1f1 }
-  - { dataset: NESM3, grid: gn, ensemble: r3i1p1f1 }
+#  - { dataset: NESM3, grid: gn, ensemble: r1i1p1f1 }
+#  - { dataset: NESM3, grid: gn, ensemble: r3i1p1f1 }
   - {dataset: NorESM2-LM, grid: gn, ensemble: "r(2:3)i1p1f1"}
   - {dataset: NorESM2-MM, grid: gn, ensemble: "r(2:3)i1p1f1"}
   - { dataset: TaiESM1, grid: gn, ensemble: r1i1p1f1 }
@@ -163,14 +173,22 @@ diagnostics:
         end_year: 1893
         preprocessor: preproc_gsat
         additional_datasets: *models_hist
-      gsat_ref_period:
-        short_name: tas
-        mip: Amon
+      txx:
+        short_name: tasmax
+        mip: day
         project: CMIP6
         exp: historical
         start_year: 1878
-        end_year: 1882
-        preprocessor: preproc_gsat_ref_per
+        end_year: 1893
+        preprocessor: preproc_txx
+        additional_datasets: *models_hist
+      tos:
+        mip: Omon
+        project: CMIP6
+        exp: historical
+        start_year: 1868
+        end_year: 1897
+        preprocessor: preproc_nino34
         additional_datasets: *models_hist
       sia_arctic:
         short_name: siconc
@@ -190,14 +208,6 @@ diagnostics:
         end_year: 1893
         preprocessor: preproc_sia_sh
         additional_datasets: *models_hist
-      tos:
-        mip: Omon
-        project: CMIP6
-        exp: historical
-        start_year: 1868
-        end_year: 1897
-        preprocessor: preproc_nino34
-        additional_datasets: *models_hist
       pr:
         mip: day
         project: CMIP6
@@ -206,14 +216,14 @@ diagnostics:
         end_year: 1893
         preprocessor: preproc_tot_pr
         additional_datasets: *models_hist
-      txx:
-        short_name: tasmax
-        mip: day
+      sce:
+        short_name: snw
+        mip: LImon
         project: CMIP6
         exp: historical
         start_year: 1878
         end_year: 1893
-        preprocessor: preproc_txx
+        preprocessor: preproc_sce
         additional_datasets: *models_hist
 
     scripts:

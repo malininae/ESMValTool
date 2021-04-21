@@ -77,10 +77,6 @@ def make_plot(data_dic, cfg):
     fig = plt.figure()
     fig.set_size_inches(12., 6.)
 
-    gsat_ref_per = data_dic.pop('gsat_ref_period')
-    gsat_mean = epreproc.climate_statistics(gsat_ref_per['mean'], operator='mean', period='full')
-    gsat_val = np.around(gsat_mean.data-273.15, 1)
-
     for nv, var in enumerate(data_dic.keys()):
         ax = plt.subplot(2,3,nv+1)
         mean = data_dic[var]['mean']
@@ -138,8 +134,7 @@ def make_plot(data_dic, cfg):
 
 
     fig.suptitle('Changes in climate variables after '+cfg['volcano_name']+' eruption on ' + cfg['eruption_date']+
-                 '\n GSAT during reference period ('+str(cfg['anomaly_period'][0])+'-'+str(cfg['anomaly_period'][1])+
-                 ') '+str(gsat_val) +' $^o$C')
+                 '\nReference period: '+str(cfg['anomaly_period'][0])+'-'+str(cfg['anomaly_period'][1]))
 
     plt.tight_layout()
 
@@ -162,7 +157,7 @@ def main(cfg):
         for dataset in datasets:
             entries = select_metadata(input_data, variable_group=var_group, dataset=dataset)
             data_cubelist = iris.load([entries[i]['filename'] for i in range(len(entries))])
-            data_cubelist = derive_vars(var_name, data_cubelist, cfg, variable_group=var_group, experiment=exp)
+            data_cubelist = derive_vars(var_name, data_cubelist, cfg, variable_group=var_group)
             for d_cube in data_cubelist:
                 dataset_cubelist_perc.append(d_cube)
             data_cube = epreproc.multi_model_statistics(data_cubelist, span='full', statistics=['mean'])
