@@ -6,6 +6,7 @@ import iris.plot as iplt
 import matplotlib.pyplot as plt
 import datetime as dt
 import cftime
+import numpy as np
 import esmvalcore.preprocessor as epreproc
 
 from esmvaltool.diag_scripts.seaice import ipcc_sea_ice_diag_tools as ipcc_sea_ice_diag
@@ -35,7 +36,7 @@ def calculate_nino34(cubelist, cfg):
     return nino_cubelist
 
 
-def derive_vars(variable, cubelist, cfg):
+def derive_vars(variable, cubelist, cfg, variable_group='', experiment=''):
 
     if variable == 'siconc':
         sia_cubelist = ipcc_sea_ice_diag.calculate_siarea(cubelist)
@@ -43,6 +44,8 @@ def derive_vars(variable, cubelist, cfg):
         start_year = cfg ['anomaly_period'][0]
         end_year = cfg ['anomaly_period'][0]
         for sia_cube in sia_cubelist:
+            if experiment == 'historical':
+                sia_cube = epreproc.detrend(sia_cube, dimension='time', method='linear')
             der_cube = epreproc.anomalies(sia_cube, period='monthly',
                                           reference = {'start_year': start_year, 'start_month': 1, 'start_day':1,
                                                        'end_year': end_year, 'end_month': 12, 'end_day':31} )
@@ -51,7 +54,7 @@ def derive_vars(variable, cubelist, cfg):
             derived_cubelist.append(der_cube)
     elif variable == 'tos':
         derived_cubelist = calculate_nino34(cubelist, cfg)
-    elif (variable == 'tas') | (variable == 'tasmax') | (variable == 'pr'):
+    elif ( (variable == 'tas') & (variable_group!='gsat_ref_period')) | (variable == 'tasmax') | (variable == 'pr'):
         derived_cubelist = iris.cube.CubeList()
         for cube in cubelist:
             der_cube = epreproc.extract_time(cube,
@@ -63,9 +66,8 @@ def derive_vars(variable, cubelist, cfg):
     else:
         derived_cubelist = cubelist
 
-
-
     return derived_cubelist
+
 
 def make_plot(data_dic, cfg):
 
@@ -74,6 +76,10 @@ def make_plot(data_dic, cfg):
     plt.style.use(st_file)
     fig = plt.figure()
     fig.set_size_inches(12., 6.)
+
+    gsat_ref_per = data_dic.pop('gsat_ref_period')
+    gsat_mean = epreproc.climate_statistics(gsat_ref_per['mean'], operator='mean', period='full')
+    gsat_val = np.around(gsat_mean.data-273.15, 1)
 
     for nv, var in enumerate(data_dic.keys()):
         ax = plt.subplot(2,3,nv+1)
@@ -131,7 +137,9 @@ def make_plot(data_dic, cfg):
                   ylims[0], ylims[1]*1.1, alpha=0.7, colors='silver', linestyle='dashed')
 
 
-    fig.suptitle('Changes in climate variables after '+cfg['volcano_name']+' eruption on ' + cfg['eruption_date'])
+    fig.suptitle('Changes in climate variables after '+cfg['volcano_name']+' eruption on ' + cfg['eruption_date']+
+                 '\n GSAT during reference period ('+str(cfg['anomaly_period'][0])+'-'+str(cfg['anomaly_period'][1])+
+                 ') '+str(gsat_val) +' $^o$C')
 
     plt.tight_layout()
 
@@ -147,13 +155,14 @@ def main(cfg):
     for var_group in var_groups:
         var_info_list = select_metadata(input_data, variable_group=var_group)
         var_name = select_metadata(input_data, variable_group=var_group)[0]['short_name']
+        exp = select_metadata(input_data, variable_group=var_group)[0]['exp']
         datasets = set([var_info_list[i]['dataset'] for i in range(len(var_info_list))])
         datasets_cubelist = iris.cube.CubeList()
         dataset_cubelist_perc = iris.cube.CubeList()
         for dataset in datasets:
             entries = select_metadata(input_data, variable_group=var_group, dataset=dataset)
             data_cubelist = iris.load([entries[i]['filename'] for i in range(len(entries))])
-            data_cubelist = derive_vars(var_name, data_cubelist, cfg)
+            data_cubelist = derive_vars(var_name, data_cubelist, cfg, variable_group=var_group, experiment=exp)
             for d_cube in data_cubelist:
                 dataset_cubelist_perc.append(d_cube)
             data_cube = epreproc.multi_model_statistics(data_cubelist, span='full', statistics=['mean'])
@@ -163,8 +172,6 @@ def main(cfg):
                 datasets_cubelist.append(data_cube[0])
         var_cube = epreproc.multi_model_statistics(datasets_cubelist, span='full', statistics= ['mean','p5','p95'])
         var_cube.update({'all_data': datasets_cubelist})
-        # perc_cubes = epreproc.multi_model_statistics(dataset_cubelist_perc, span='full', statistics=['p5','p95'])
-        # plot_data_dict [var] = var.update(perc_cubes)
         plot_data_dict [var_group] = var_cube
 
     make_plot(plot_data_dict, cfg)

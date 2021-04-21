@@ -15,9 +15,6 @@ preprocessors:
       operator: mean
     annual_statistics:
       operator: mean
-    detrend:
-      dimension: time
-      method: linear
     anomalies:
       period: 'full'
       reference:
@@ -80,9 +77,25 @@ preprocessors:
       operator: sum
     area_statistics:
       operator: sum
-    detrend:
-      dimension: time
-      method: linear
+    anomalies:
+      period: 'full'
+      reference:
+        start_year: 1878
+        start_month: 1
+        start_day: 1
+        end_year: 1882
+        end_month: 12
+        end_day: 31
+
+  preproc_rx1day:
+    custom_order: true
+    annual_statistics:
+      operator: max
+    regrid:
+      target_grid: 1x1
+      scheme: linear
+    area_statistics:
+      operator: mean
     anomalies:
       period: 'full'
       reference:
@@ -102,9 +115,6 @@ preprocessors:
       scheme: linear
     area_statistics:
       operator: mean
-    detrend:
-      dimension: time
-      method: linear
     anomalies:
       period: 'full'
       reference:

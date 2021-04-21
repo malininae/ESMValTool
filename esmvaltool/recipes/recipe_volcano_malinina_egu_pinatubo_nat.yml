@@ -15,16 +15,13 @@ preprocessors:
       operator: mean
     annual_statistics:
       operator: mean
-    detrend:
-      dimension: time
-      method: linear
     anomalies:
       period: 'full'
       reference:
-        start_year: 1878
+        start_year: 1986
         start_month: 1
         start_day: 1
-        end_year: 1882
+        end_year: 1990
         end_month: 12
         end_day: 31
 
@@ -80,16 +77,33 @@ preprocessors:
       operator: sum
     area_statistics:
       operator: sum
-    detrend:
-      dimension: time
-      method: linear
     anomalies:
       period: 'full'
       reference:
-        start_year: 1878
+        start_year: 1986
         start_month: 1
         start_day: 1
-        end_year: 1882
+        end_year: 1990
+        end_month: 12
+        end_day: 31
+
+
+  preproc_rx1day:
+    custom_order: true
+    annual_statistics:
+      operator: max
+    regrid:
+      target_grid: 1x1
+      scheme: linear
+    area_statistics:
+      operator: mean
+    anomalies:
+      period: 'full'
+      reference:
+        start_year: 1986
+        start_month: 1
+        start_day: 1
+        end_year: 1990
         end_month: 12
         end_day: 31
 
@@ -102,16 +116,13 @@ preprocessors:
       scheme: linear
     area_statistics:
       operator: mean
-    detrend:
-      dimension: time
-      method: linear
     anomalies:
       period: 'full'
       reference:
-        start_year: 1878
+        start_year: 1986
         start_month: 1
         start_day: 1
-        end_year: 1882
+        end_year: 1990
         end_month: 12
         end_day: 31
 
@@ -158,70 +169,70 @@ diagnostics:
         short_name: tas
         mip: Amon
         project: CMIP6
-        exp: historical
-        start_year: 1878
-        end_year: 1893
+        exp: hist-nat
+        start_year: 1986
+        end_year: 2001
         preprocessor: preproc_gsat
-        additional_datasets: *models_hist
+        additional_datasets: *models_nat
       gsat_ref_period:
         short_name: tas
         mip: Amon
         project: CMIP6
-        exp: historical
-        start_year: 1878
-        end_year: 1882
+        exp: hist-nat
+        start_year: 1986
+        end_year: 1990
         preprocessor: preproc_gsat_ref_per
-        additional_datasets: *models_hist
+        additional_datasets: *models_nat
       sia_arctic:
         short_name: siconc
         mip: SImon
         project: CMIP6
-        exp: historical
-        start_year: 1878
-        end_year: 1893
+        exp: hist-nat
+        start_year: 1986
+        end_year: 2001
         preprocessor: preproc_sia_nh
-        additional_datasets: *models_hist
+        additional_datasets: *models_nat
       sia_antarctic:
         short_name: siconc
         mip: SImon
         project: CMIP6
-        exp: historical
-        start_year: 1878
-        end_year: 1893
+        exp: hist-nat
+        start_year: 1986
+        end_year: 2001
         preprocessor: preproc_sia_sh
-        additional_datasets: *models_hist
+        additional_datasets: *models_nat
       tos:
         mip: Omon
         project: CMIP6
-        exp: historical
-        start_year: 1868
-        end_year: 1897
+        exp: hist-nat
+        start_year: 1976
+        end_year: 2005
         preprocessor: preproc_nino34
-        additional_datasets: *models_hist
+        additional_datasets: *models_nat
       pr:
         mip: day
         project: CMIP6
-        exp: historical
-        start_year: 1878
-        end_year: 1893
+        exp: hist-nat
+        start_year: 1986
+        end_year: 2001
         preprocessor: preproc_tot_pr
-        additional_datasets: *models_hist
+        additional_datasets: *models_nat
       txx:
         short_name: tasmax
         mip: day
         project: CMIP6
-        exp: historical
-        start_year: 1878
-        end_year: 1893
+        exp: hist-nat
+        start_year: 1986
+        end_year: 2001
         preprocessor: preproc_txx
-        additional_datasets: *models_hist
+        additional_datasets: *models_nat
 
     scripts:
       xcbox_volc:
         script: volcanic_response/diagnostic_volcanic_xcb.py
         mpl_style: ipcc_ar6_fgd
-        volcano_name: 'Krakatoa'
-        eruption_date: '1883-08-27'
-        plot_start_year: 1881
-        plot_end_year: 1893
-        anomaly_period : [1878, 1882]
+        volcano_name: 'Pinatubo'
+        eruption_date: '1991-06-15'
+        plot_start_year: 1989
+        plot_end_year: 2001
+        anomaly_period : [1986, 1990]
