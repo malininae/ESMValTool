@@ -35,6 +35,23 @@ def calculate_nino34(cubelist, cfg):
 
     return nino_cubelist
 
+def calculate_sce(cubelist, threshold = 0):
+
+    sce_cubelist = iris.cube.CubeList()
+
+    for cube in cubelist:
+        area = iris.analysis.cartography.area_weights(cube, normalize=False)
+        tim_coor = cube.coord('time')
+        mask = (cube.data.mask) | (cube.data.data <= threshold)
+        area = np.ma.array(area, mask=mask)
+        area = area.sum(axis=(1, 2)) / 1e12
+        # for now passing paren cube attributes, clean before merging!!!
+        sce_cube = iris.cube.Cube(area, long_name='snow cover extent', var_name='sce',
+                                  units="10^6km2", attributes=cube.attributes, dim_coords_and_dims=[(tim_coor, 0)])
+        sce_cubelist.append(sce_cube)
+
+    return sce_cubelist
+
 
 def derive_vars(variable, cubelist, cfg, variable_group='', experiment=''):
 
@@ -42,10 +59,8 @@ def derive_vars(variable, cubelist, cfg, variable_group='', experiment=''):
         sia_cubelist = ipcc_sea_ice_diag.calculate_siarea(cubelist)
         derived_cubelist = iris.cube.CubeList()
         start_year = cfg ['anomaly_period'][0]
-        end_year = cfg ['anomaly_period'][0]
+        end_year = cfg ['anomaly_period'][1]
         for sia_cube in sia_cubelist:
-            if experiment == 'historical':
-                sia_cube = epreproc.detrend(sia_cube, dimension='time', method='linear')
             der_cube = epreproc.anomalies(sia_cube, period='monthly',
                                           reference = {'start_year': start_year, 'start_month': 1, 'start_day':1,
                                                        'end_year': end_year, 'end_month': 12, 'end_day':31} )
@@ -63,6 +78,18 @@ def derive_vars(variable, cubelist, cfg, variable_group='', experiment=''):
                                              end_year=cfg['plot_end_year'],
                                              end_month=12, end_day=31)
             derived_cubelist.append(der_cube)
+    elif variable == 'snw':
+        sce_cubelist = calculate_sce(cubelist)
+        derived_cubelist = iris.cube.CubeList()
+        start_year = cfg['anomaly_period'][0]
+        end_year = cfg['anomaly_period'][1]
+        for sce_cube in sce_cubelist:
+            der_cube = epreproc.anomalies(sce_cube, period='monthly',
+                                          reference={'start_year': start_year, 'start_month': 1, 'start_day': 1,
+                                                     'end_year': end_year, 'end_month': 12, 'end_day': 31})
+            der_cube = epreproc.extract_time(der_cube, start_year=cfg['plot_start_year'], start_month=1, start_day=1,
+                                             end_year=cfg['plot_end_year'], end_month=12, end_day=31)
+            derived_cubelist.append(der_cube)
     else:
         derived_cubelist = cubelist
 
@@ -75,10 +102,10 @@ def make_plot(data_dic, cfg):
 
     plt.style.use(st_file)
     fig = plt.figure()
-    fig.set_size_inches(12., 6.)
+    fig.set_size_inches(12., 9.)
 
     for nv, var in enumerate(data_dic.keys()):
-        ax = plt.subplot(2,3,nv+1)
+        ax = plt.subplot(3,3,nv+1)
         mean = data_dic[var]['mean']
         p5 = data_dic[var]['p5']
         p95 = data_dic[var]['p95']
@@ -121,9 +148,10 @@ def make_plot(data_dic, cfg):
             ax.set_title('Precipitation totals')
             ax.set_ylabel(r'$\Delta$ pr (10$^6$ mm)')
             ax.set_ylim(-0.12, 0.07)
-        elif var == 'rx1day':
-            ax.set_title('Rx1day anomaly')
-            ax.set_ylabel(r'$\Delta$ pr (mm)')
+        elif var == 'sce':
+            ax.set_title('SCE anomaly')
+            ax.set_ylabel(r'$\Delta$ sce (10$^6$ km$^2$)')
+            ax.set_ylim(-7, 5)
         ylims = ax.get_ylim()
         xlims = ax.get_xlim()
         ax.set_ylim(ylims[0], ylims[1])
@@ -150,7 +178,6 @@ def main(cfg):
     for var_group in var_groups:
         var_info_list = select_metadata(input_data, variable_group=var_group)
         var_name = select_metadata(input_data, variable_group=var_group)[0]['short_name']
-        exp = select_metadata(input_data, variable_group=var_group)[0]['exp']
         datasets = set([var_info_list[i]['dataset'] for i in range(len(var_info_list))])
         datasets_cubelist = iris.cube.CubeList()
         dataset_cubelist_perc = iris.cube.CubeList()

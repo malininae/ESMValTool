@@ -15,9 +15,6 @@ preprocessors:
       operator: mean
     annual_statistics:
       operator: mean
-    detrend:
-      dimension: time
-      method: linear
     anomalies:
       period: 'full'
       reference:
@@ -27,13 +24,6 @@ preprocessors:
         end_year: 1882
         end_month: 12
         end_day: 31
-
-  preproc_gsat_ref_per:
-    custom_order: true
-    area_statistics:
-      operator: mean
-    annual_statistics:
-      operator: mean
 
   preproc_sia_nh:
     custom_order: true
@@ -80,9 +70,6 @@ preprocessors:
       operator: sum
     area_statistics:
       operator: sum
-    detrend:
-      dimension: time
-      method: linear
     anomalies:
       period: 'full'
       reference:
@@ -102,9 +89,6 @@ preprocessors:
       scheme: linear
     area_statistics:
       operator: mean
-    detrend:
-      dimension: time
-      method: linear
     anomalies:
       period: 'full'
       reference:
@@ -129,23 +113,17 @@ models_hist: &models_hist
   - { dataset: ACCESS-ESM1-5, grid: gn, ensemble: "r(1:6)i1p1f1" }
   - { dataset: ACCESS-CM2, institute: CSIRO-ARCCSS, grid: gn, ensemble: "r(1:3)i1p1f1" }
   - {dataset: BCC-CSM2-MR, grid: gn, ensemble: "r(2:3)i1p1f1"}
-#  - {dataset: CAMS-CSM1-0, grid: gn, ensemble: r2i1p1f1}
   - { dataset: CanESM5, grid: gn, ensemble: "r(1:15)i1p1f1" }
   - { dataset: CanESM5, grid: gn, ensemble: "r(1:15)i1p2f1" }
-#  - { dataset: CMCC-ESM2, grid: gn, ensemble: r1i1p1f1 }
   - { dataset: HadGEM3-GC31-LL, grid: gn, ensemble: r1i1p1f3 }
   - { dataset: HadGEM3-GC31-LL, grid: gn, ensemble: "r(3:4)i1p1f3" }
   - { dataset: HadGEM3-GC31-MM, grid: gn, ensemble: "r(1:4)i1p1f3" }
-#  - {dataset: INM-CM4-8, grid: gr1, ensemble: r1i1p1f1}
-#  - {dataset: INM-CM5-0, grid: gr1, ensemble: "r(1:10)i1p1f1"}
   - {dataset: MIROC6, grid: gn, ensemble: "r(1:10)i1p1f1"}
   - {dataset: MIROC-ES2L, grid: gn, ensemble: "r(1:10)i1p1f2"}
   - { dataset: MPI-ESM-1-2-HAM, grid: gn, ensemble: "r(1:3)i1p1f1" }
   - {dataset: MPI-ESM1-2-HR, grid: gn, ensemble: "r(1:10)i1p1f1"}
   - {dataset: MPI-ESM1-2-LR, grid: gn, ensemble: "r(1:10)i1p1f1"}
   - {dataset: MRI-ESM2-0, grid: gn, ensemble: "r(1:5)i1p1f1"}
-#  - { dataset: NESM3, grid: gn, ensemble: r1i1p1f1 }
-#  - { dataset: NESM3, grid: gn, ensemble: r3i1p1f1 }
   - {dataset: NorESM2-LM, grid: gn, ensemble: "r(2:3)i1p1f1"}
   - {dataset: NorESM2-MM, grid: gn, ensemble: "r(2:3)i1p1f1"}
   - { dataset: TaiESM1, grid: gn, ensemble: r1i1p1f1 }
@@ -208,14 +186,6 @@ diagnostics:
         end_year: 1893
         preprocessor: preproc_sia_sh
         additional_datasets: *models_hist
-      pr:
-        mip: day
-        project: CMIP6
-        exp: historical
-        start_year: 1878
-        end_year: 1893
-        preprocessor: preproc_tot_pr
-        additional_datasets: *models_hist
       sce:
         short_name: snw
         mip: LImon
@@ -224,6 +194,14 @@ diagnostics:
         start_year: 1878
         end_year: 1893
         preprocessor: preproc_sce
+        additional_datasets: *models_hist
+      pr:
+        mip: day
+        project: CMIP6
+        exp: historical
+        start_year: 1878
+        end_year: 1893
+        preprocessor: preproc_tot_pr
         additional_datasets: *models_hist
 
     scripts:
