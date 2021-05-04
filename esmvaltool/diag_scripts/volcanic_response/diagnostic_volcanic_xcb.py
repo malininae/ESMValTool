@@ -103,6 +103,7 @@ def make_plot(data_dic, cfg):
     plt.style.use(st_file)
     fig = plt.figure()
     fig.set_size_inches(12., 9.)
+    fig.set_dpi(300)
 
     for nv, var in enumerate(data_dic.keys()):
         ax = plt.subplot(3,3,nv+1)
@@ -131,13 +132,13 @@ def make_plot(data_dic, cfg):
         elif var == 'txx':
             ax.set_title('TXx anomaly')
             ax.set_ylabel(r'$\Delta$ T ($^o$C)')
-            ax.set_ylim(-1.1, 0.6)
+            ax.set_ylim(-0.6, 0.6)
         elif var == 'tos':
             ax.set_title('Nino 3.4 SST')
             ax.set_ylabel(r'$\Delta$ T ($^o$C)')
             xlims = ax.get_xlim()
             ax.set_xlim(xlims[0], xlims[1])
-            ax.set_ylim(-2.1, 1.5)
+            ax.set_ylim(-1.5, 1.75)
             ax.fill_between((xlims[0], xlims[1]), -0.4, 0.4, color='silver', linewidth=0, alpha=0.3)
         elif (var == 'sia_arctic') | (var == 'sia_antarctic'):
             location = var.split('_')[1][1:]
@@ -145,11 +146,11 @@ def make_plot(data_dic, cfg):
             ax.set_ylabel(r'$\Delta$ sia (10$^6$ km$^2$)')
             ax.set_ylim(-3.5, 2.5)
         elif var == 'pr':
-            ax.set_title('Precipitation totals')
+            ax.set_title('Precipitation anomaly')
             ax.set_ylabel(r'$\Delta$ pr (10$^6$ mm)')
-            ax.set_ylim(-0.12, 0.07)
+            ax.set_ylim(-0.12, 0.08)
         elif var == 'sce':
-            ax.set_title('SCE anomaly')
+            ax.set_title('NH SCE anomaly')
             ax.set_ylabel(r'$\Delta$ sce (10$^6$ km$^2$)')
             ax.set_ylim(-7, 5)
         ylims = ax.get_ylim()
@@ -162,7 +163,7 @@ def make_plot(data_dic, cfg):
 
 
     fig.suptitle('Changes in climate variables after '+cfg['volcano_name']+' eruption on ' + cfg['eruption_date']+
-                 '\nReference period: '+str(cfg['anomaly_period'][0])+'-'+str(cfg['anomaly_period'][1]))
+                 '\nReference period: '+str(cfg['anomaly_period'][0])+' - '+str(cfg['anomaly_period'][1]))
 
     plt.tight_layout()
 
@@ -199,6 +200,7 @@ def main(cfg):
     make_plot(plot_data_dict, cfg)
 
     ipcc_sea_ice_diag.figure_handling(cfg, name='fig_volc_xcb_timeseries')
+    ipcc_sea_ice_diag.figure_handling(cfg, name='fig_volc_xcb_timeseries', img_ext='.png')
 
     logger.info('Success')
 
