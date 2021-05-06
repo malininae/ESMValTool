@@ -73,10 +73,10 @@ diagnostics:
           - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-GHG}
           - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-aer}
           - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-nat}
-          - {dataset: FGOALS-g3, ensemble: "r(1:4)i1p1f1", grid: gn}
-          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
-          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
+#          - {dataset: FGOALS-g3, ensemble: "r(1:4)i1p1f1", grid: gn}
+#          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
+#          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
+#          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
           - {dataset: GFDL-ESM4, ensemble: "r(1:3)i1p1f1", grid: gr1}
           - {dataset: GFDL-ESM4, ensemble: "r(1:3)i1p1f1", grid: gr1, exp: hist-nat}
           - {dataset: GFDL-ESM4, ensemble: "r1i1p1f1", grid: gr1, exp: hist-aer}
