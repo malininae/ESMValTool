@@ -31,16 +31,16 @@ def main(cfg):
     output_file_type=cfg['output_file_type']
     obs=cfg['obs']
     if obs=='had5':
-        obs_file=auxiliary_data_dir+'/HadCRUT.5.0.0.0.anomalies.ensemble_median.nc'
+        obs_file=auxiliary_data_dir+'/HadCRUT.5.0.1.0.anomalies.ensemble_mean.nc'
         hadlabel='HadCRUT5'
-        ensobs=auxiliary_data_dir+'/HadCRUT.5.0.0.0.anomalies.' #If set apply multi-model analysis using ensemble obs data.
+        ensobs=auxiliary_data_dir+'/HadCRUT.5.0.1.0.anomalies.' #If set apply multi-model analysis using ensemble obs data.
     elif obs=='had4':
         obs_file=auxiliary_data_dir+'/HadCRUT.4.6.0.0.median.nc'  #Updated to end of 2019.
         hadlabel='HadCRUT4'
-        ensobs=auxiliary_data_dir+'/HadCRUT.4.6.0.0.anomalies.' #If set apply multi-model analysis using ensemble obs data.        
+        ensobs=auxiliary_data_dir+'/HadCRUT.4.6.0.0.anomalies.' #If set apply multi-model analysis using ensemble obs data.
     else:
         exit('Obs not recognised')
-    sftlf_file=auxiliary_data_dir+'/CNRM-CM6-1-5x5-sftlf.nc' #Hard-coded path to sftlf file for CNRM-CM6 on a 5x5 grid. 
+    sftlf_file=auxiliary_data_dir+'/CNRM-CM6-1-5x5-sftlf.nc' #Hard-coded path to sftlf file for CNRM-CM6 on a 5x5 grid.
 
     grouped_input_data = group_metadata(
         input_data, 'dataset', sort='ensemble')
@@ -78,14 +78,14 @@ def main(cfg):
     font = {'size'   : 5}
     matplotlib.rc('font', **font)
     mm_conv=0.0394
-    mod_cols=numpy.array([[0,73,73],[255,255,109],[0,146,146],[255,109,182],[255,182,119],[146,0,0],[0,109,219],[182,109,255],[109,182,255],[182,219,255],[73,0,146],[146,73,0],[219,209,0],[36,255,36]])/256.    
+    mod_cols=numpy.array([[0,73,73],[255,255,109],[0,146,146],[255,109,182],[255,182,119],[146,0,0],[0,109,219],[182,109,255],[109,182,255],[182,219,255],[73,0,146],[146,73,0],[219,209,0],[36,255,36]])/256.
     cols=numpy.array([[0,0,0],[196,121,0],[178,178,178],[0,52,102],[0,79,0],[200,0,0],[0,200,0],[0,0,200],[112,160,205]])/256.
     shade_cols=numpy.array([[128,128,128,128],[204,174,113,128],[191,191,191,128],[67,147,195,128],[223,237,195,128],[255,150,150,128],[150,255,150,128],[150,150,255,128],[91,174,178,128]])/256.
 
     plt.figure(figsize=[88*mm_conv,113*mm_conv])
     plt.subplot(211)
-    
-#Loop over models, then experiments, then ensemble members.    
+
+#Loop over models, then experiments, then ensemble members.
     for mm, dataset in enumerate(grouped_input_data):
         logger.info("*************** Processing model %s", dataset)
         model_names.append(dataset)
@@ -107,8 +107,8 @@ def main(cfg):
             exp_diags=numpy.zeros((ldiag,nens))
             exp_ann_warming=numpy.zeros((ldiag,nens))
             exp_gmst_comp_warming=numpy.zeros((ldiag,nens))
-            
-        
+
+
             for ee, ensemble in enumerate(grouped_exp_input_data):
                 logger.info("** Processing ensemble %s", ensemble)
                 files=[]
@@ -124,7 +124,7 @@ def main(cfg):
                 (exp_diags[:,ee],obs_diag)=ncbm.ncblendmask_esmval('max', files[0],files[1],files[2],sftlf_file,obs_file,dec_warming,obs_dec_warming,ann_warming,gmst_comp_warming,diag_name,obs,ensobs,ensobs_diag,ensobs_dec_warming)
                 ensobs='' #Set to empty string so that ensemble obs diagnostics are only calculated on the first iteration.
                 #Take anomalies relative to 1850-1900.
-                exp_diags[:,ee]=exp_diags[:,ee]-numpy.mean(exp_diags[0:(1901-1850),ee]) 
+                exp_diags[:,ee]=exp_diags[:,ee]-numpy.mean(exp_diags[0:(1901-1850),ee])
                 obs_diag=obs_diag-numpy.mean(obs_diag[0:(1901-1850)])
                 exp_ann_warming[:,ee]=ann_warming[0]
                 exp_gmst_comp_warming[:,ee]=gmst_comp_warming[0]
@@ -140,7 +140,7 @@ def main(cfg):
             all_ann_warming[:,experiment,mm,0:nens]=exp_diags #Use GMST.
             all_ann_warming_comp[:,experiment,mm,0:nens]=exp_gmst_comp_warming #Use spatially complete GMST.
             all_ann_warming_gsat[:,experiment,mm,0:nens]=exp_ann_warming #Use GSAT.
-            
+
     #Write GMST and GSAT timeseries to CSV file for other applications (not needed for Gillett et al. plots).
     with open(plot_dir+'/cmip6_gmst.csv', mode='w') as file:
         data_writer=csv.writer(file,delimiter=',',quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -162,17 +162,17 @@ def main(cfg):
 
     print ('Ratio of GSAT to GMST warming',numpy.mean(mean_ann_warming[2010-1850:2020-1850,0,:])/numpy.mean(mean_diag[2010-1850:2020-1850,0,:]))
     print ('Ratio of GSAT to GMST_comp warming',numpy.mean(mean_ann_warming[2010-1850:2020-1850,0,:])/numpy.mean(mean_gmst_comp_warming[2010-1850:2020-1850,0,:]))
-           
+
 #Calculate ratio of GSAT to GMST warming for individual simulations.
     denom=numpy.mean(all_ann_warming[2010-1850:2020-1850,0,:,:],axis=0)
     ratio_by_model=numpy.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,:,:],axis=0)/denom
     copy_ratio_by_model=numpy.reshape(ratio_by_model[:,:],nmodel*nensmax)
-#Equivalent calculation for spatially-complete GMST.    
+#Equivalent calculation for spatially-complete GMST.
     denom=numpy.mean(all_ann_warming_comp[2010-1850:2020-1850,0,:,:],axis=0)
     ratio_by_model_comp=numpy.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,:,:],axis=0)/denom
     copy_ratio_by_model_comp=numpy.reshape(ratio_by_model_comp[:,:],nmodel*nensmax)
 
-    
+
     plt.plot(years,obs_diag,color='black',linewidth=1,label=hadlabel)
     plt.plot(years,numpy.mean(mean_diag[:,0,:],axis=1),color=cols[1],linewidth=1,label='Model mean GMST')
     plt.plot(years,numpy.mean(mean_ann_warming[:,0,:],axis=1),color='red',linewidth=1,label='Model mean GSAT')
@@ -206,7 +206,7 @@ def main(cfg):
                 cdf=numpy.cumsum(wts[sort_index])
                 range_ann_warming[yy,experiment,:]=[sort_warming[cdf>=0.05][0],sort_warming[cdf>=0.95][0]]
                 mm_ann_warming[yy,experiment]=numpy.sum(year_warming*wts)
-    plt.text (1825,2.25,'a',fontsize =7,fontweight='bold', va='center', ha='center')        
+    plt.text (1825,2.25,'a',fontsize =7,fontweight='bold', va='center', ha='center')
     plt.subplot(212)
     zzs=[3,1,0,2]
     for experiment in range(4):
@@ -220,7 +220,7 @@ def main(cfg):
     plt.xlabel('Year')
     plt.ylabel('Global mean surface temperature anomaly ($^\circ$C)')
     plt.legend(loc="upper left")
-    plt.text (1825,2.25,'b',fontsize =7,fontweight='bold', va='center', ha='center')        
+    plt.text (1825,2.25,'b',fontsize =7,fontweight='bold', va='center', ha='center')
     plt.savefig(plot_dir+'/Fig1_'+obs+'.'+output_file_type)
     plt.close()
 
@@ -245,7 +245,7 @@ def main(cfg):
     plt.savefig(plot_dir+'/supplement_timeseries'+obs+'.'+output_file_type)
     plt.close()
 
-#Plot of ratios of GSAT to GMST (Extended Data Fig 7). 
+#Plot of ratios of GSAT to GMST (Extended Data Fig 7).
     plt.figure(figsize=[88*mm_conv,113*mm_conv])
     plt.subplot(211)
     plt.ylabel('Ratio of GSAT to HadCRUT4-masked GMST')
@@ -259,7 +259,7 @@ def main(cfg):
     plt.tight_layout()
 
     plt.subplot(212)
-    plt.ylabel('Ratio of GSAT to globally-complete GMST') 
+    plt.ylabel('Ratio of GSAT to globally-complete GMST')
     plt.axis([0,nmodel+1,1.0,1.3])
     plt.xticks(list(range(1,nmodel+1)),model_names,rotation=30.,ha="right")
     for mm, dataset in enumerate(grouped_input_data):
@@ -285,7 +285,7 @@ def main(cfg):
     obs_gsat=numpy.sort(obs_gsat)
     print ('Obs GSAT warming: mean, 5, 95%',numpy.mean(obs_gsat),obs_gsat[math.floor((nmc-1)*0.05)],obs_gsat[math.ceil((nmc-1)*0.95)])
 
- 
+
 if __name__ == '__main__':
 
     with run_diagnostic() as config:
