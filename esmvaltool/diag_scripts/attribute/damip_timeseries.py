@@ -2,15 +2,16 @@
 import logging
 import os
 from pprint import pformat
-import numpy
+import numpy as np
 import csv
 import matplotlib
 from scipy import stats
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import ncblendmask_esmval as ncbm
+import esmvaltool.diag_scripts.attribute.ncblendmask_esmval as ncbm
 import random
 import math
+import sys
 
 from esmvaltool.diag_scripts.shared import (group_metadata, run_diagnostic,
                                             select_metadata, sorted_metadata)
@@ -19,6 +20,7 @@ from esmvaltool.diag_scripts.shared._base import (
 from esmvaltool.diag_scripts.shared.plot import quickplot
 
 logger = logging.getLogger(os.path.basename(__file__))
+logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
 
 def main(cfg):
@@ -58,17 +60,17 @@ def main(cfg):
     ldiag=170 #length of diagnostic,hard-coded.
     years=list(range(1850,2020,1)) #Used for plotting.
     anom_max=500 #arbitrary max size for number of anomalies.
-    mean_diag=numpy.zeros((ldiag,nexp,nmodel))
-    mean_gmst_comp_warming=numpy.zeros((ldiag,nexp,nmodel))
-    mean_ann_warming=numpy.zeros((ldiag,nexp,nmodel))
-    mm_ann_warming=numpy.zeros((ldiag,nexp))
-    range_ann_warming=numpy.zeros((ldiag,nexp,2)) # 5-95% range.
+    mean_diag=np.zeros((ldiag,nexp,nmodel))
+    mean_gmst_comp_warming=np.zeros((ldiag,nexp,nmodel))
+    mean_ann_warming=np.zeros((ldiag,nexp,nmodel))
+    mm_ann_warming=np.zeros((ldiag,nexp))
+    range_ann_warming=np.zeros((ldiag,nexp,2)) # 5-95% range.
     nensmax=50
     msval=1e20
-    all_ann_warming=numpy.full((ldiag,nexp,nmodel,nensmax),msval)
-    all_ann_warming_comp=numpy.full((ldiag,nexp,nmodel,nensmax),msval)
-    all_ann_warming_gsat=numpy.full((ldiag,nexp,nmodel,nensmax),msval)
-    ens_sizes=numpy.zeros((nexp,nmodel))
+    all_ann_warming=np.full((ldiag,nexp,nmodel,nensmax),msval)
+    all_ann_warming_comp=np.full((ldiag,nexp,nmodel,nensmax),msval)
+    all_ann_warming_gsat=np.full((ldiag,nexp,nmodel,nensmax),msval)
+    ens_sizes=np.zeros((nexp,nmodel))
     model_names=[]
     ensobs_diag=[]
     ensobs_dec_warming=[]
@@ -78,9 +80,9 @@ def main(cfg):
     font = {'size'   : 5}
     matplotlib.rc('font', **font)
     mm_conv=0.0394
-    mod_cols=numpy.array([[0,73,73],[255,255,109],[0,146,146],[255,109,182],[255,182,119],[146,0,0],[0,109,219],[182,109,255],[109,182,255],[182,219,255],[73,0,146],[146,73,0],[219,209,0],[36,255,36]])/256.
-    cols=numpy.array([[0,0,0],[196,121,0],[178,178,178],[0,52,102],[0,79,0],[200,0,0],[0,200,0],[0,0,200],[112,160,205]])/256.
-    shade_cols=numpy.array([[128,128,128,128],[204,174,113,128],[191,191,191,128],[67,147,195,128],[223,237,195,128],[255,150,150,128],[150,255,150,128],[150,150,255,128],[91,174,178,128]])/256.
+    mod_cols=np.array([[0,73,73],[255,255,109],[0,146,146],[255,109,182],[255,182,119],[146,0,0],[0,109,219],[182,109,255],[109,182,255],[182,219,255],[73,0,146],[146,73,0],[219,209,0],[36,255,36]])/256.
+    cols=np.array([[0,0,0],[196,121,0],[178,178,178],[0,52,102],[0,79,0],[200,0,0],[0,200,0],[0,0,200],[112,160,205]])/256.
+    shade_cols=np.array([[128,128,128,128],[204,174,113,128],[191,191,191,128],[67,147,195,128],[223,237,195,128],[255,150,150,128],[150,255,150,128],[150,150,255,128],[91,174,178,128]])/256.
 
     plt.figure(figsize=[88*mm_conv,113*mm_conv])
     plt.subplot(211)
@@ -104,9 +106,9 @@ def main(cfg):
               grouped_model_input_data[exp], 'ensemble', sort='variable_group')
             nens=len(grouped_exp_input_data)
             ens_sizes[experiment,mm]=nens
-            exp_diags=numpy.zeros((ldiag,nens))
-            exp_ann_warming=numpy.zeros((ldiag,nens))
-            exp_gmst_comp_warming=numpy.zeros((ldiag,nens))
+            exp_diags=np.zeros((ldiag,nens))
+            exp_ann_warming=np.zeros((ldiag,nens))
+            exp_gmst_comp_warming=np.zeros((ldiag,nens))
 
 
             for ee, ensemble in enumerate(grouped_exp_input_data):
@@ -124,8 +126,8 @@ def main(cfg):
                 (exp_diags[:,ee],obs_diag)=ncbm.ncblendmask_esmval('max', files[0],files[1],files[2],sftlf_file,obs_file,dec_warming,obs_dec_warming,ann_warming,gmst_comp_warming,diag_name,obs,ensobs,ensobs_diag,ensobs_dec_warming)
                 ensobs='' #Set to empty string so that ensemble obs diagnostics are only calculated on the first iteration.
                 #Take anomalies relative to 1850-1900.
-                exp_diags[:,ee]=exp_diags[:,ee]-numpy.mean(exp_diags[0:(1901-1850),ee])
-                obs_diag=obs_diag-numpy.mean(obs_diag[0:(1901-1850)])
+                exp_diags[:,ee]=exp_diags[:,ee]-np.mean(exp_diags[0:(1901-1850),ee])
+                obs_diag=obs_diag-np.mean(obs_diag[0:(1901-1850)])
                 exp_ann_warming[:,ee]=ann_warming[0]
                 exp_gmst_comp_warming[:,ee]=gmst_comp_warming[0]
                 #Plot first ensemble member of historical.
@@ -134,9 +136,9 @@ def main(cfg):
                     ls='dashed' if mm > 7 else 'solid'
                     plt.plot(years,exp_diags[:,ee],color=mod_cols[mm],linewidth=0.5,label=lbl,zorder=1-ee,alpha=alpha_ens,linestyle=ls)
                     lbl=""
-            mean_diag[:,experiment,mm]=numpy.mean(exp_diags,axis=1)
-            mean_ann_warming[:,experiment,mm]=numpy.mean(exp_ann_warming,axis=1)
-            mean_gmst_comp_warming[:,experiment,mm]=numpy.mean(exp_gmst_comp_warming,axis=1)
+            mean_diag[:,experiment,mm]=np.mean(exp_diags,axis=1)
+            mean_ann_warming[:,experiment,mm]=np.mean(exp_ann_warming,axis=1)
+            mean_gmst_comp_warming[:,experiment,mm]=np.mean(exp_gmst_comp_warming,axis=1)
             all_ann_warming[:,experiment,mm,0:nens]=exp_diags #Use GMST.
             all_ann_warming_comp[:,experiment,mm,0:nens]=exp_gmst_comp_warming #Use spatially complete GMST.
             all_ann_warming_gsat[:,experiment,mm,0:nens]=exp_ann_warming #Use GSAT.
@@ -156,56 +158,56 @@ def main(cfg):
                         data_writer.writerow([years[yy],all_ann_warming[yy,experiment,mm,ee],all_ann_warming_comp[yy,experiment,mm,ee],all_ann_warming_gsat[yy,experiment,mm,ee]])
 
     #Calculate ratio of GSAT to GMST trends over 1970-2014 - used in Liang et al., 2020 and 2021.
-    slope_gsat,intercept,r_value,p_value,std_err=stats.linregress(years[0:45],numpy.mean(mean_ann_warming[1970-1850:2015-1850,0,:],axis=1))
-    slope_gmst,intercept,r_value,p_value,std_err=stats.linregress(years[0:45],numpy.mean(mean_diag[1970-1850:2015-1850,0,:],axis=1))
+    slope_gsat,intercept,r_value,p_value,std_err=stats.linregress(years[0:45],np.mean(mean_ann_warming[1970-1850:2015-1850,0,:],axis=1))
+    slope_gmst,intercept,r_value,p_value,std_err=stats.linregress(years[0:45],np.mean(mean_diag[1970-1850:2015-1850,0,:],axis=1))
     print ('Ratio of 1970-2014 warming trends (used in Liang et al., 2020, 2021):',slope_gsat/slope_gmst)
 
-    print ('Ratio of GSAT to GMST warming',numpy.mean(mean_ann_warming[2010-1850:2020-1850,0,:])/numpy.mean(mean_diag[2010-1850:2020-1850,0,:]))
-    print ('Ratio of GSAT to GMST_comp warming',numpy.mean(mean_ann_warming[2010-1850:2020-1850,0,:])/numpy.mean(mean_gmst_comp_warming[2010-1850:2020-1850,0,:]))
+    print ('Ratio of GSAT to GMST warming',np.mean(mean_ann_warming[2010-1850:2020-1850,0,:])/np.mean(mean_diag[2010-1850:2020-1850,0,:]))
+    print ('Ratio of GSAT to GMST_comp warming',np.mean(mean_ann_warming[2010-1850:2020-1850,0,:])/np.mean(mean_gmst_comp_warming[2010-1850:2020-1850,0,:]))
 
 #Calculate ratio of GSAT to GMST warming for individual simulations.
-    denom=numpy.mean(all_ann_warming[2010-1850:2020-1850,0,:,:],axis=0)
-    ratio_by_model=numpy.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,:,:],axis=0)/denom
-    copy_ratio_by_model=numpy.reshape(ratio_by_model[:,:],nmodel*nensmax)
+    denom=np.mean(all_ann_warming[2010-1850:2020-1850,0,:,:],axis=0)
+    ratio_by_model=np.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,:,:],axis=0)/denom
+    copy_ratio_by_model=np.reshape(ratio_by_model[:,:],nmodel*nensmax)
 #Equivalent calculation for spatially-complete GMST.
-    denom=numpy.mean(all_ann_warming_comp[2010-1850:2020-1850,0,:,:],axis=0)
-    ratio_by_model_comp=numpy.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,:,:],axis=0)/denom
-    copy_ratio_by_model_comp=numpy.reshape(ratio_by_model_comp[:,:],nmodel*nensmax)
+    denom=np.mean(all_ann_warming_comp[2010-1850:2020-1850,0,:,:],axis=0)
+    ratio_by_model_comp=np.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,:,:],axis=0)/denom
+    copy_ratio_by_model_comp=np.reshape(ratio_by_model_comp[:,:],nmodel*nensmax)
 
 
     plt.plot(years,obs_diag,color='black',linewidth=1,label=hadlabel)
-    plt.plot(years,numpy.mean(mean_diag[:,0,:],axis=1),color=cols[1],linewidth=1,label='Model mean GMST')
-    plt.plot(years,numpy.mean(mean_ann_warming[:,0,:],axis=1),color='red',linewidth=1,label='Model mean GSAT')
+    plt.plot(years,np.mean(mean_diag[:,0,:],axis=1),color=cols[1],linewidth=1,label='Model mean GMST')
+    plt.plot(years,np.mean(mean_ann_warming[:,0,:],axis=1),color='red',linewidth=1,label='Model mean GSAT')
     plt.plot([1850,2020],[0,0],color='black',linewidth=0.5,ls='--',zorder=0)
     plt.axis([1850,2020,-1,2])
     plt.xlabel('Year')
     plt.ylabel('Global mean temperature anomaly ($^\circ$C)')
     plt.legend(loc="upper left",ncol=2)
     for experiment in range(nexp):
-        wts=numpy.zeros((nmodel,nensmax))
+        wts=np.zeros((nmodel,nensmax))
         for mm in range(nmodel):
             wts[mm,0:int(ens_sizes[experiment,mm])]=1./ens_sizes[experiment,mm]
-        wts=numpy.reshape(wts,nmodel*nensmax)/numpy.sum(wts)
+        wts=np.reshape(wts,nmodel*nensmax)/np.sum(wts)
         if experiment==0:
 #Calculate ratio of GSAT to obs-masked GMST warming 5-95% range.
-           sort_ratio=numpy.sort(copy_ratio_by_model)
-           sort_index=numpy.argsort(copy_ratio_by_model)
-           cdf=numpy.cumsum(wts[sort_index])
+           sort_ratio=np.sort(copy_ratio_by_model)
+           sort_index=np.argsort(copy_ratio_by_model)
+           cdf=np.cumsum(wts[sort_index])
            range_ratio=[sort_ratio[cdf>=0.05][0],sort_ratio[cdf>=0.95][0]]
            print ('5-95% range of ratio for GSAT/obs-masked GMST',range_ratio)
 #Equivalent calculation for spatially-complete GMST
-           sort_ratio=numpy.sort(copy_ratio_by_model_comp)
-           sort_index=numpy.argsort(copy_ratio_by_model_comp)
-           cdf=numpy.cumsum(wts[sort_index])
+           sort_ratio=np.sort(copy_ratio_by_model_comp)
+           sort_index=np.argsort(copy_ratio_by_model_comp)
+           cdf=np.cumsum(wts[sort_index])
            range_ratio=[sort_ratio[cdf>=0.05][0],sort_ratio[cdf>=0.95][0]]
            print ('5-95% range of ratio for GSAT/spatially-complete GMST',range_ratio)
         for yy in range(ldiag):
-                year_warming=numpy.reshape(all_ann_warming[yy,experiment,:,:],nmodel*nensmax)
-                sort_warming=numpy.sort(year_warming)
-                sort_index=numpy.argsort(year_warming)
-                cdf=numpy.cumsum(wts[sort_index])
+                year_warming=np.reshape(all_ann_warming[yy,experiment,:,:],nmodel*nensmax)
+                sort_warming=np.sort(year_warming)
+                sort_index=np.argsort(year_warming)
+                cdf=np.cumsum(wts[sort_index])
                 range_ann_warming[yy,experiment,:]=[sort_warming[cdf>=0.05][0],sort_warming[cdf>=0.95][0]]
-                mm_ann_warming[yy,experiment]=numpy.sum(year_warming*wts)
+                mm_ann_warming[yy,experiment]=np.sum(year_warming*wts)
     plt.text (1825,2.25,'a',fontsize =7,fontweight='bold', va='center', ha='center')
     plt.subplot(212)
     zzs=[3,1,0,2]
@@ -237,11 +239,11 @@ def main(cfg):
     ax1.set_xlim(1850,2020)
     ax1.set_xlabel('Year')
     ax1.set_ylim(-11,2)
-    plt.yticks(numpy.arange(26)*0.5-11,['','','-1.0','-0.5','0.0','0.5','1.0','','-1.0','-0.5','0.0','0.5','1.0','','-1.0','-0.5','0.0','0.5','1.0','','-1.0','-0.5','0.0','0.5','1.0','',''])
+    plt.yticks(np.arange(27)*0.5-11,['','','-1.0','-0.5','0.0','0.5','1.0','','-1.0','-0.5','0.0','0.5','1.0','','-1.0','-0.5','0.0','0.5','1.0','','-1.0','-0.5','0.0','0.5','1.0','',''])
     ax1.set_ylabel('Global mean surface temperature change ($^\circ$C)')
     ax2=ax1.twinx()
     ax2.set_ylim(-11,2)
-    plt.yticks(numpy.arange(26)*0.5-11,['-0.5',' 0.0',' 0.5',' 1.0','','-1.0','-0.5',' 0.0',' 0.5',' 1.0','','-1.0','-0.5',' 0.0',' 0.5',' 1.0','','-1.0','-0.5',' 0.0',' 0.5',' 1.0','','','','',''])
+    plt.yticks(np.arange(27)*0.5-11,['-0.5',' 0.0',' 0.5',' 1.0','','-1.0','-0.5',' 0.0',' 0.5',' 1.0','','-1.0','-0.5',' 0.0',' 0.5',' 1.0','','-1.0','-0.5',' 0.0',' 0.5',' 1.0','','','','',''])
     plt.savefig(plot_dir+'/supplement_timeseries'+obs+'.'+output_file_type)
     plt.close()
 
@@ -254,7 +256,7 @@ def main(cfg):
     for mm, dataset in enumerate(grouped_input_data):
         ens_size=ens_sizes[0,mm]
         for ee in range(ens_size.astype(int)):
-          plt.plot(mm+1,numpy.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,mm,ee],axis=0)/numpy.mean(all_ann_warming[2010-1850:2020-1850,0,mm,ee],axis=0),color=mod_cols[mm],marker='+')
+          plt.plot(mm+1,np.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,mm,ee],axis=0)/np.mean(all_ann_warming[2010-1850:2020-1850,0,mm,ee],axis=0),color=mod_cols[mm],marker='+')
     plt.text (-2,1.31,'a',fontsize =7,fontweight='bold', va='center', ha='center')
     plt.tight_layout()
 
@@ -265,25 +267,25 @@ def main(cfg):
     for mm, dataset in enumerate(grouped_input_data):
         ens_size=ens_sizes[0,mm]
         for ee in range(ens_size.astype(int)):
-          plt.plot(mm+1,numpy.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,mm,ee],axis=0)/numpy.mean(all_ann_warming_comp[2010-1850:2020-1850,0,mm,ee],axis=0),color=mod_cols[mm],marker='+')
+          plt.plot(mm+1,np.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,mm,ee],axis=0)/np.mean(all_ann_warming_comp[2010-1850:2020-1850,0,mm,ee],axis=0),color=mod_cols[mm],marker='+')
     plt.text (-2,1.31,'b',fontsize =7,fontweight='bold', va='center', ha='center')
     plt.tight_layout()
     plt.savefig(plot_dir+'/gmst_to_gsat_ratios'+obs+'.'+output_file_type)
     plt.close()
 
 #Calculate uncertainty in GMST and GSAT warming in obs (as reported in Gillett et al.).
-    ensobs_dec_warming=numpy.sort(ensobs_dec_warming)
+    ensobs_dec_warming=np.sort(ensobs_dec_warming)
     enssize=len(ensobs_dec_warming)
-    print ('Obs GMST warming: mean, 5, 95%',numpy.mean(ensobs_dec_warming),ensobs_dec_warming[math.floor((enssize-1)*0.05)],ensobs_dec_warming[math.ceil((enssize-1)*0.95)])
+    print ('Obs GMST warming: mean, 5, 95%',np.mean(ensobs_dec_warming),ensobs_dec_warming[math.floor((enssize-1)*0.05)],ensobs_dec_warming[math.ceil((enssize-1)*0.95)])
     nmc=10000
-    obs_gsat=numpy.zeros((nmc))
+    obs_gsat=np.zeros((nmc))
     for mc_counter in range(nmc):
       ens=random.randint(0,enssize-1)
       mm=random.randint(0,nmodel-1)
       ee=random.randint(0,ens_sizes[0,mm]-1)
-      obs_gsat[mc_counter]=ensobs_dec_warming[ens]*numpy.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,mm,ee],axis=0)/numpy.mean(all_ann_warming[2010-1850:2020-1850,0,mm,ee],axis=0)
-    obs_gsat=numpy.sort(obs_gsat)
-    print ('Obs GSAT warming: mean, 5, 95%',numpy.mean(obs_gsat),obs_gsat[math.floor((nmc-1)*0.05)],obs_gsat[math.ceil((nmc-1)*0.95)])
+      obs_gsat[mc_counter]=ensobs_dec_warming[ens]*np.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,mm,ee],axis=0)/np.mean(all_ann_warming[2010-1850:2020-1850,0,mm,ee],axis=0)
+    obs_gsat=np.sort(obs_gsat)
+    print ('Obs GSAT warming: mean, 5, 95%',np.mean(obs_gsat),obs_gsat[math.floor((nmc-1)*0.05)],obs_gsat[math.ceil((nmc-1)*0.95)])
 
 
 if __name__ == '__main__':

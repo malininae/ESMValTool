@@ -71,10 +71,10 @@ def ncblendmask_esmval(options,sic_file,tas_file,tos_file,sftlf_file,obs_file,de
   if 'siconca' in nc.variables:
     sic = numpy.ma.filled(nc.variables["siconca"][:,:,:],-1.0e30)
   else:
-    sic = numpy.ma.filled(nc.variables["siconc"][:,:,:],-1.0e30)  
+    sic = numpy.ma.filled(nc.variables["siconc"][:,:,:],-1.0e30)
     nc.close()
 
-  # read sftlf.nc 
+  # read sftlf.nc
   nc = netCDF4.Dataset(sftlf_file, "r")
   lats4 = nc.variables["lat"][:]
   lons4 = nc.variables["lon"][:]
@@ -88,7 +88,7 @@ def ncblendmask_esmval(options,sic_file,tas_file,tos_file,sftlf_file,obs_file,de
     lons5 = nc.variables["longitude"][:]
     if obs=='had5':
         enssize=200
-        obs_tas = nc.variables["tas_median"][:,:,:]
+        obs_tas = nc.variables["tas_mean"][:,:,:]
     #Make it work with HadCRUT5 - repeat last year in obs_tas, as noted in Gillett et al.
         obs_tas=numpy.concatenate((obs_tas,obs_tas[2016:2028,:,:]))
     else:
@@ -175,7 +175,7 @@ def ncblendmask_esmval(options,sic_file,tas_file,tos_file,sftlf_file,obs_file,de
 
     # prepare missing
     for m in range(sic.shape[0]):
-      tos[m,abs(tos[m,:,:])> 500.0] = numpy.nan 
+      tos[m,abs(tos[m,:,:])> 500.0] = numpy.nan
 
     # baseline
     mask = numpy.logical_and( dates > 1961, dates < 1991 )
@@ -225,7 +225,7 @@ def ncblendmask_esmval(options,sic_file,tas_file,tos_file,sftlf_file,obs_file,de
   diag=calc_diag(tos,wm,diag_name) #Diagnostic for attribution analysis.
   dec_warming.append(calc_dec_warming(tas,w)) #Diagnose SAT warming with global coverage for attributable trends.
   obs_dec_warming.append(calc_dec_warming(obs_tas,wm))
-  
+
   if ann_warming!=0:
     ann_warming.append(calc_ann_warming(tas,w)) #Calculate ann warming.
   if gmst_comp_warming!=0:
@@ -284,7 +284,7 @@ def calc_dec_warming(tas,w):
 
 def calc_ann_warming(tas,w):
   #Calculate timeseries of annual mean GSAT.
-  nyr=math.ceil(tas.shape[0]/12) #Round up number of years. 
+  nyr=math.ceil(tas.shape[0]/12) #Round up number of years.
   diag=numpy.zeros(nyr)
   gsat_mon=numpy.zeros(tas.shape[0])
   # calculate temperatures
