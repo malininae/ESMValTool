@@ -20,10 +20,18 @@ documentation:
 
 preprocessors:
 
-  regrid_5_5:
+  regrid_canada:
+    custom_order: True
     regrid:
       target_grid: 5x5
       scheme: linear
+    extract_shape:
+      shapefile: 'canada.shp'
+      method: 'contains'
+      crop: True
+    mask_landsea:
+      mask_out: sea
+
 
 diagnostics:
 
@@ -41,60 +49,60 @@ diagnostics:
         field: T2Ms
         mip: Amon
         project: CMIP6
-        exp: [historical,ssp245]
-        grid: gr
         start_year: 1850
         end_year: 2019
         additional_datasets:
-          - {dataset: ACCESS-ESM1-5, ensemble: "r(1:3)i1p1f1", grid: gn}
+          - {dataset: ACCESS-ESM1-5, ensemble: "r(1:6)i1p1f1", grid: gn, exp: [historical,ssp245]}
+          - {dataset: ACCESS-ESM1-5, ensemble: "r(8:10)i1p1f1", grid: gn, exp: [historical,ssp245]}
           - {dataset: ACCESS-ESM1-5, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
           - {dataset: ACCESS-ESM1-5, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
           - {dataset: ACCESS-ESM1-5, ensemble: "r1i1p1f1", grid: gn, exp: hist-GHG}
           - {dataset: ACCESS-ESM1-5, ensemble: "r3i1p1f1", grid: gn, exp: hist-GHG}
-          # - {dataset: BCC-CSM2-MR, ensemble: "r1i1p1f1", grid: gn}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
-          - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn} just for speed
+          - {dataset: BCC-CSM2-MR, ensemble: "r1i1p1f1", grid: gn, exp: [historical,ssp245]}
+          - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
+          - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
+          - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
+          - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: [historical,ssp245]}
+          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: [historical,ssp245]}
           - {dataset: CanESM5, ensemble: "r(1:15)i1p1f1", grid: gn, exp: hist-nat}
-#          - {dataset: CanESM5, ensemble: "r(1:17)i1p2f1", grid: gn, exp: hist-nat} just for speed
+          - {dataset: CanESM5, ensemble: "r(1:17)i1p2f1", grid: gn, exp: hist-nat} # just for speed
           - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: hist-GHG}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-GHG} just for speed
+          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-GHG} # just for speed
           - {dataset: CanESM5, ensemble: "r(1:15)i1p1f1", grid: gn, exp: hist-aer}
-#          - {dataset: CanESM5, ensemble: "r(1:15)i1p2f1", grid: gn, exp: hist-aer} just for speed
+          - {dataset: CanESM5, ensemble: "r(1:15)i1p2f1", grid: gn, exp: hist-aer} # just for speed
           - {dataset: CanESM5, ensemble: "r(1:10)i1p1f1", grid: gn, exp: hist-CO2}
           - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: hist-sol}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-sol} just for speed
+          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-sol} # just for speed
           - {dataset: CanESM5, ensemble: "r(1:10)i1p1f1", grid: gn, exp: hist-stratO3}
           - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: hist-volc}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-volc} just for speed
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:6)i1p1f2"}
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-GHG}
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-aer}
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-nat}
-#          - {dataset: FGOALS-g3, ensemble: "r(1:4)i1p1f1", grid: gn}
-#          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-#          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
-#          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-          - {dataset: GFDL-ESM4, ensemble: "r(1:3)i1p1f1", grid: gr1}
+          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-volc} # just for speed
+          - {dataset: CNRM-CM6-1, ensemble: "r(1:6)i1p1f2", grid: gr, exp: [historical,ssp245]}
+          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", grid: gr, exp: hist-GHG}
+          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", grid: gr, exp: hist-aer}
+          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", grid: gr, exp: hist-nat}
+          - {dataset: FGOALS-g3, ensemble: "r(1:4)i1p1f1", grid: gn, exp: [historical,ssp245]}
+          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
+          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
+          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
+          - {dataset: GFDL-ESM4, ensemble: "r(1:3)i1p1f1", grid: gr1, exp: [historical,ssp245]}
           - {dataset: GFDL-ESM4, ensemble: "r(1:3)i1p1f1", grid: gr1, exp: hist-nat}
           - {dataset: GFDL-ESM4, ensemble: "r1i1p1f1", grid: gr1, exp: hist-aer}
           - {dataset: GFDL-ESM4, ensemble: "r1i1p1f1", grid: gr1, exp: hist-GHG}
+          - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn, exp: [historical,ssp245]}
           - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn, exp: hist-nat}
           - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn, exp: hist-GHG}
           - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn, exp: hist-aer}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:6)i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r10i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r11i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r14i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r22i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r25i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-nat}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-GHG}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-aer}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-stratO3}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn}
+          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:6)i1p1f1", grid: gr, exp: [historical,ssp245]}
+          - {dataset: IPSL-CM6A-LR, ensemble: "r10i1p1f1", grid: gr, exp: [historical,ssp245]}
+          - {dataset: IPSL-CM6A-LR, ensemble: "r11i1p1f1", grid: gr, exp: [historical,ssp245]}
+          - {dataset: IPSL-CM6A-LR, ensemble: "r14i1p1f1", grid: gr, exp: [historical,ssp245]}
+          - {dataset: IPSL-CM6A-LR, ensemble: "r22i1p1f1", grid: gr, exp: [historical,ssp245]}
+          - {dataset: IPSL-CM6A-LR, ensemble: "r25i1p1f1", grid: gr, exp: [historical,ssp245]}
+          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", grid: gr, exp: hist-nat}
+          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", grid: gr, exp: hist-GHG}
+          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", grid: gr, exp: hist-aer}
+          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", grid: gr, exp: hist-stratO3}
+          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: [historical,ssp245]}
           - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
           - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-sol}
           - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-volc}
@@ -102,195 +110,21 @@ diagnostics:
           - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-CO2}
           - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
           - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-stratO3}
-#          - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", grid: gn}
-#          - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", grid: gn, exp: hist-nat}
-#          - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", grid: gn, exp: hist-GHG}
-#          - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", grid: gn, exp: hist-aer}
-#          - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", grid: gn, exp: hist-sol}
-#          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-stratO3}
-#          - {dataset: MRI-ESM2-0, ensemble: "r3i1p1f1", grid: gn, exp: hist-stratO3}
-#          - {dataset: MRI-ESM2-0, ensemble: "r5i1p1f1", grid: gn, exp: hist-stratO3}
+          - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", grid: gn, exp: [historical,ssp245]}
+          - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", grid: gn, exp: hist-nat}
+          - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", grid: gn, exp: hist-GHG}
+          - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", grid: gn, exp: hist-aer}
+          - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", grid: gn, exp: hist-sol}
+          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-stratO3}
+          - {dataset: MRI-ESM2-0, ensemble: "r3i1p1f1", grid: gn, exp: hist-stratO3}
+          - {dataset: MRI-ESM2-0, ensemble: "r5i1p1f1", grid: gn, exp: hist-stratO3}
 #          - {dataset: NorESM2-LM, ensemble: "r1i1p1f1", grid: gn} #Can't concatenate due to time coords.
-#          - {dataset: NorESM2-LM, ensemble: "r(2:3)i1p1f1", grid: gn}
-#          - {dataset: NorESM2-LM, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-#          - {dataset: NorESM2-LM, ensemble: "r(2:3)i1p1f1", grid: gn, exp: hist-GHG}
-#          - {dataset: NorESM2-LM, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-
-
-      tos:
-        preprocessor: regrid_5_5
-        reference_dataset: HadCRUT4
-        field: T2Ms
-        mip: Omon
-        project: CMIP6
-        exp: [historical,ssp245]
-        grid: gn
-        start_year: 1850
-        end_year: 2019
-        additional_datasets:  &damip_simulations
-          - {dataset: ACCESS-ESM1-5, ensemble: "r(1:3)i1p1f1", grid: gn}
-          - {dataset: ACCESS-ESM1-5, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-          - {dataset: ACCESS-ESM1-5, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-          - {dataset: ACCESS-ESM1-5, ensemble: "r1i1p1f1", grid: gn, exp: hist-GHG}
-          - {dataset: ACCESS-ESM1-5, ensemble: "r3i1p1f1", grid: gn, exp: hist-GHG}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r1i1p1f1", grid: gn}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
-          - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn} just for speed
-          - {dataset: CanESM5, ensemble: "r(1:15)i1p1f1", grid: gn, exp: hist-nat}
-#          - {dataset: CanESM5, ensemble: "r(1:17)i1p2f1", grid: gn, exp: hist-nat} just for speed
-          - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: hist-GHG}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-GHG} just for speed
-          - {dataset: CanESM5, ensemble: "r(1:15)i1p1f1", grid: gn, exp: hist-aer}
-#          - {dataset: CanESM5, ensemble: "r(1:15)i1p2f1", grid: gn, exp: hist-aer} just for speed
-          - {dataset: CanESM5, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-CO2}
-          - {dataset: CanESM5, ensemble: "r(5:10)i1p1f1", grid: gn, exp: hist-CO2}
-          - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: hist-sol}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-sol} just for speed
-          - {dataset: CanESM5, ensemble: "r(1:10)i1p1f1", grid: gn, exp: hist-stratO3}
-          - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: hist-volc}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-volc} just for speed
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:6)i1p1f2"}
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-GHG}
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-aer}
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-nat}
-#          - {dataset: FGOALS-g3, ensemble: "r(1:2)i1p1f1", grid: gn}
-#          - {dataset: FGOALS-g3, ensemble: "r4i1p1f1", grid: gn} # should be 1:4
-#          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-#          - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
-#          - {dataset: FGOALS-g3, ensemble: "r(1:2)i1p1f1", grid: gn, exp: hist-aer} # should be 1:3
-          - {dataset: GFDL-ESM4, ensemble: "r(1:3)i1p1f1", grid: gn}
-          - {dataset: GFDL-ESM4, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-          - {dataset: GFDL-ESM4, ensemble: "r1i1p1f1", grid: gn, exp: hist-aer}
-          - {dataset: GFDL-ESM4, ensemble: "r1i1p1f1", grid: gn, exp: hist-GHG}
-          - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn}
-          - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn, exp: hist-nat}
-          - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn, exp: hist-GHG}
-          - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn, exp: hist-aer}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:6)i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r10i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r11i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r14i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r22i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r25i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-nat}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-GHG}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-aer}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-stratO3}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-sol}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-volc}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-CO2}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-stratO3}
-          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn} # should be up to 5
-          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-nat} # should be up to 5
-          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-GHG} # should be up to 5
-          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-aer} # should be up to 5
-          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-sol} # should be up to 5
-#          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-stratO3}
- #         - {dataset: MRI-ESM2-0, ensemble: "r3i1p1f1", grid: gn, exp: hist-stratO3}
-  #        - {dataset: MRI-ESM2-0, ensemble: "r5i1p1f1", grid: gn, exp: hist-stratO3}
-#          - {dataset: NorESM2-LM, ensemble: "r1i1p1f1", grid: gn} #Can't concatenate due to time coords.
-          - {dataset: NorESM2-LM, ensemble: "r(2:3)i1p1f1", grid: gn}
+          - {dataset: NorESM2-LM, ensemble: "r(2:3)i1p1f1", grid: gn, exp: [historical,ssp245]}
           - {dataset: NorESM2-LM, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-          - {dataset: NorESM2-LM, ensemble: "r(2:3)i1p1f1", grid: gn, exp: hist-GHG} # shoul be 1:3
+          - {dataset: NorESM2-LM, ensemble: "r(2:3)i1p1f1", grid: gn, exp: hist-GHG}
           - {dataset: NorESM2-LM, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
 
-
-
-      siconc:
-        preprocessor: regrid_5_5
-        reference_dataset: HadCRUT4
-        field: T2Ms
-        mip: SImon
-        project: CMIP6
-        exp: [historical,ssp245]
-        grid: gn
-        start_year: 1850
-        end_year: 2019
-        additional_datasets:
-          - {dataset: ACCESS-ESM1-5, ensemble: "r1i1p1f1", grid: gn} # should be 1:3
-          - {dataset: ACCESS-ESM1-5, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-          - {dataset: ACCESS-ESM1-5, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-          - {dataset: ACCESS-ESM1-5, ensemble: "r1i1p1f1", grid: gn, exp: hist-GHG}
-          - {dataset: ACCESS-ESM1-5, ensemble: "r3i1p1f1", grid: gn, exp: hist-GHG}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r1i1p1f1", grid: gn}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-         # - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
-          - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn} just for speed
-          - {dataset: CanESM5, ensemble: "r(1:15)i1p1f1", grid: gn, exp: hist-nat}
-#          - {dataset: CanESM5, ensemble: "r(1:15)i1p2f1", grid: gn, exp: hist-nat} just for speed
-          - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: hist-GHG}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-GHG} just for speed
-          - {dataset: CanESM5, ensemble: "r(1:15)i1p1f1", grid: gn, exp: hist-aer}
-#          - {dataset: CanESM5, ensemble: "r(1:15)i1p2f1", grid: gn, exp: hist-aer} just for speed
-          - {dataset: CanESM5, ensemble: "r(1:10)i1p1f1", grid: gn, exp: hist-CO2}
-          - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: hist-sol}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-sol} just for speed
-          - {dataset: CanESM5, ensemble: "r(1:10)i1p1f1", grid: gn, exp: hist-stratO3}
-          - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: hist-volc}
-#          - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: hist-volc} just for speed
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:6)i1p1f2"}
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-GHG}
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-aer}
-          - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", exp: hist-nat}
-#          - {dataset: FGOALS-g3, ensemble: "r(1:4)i1p1f1", grid: gn} #Use V20191029 version.
- #         - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-  #        - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
-   #       - {dataset: FGOALS-g3, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-          - {dataset: GFDL-ESM4, ensemble: "r(1:3)i1p1f1", grid: gn}
-          - {dataset: GFDL-ESM4, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-          - {dataset: GFDL-ESM4, ensemble: "r1i1p1f1", grid: gn, exp: hist-aer}
-          - {dataset: GFDL-ESM4, ensemble: "r1i1p1f1", grid: gn, exp: hist-GHG}
-          - {dataset: HadGEM3-GC31-LL, ensemble: "r1i1p1f3", grid: gn}
-          - {dataset: HadGEM3-GC31-LL, ensemble: "r(3:4)i1p1f3", grid: gn} # should be 1:4
-          - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn, exp: hist-nat}
-          - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn, exp: hist-GHG}
-          - {dataset: HadGEM3-GC31-LL, ensemble: "r(1:4)i1p1f3", grid: gn, exp: hist-aer}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:6)i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r10i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r11i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r14i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r22i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r25i1p1f1"}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-nat}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-GHG}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-aer}
-          - {dataset: IPSL-CM6A-LR, ensemble: "r(1:10)i1p1f1", exp: hist-stratO3}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-sol}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-volc}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-CO2}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
-          - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-stratO3}
-#          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn} # should be up to 5
-#          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-nat} # should be up to 5
-#          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-GHG} # should be up to 5
-#          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-aer} # should be up to 5
-#          - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-sol} # should be up to 5
-##         - {dataset: MRI-ESM2-0, ensemble: "r1i1p1f1", grid: gn, exp: hist-stratO3}
-# #        - {dataset: MRI-ESM2-0, ensemble: "r3i1p1f1", grid: gn, exp: hist-stratO3}
-#  #       - {dataset: MRI-ESM2-0, ensemble: "r5i1p1f1", grid: gn, exp: hist-stratO3}
-##          - {dataset: NorESM2-LM, ensemble: "r1i1p1f1", grid: gn} #Can't concatenate due to time coords.
-#          - {dataset: NorESM2-LM, ensemble: "r(2:3)i1p1f1", grid: gn}
-#          - {dataset: NorESM2-LM, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-#          - {dataset: NorESM2-LM, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
-#          - {dataset: NorESM2-LM, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
-
-
     scripts:
-      fig1:
-        script: attribute/damip_timeseries.py
-        obs: had4
       fig1_had5:
         script: attribute/damip_timeseries.py
         obs: had5
