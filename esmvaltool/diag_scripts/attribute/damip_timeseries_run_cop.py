@@ -118,15 +118,18 @@ def main(cfg):
                     logger.info("Processing variable %s", attributes['variable_group'])
                     files.append(attributes['filename'])
                 logger.info("*************** Files for blend and mask %s", files)
+                dec_warming=[]
+                obs_dec_warming=[]
+                ann_warming=[]
+                gmst_comp_warming=[]
                 #Calculate masked and blended GMST for individual simulation.
-                (exp_diags[:,ee],obs_diag, dec_warming, obs_dec_warming, ann_warming, gmst_comp_warming)=ncbm.ncblendmask_esmval(
-                    files[1],sftlf_file,obs_file,diag_name,obs,ensobs,ensobs_diag,ensobs_dec_warming)
+                (exp_diags[:,ee],obs_diag)=ncbm.ncblendmask_esmval('max', files[0],files[1],files[2],sftlf_file,obs_file,dec_warming,obs_dec_warming,ann_warming,gmst_comp_warming,diag_name,obs,ensobs,ensobs_diag,ensobs_dec_warming)
                 ensobs='' #Set to empty string so that ensemble obs diagnostics are only calculated on the first iteration.
                 #Take anomalies relative to 1850-1900.
                 exp_diags[:,ee]=exp_diags[:,ee]-np.mean(exp_diags[0:(1901-1850),ee])
                 obs_diag=obs_diag-np.mean(obs_diag[0:(1901-1850)])
-                exp_ann_warming[:,ee]=ann_warming
-                exp_gmst_comp_warming[:,ee]=gmst_comp_warming
+                exp_ann_warming[:,ee]=ann_warming[0]
+                exp_gmst_comp_warming[:,ee]=gmst_comp_warming[0]
                 #Plot first ensemble member of historical.
                 if exp=="historical-ssp245" and ee==0:
                     alpha_ens=1. if ee==0 else 0.2
