@@ -171,17 +171,15 @@ def main(cfg):
 
             for ee, ensemble in enumerate(grouped_exp_input_data):
                 logger.info("** Processing ensemble %s", ensemble)
-                files=[]
                 for attributes in grouped_exp_input_data[ensemble]:
                     logger.info("Processing variable %s", attributes['variable_group'])
-                    files.append(attributes['filename'])
-                logger.info("*************** Files for blend and mask %s", files)
-                dec_warming=[]
-                obs_dec_warming=[]
+                    file=attributes['filename']
+                logger.info("*************** Files for blend and mask %s", file)
                 #Calculate the diagnostic used for attribution from an individual simulation.
-                (exp_diags[:,ee],had4_diag)=ncbm.ncblendmask_esmval('max', files[0],files[1],files[2],sftlf_file,obs_file,dec_warming,obs_dec_warming,0,0,diag_name,obs,ensobs,ensobs_diag,ensobs_dec_warming)
+                (exp_diags[:,ee], had4_diag, dec_warming, obs_dec_warming, ann_warming, gmst_comp_warming)=ncbm.ncblendmask_esmval(
+                    file,obs_file,diag_name,ensobs,ensobs_diag,ensobs_dec_warming,cfg=cfg)
                 ensobs='' #Set to empty string so that ensemble obs diagnostics are only calculated on the first iteration.
-                exp_dec_warming[ee]=dec_warming[0]
+                exp_dec_warming[ee]=dec_warming
             #Average diagnostic and warming in 2010-2019 vs 1850-1899 GSAT over ensemble members.
             mean_diag[:,experiment,mm]=np.mean(exp_diags,axis=1)
             mean_dec_warming[experiment,mm]=np.mean(exp_dec_warming)
@@ -207,8 +205,8 @@ def main(cfg):
       for ee in range(enssize):
         #Apply attribution analysis.
         (xr,yr,cn1,cn2)=da.reduce_dim(np.mean(mean_diag[:,0:3,:],axis=2),ensobs_diag[ee][:,None],anom[:,list(range(1,anom_index,2))],anom[:,list(range(0,anom_index,2))])
-        att_out2=da.tls(xr[:,0:2],yr,cn1,ne=neff[[0,1]],cn2=cn2,flag_2S=1,RCT_flag=False)
-        att_out3=da.tls(xr[:,0:3],yr,cn1,ne=neff[[0,1,2]],cn2=cn2,flag_3S=1,RCT_flag=False)
+        att_out2=da.tls(xr[:,0:2],yr.data,cn1,ne=neff[[0,1]],cn2=cn2,flag_2S=1,RCT_flag=False)
+        att_out3=da.tls(xr[:,0:3],yr.data,cn1,ne=neff[[0,1,2]],cn2=cn2,flag_3S=1,RCT_flag=False)
         beta2[:,ee]=np.squeeze(att_out2['beta'][:])
         beta3[:,ee]=np.squeeze(att_out3['beta'][:])
         #2-way regression coefficients.
@@ -273,9 +271,10 @@ def main(cfg):
           model_anom=anom[:,(anom_mod==mm)] #Use only anomalies from one model.
           nanom=np.count_nonzero(anom_mod==mm)
         #Apply attribution analysis.
-        (xr,yr,cn1,cn2)=da.reduce_dim(mean_diag[:,[0,1,2],mm],had4_diag[:,None],model_anom[:,list(range(0,nanom,2))],model_anom[:,list(range(1,nanom,2))])
-        att_out[dataset]=da.tls(xr[:,0:2],yr,cn1,ne=ens_sizes[[0,1],mm],cn2=cn2,flag_2S=1,RCT_flag=rcplot)
-        att_out3[dataset]=da.tls(xr[:,0:3],yr,cn1,ne=ens_sizes[[0,1,2],mm],cn2=cn2,flag_3S=1,RCT_flag=rcplot)
+        (xr,yr,cn1,cn2)=da.reduce_dim(mean_diag[:,[0,1,2],mm],had4_diag[:,None],model_anom[:,list(range(0,nanom,2))],
+                                      model_anom[:,list(range(1,nanom,2))])
+        att_out[dataset]=da.tls(xr[:,0:2],yr.data,cn1,ne=ens_sizes[[0,1],mm],cn2=cn2,flag_2S=1,RCT_flag=rcplot)
+        att_out3[dataset]=da.tls(xr[:,0:3],yr.data,cn1,ne=ens_sizes[[0,1,2],mm],cn2=cn2,flag_3S=1,RCT_flag=rcplot)
 # Replace beta confidence interval bounds with large positive and negative numbers if NaNs.
         print ('model, att_out3',dataset,att_out3[dataset])
         print ('model, att_out',dataset,att_out[dataset])
@@ -374,8 +373,8 @@ def main(cfg):
     model_names.append(dataset)
     (xr,yr,cn1,cn2)=da.reduce_dim(np.mean(mean_diag[:,0:3,model_indices],axis=2),had4_diag[:,None],anom[:,list(range(1,anom_index,2))],anom[:,list(range(0,anom_index,2))])
     neff=mm_attrib**2/np.sum(1./ens_sizes[0:3,model_indices],axis=1) #Effective ensemble size when using multi-model mean.
-    att_out[dataset]=da.tls(xr[:,0:2],yr,cn1,ne=neff[[0,1]],cn2=cn2,flag_2S=1,RCT_flag=rcplot)
-    att_out3[dataset]=da.tls(xr[:,0:3],yr,cn1,ne=neff[[0,1,2]],cn2=cn2,flag_3S=1,RCT_flag=rcplot)
+    att_out[dataset]=da.tls(xr[:,0:2],yr.data,cn1,ne=neff[[0,1]],cn2=cn2,flag_2S=1,RCT_flag=rcplot)
+    att_out3[dataset]=da.tls(xr[:,0:3],yr.data,cn1,ne=neff[[0,1,2]],cn2=cn2,flag_3S=1,RCT_flag=rcplot)
     multim_mean_dec_warming=np.mean(mean_dec_warming[:,model_indices],axis=1)
 #Compute uncertainty in attributable warming based on spread in ratio of GSAT to GMST warming across models.
     if diag_name[0:4]=='hemi':
@@ -463,10 +462,10 @@ def main(cfg):
 
     nmodel_attrib=mm_attrib
 
-    obs_warming=obs_dec_warming[0]*np.mean(mean_dec_warming[0,:])/np.mean(mean_dec_warming_gmst[0,:])
+    obs_warming=obs_dec_warming*np.mean(mean_dec_warming[0,:])/np.mean(mean_dec_warming_gmst[0,:])
 
     print ('Obs warming',obs_warming)
-    print ('Obs warming in GMST',obs_dec_warming[0])
+    print ('Obs warming in GMST',obs_dec_warming)
     #Finish off plots.
     panel_labels=['a','b','c','d','e','f']
     panel_counter=0
@@ -478,13 +477,13 @@ def main(cfg):
         if ff == topleft: plt.ylabel('Regression coefficients')#,size='x-small')
         plt.plot([0,nmodel_attrib+2],[0,0],color='black',linewidth=1,ls='--')
         if pool_int_var:
-          plt.axis([0,nmodel_attrib+2,-1,3])
+          plt.axis([0,nmodel_attrib+2,-2,4])
           plt.xticks(list(range(1,nmodel_attrib+2)),['']*(nmodel_attrib+1))
         else:
-          plt.axis([0,nmodel_attrib+1,-1,3])
+          plt.axis([0,nmodel_attrib+1,-2,4])
           plt.xticks(list(range(1,nmodel_attrib+1)),['']*(nmodel_attrib+1))
-        plt.legend(loc="upper left")
-        plt.text (-2.5,3.5,panel_labels[panel_counter],fontsize =7,fontweight='bold', va='center', ha='center')
+        plt.legend(loc=2, fontsize='x-small', fancybox=False, frameon=False, columnspacing=0.5, handlelength=1)
+        plt.text(-2.5,3.5,panel_labels[panel_counter],fontsize =7,fontweight='bold', va='center', ha='center')
         panel_counter=panel_counter+1
 
     if rcplot:
@@ -511,10 +510,10 @@ def main(cfg):
         if ff == bottomleft: plt.ylabel('Attributable change 2010-2019 vs 1850-1900 ($^\circ$C)')#,size='x-small')
         plt.plot([0,nmodel_attrib+2],[0,0],color='black',linewidth=1,ls='--')
         if pool_int_var:
-          plt.axis([0,nmodel_attrib+2,-2,3])
+          plt.axis([0,nmodel_attrib+2,-3,4])
           plt.xticks(list(range(1,nmodel_attrib+2)),model_names,rotation=30.,ha="right")
         else:
-          plt.axis([0,nmodel_attrib+1,-2,3])
+          plt.axis([0,nmodel_attrib+1,-3,4])
           plt.xticks(list(range(1,nmodel_attrib+1)),model_names[0:nmodel_attrib],rotation=30.,ha="right")
 
         plt.text (-2,3.3,panel_labels[panel_counter],fontsize =7,fontweight='bold', va='center', ha='center')
@@ -525,7 +524,6 @@ def main(cfg):
     uncert_flag='__simple_uncert' if simple_uncert else ''
     plt.savefig(plot_dir+'/reg_attrib_'+diag_name+'_'+exp_flag+'_'+obs+pool_flag+uncert_flag+'.'+output_file_type)
     plt.close()
-
 
 
 if __name__ == '__main__':

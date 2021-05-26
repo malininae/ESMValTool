@@ -56,9 +56,9 @@ def main(cfg):
     experiments=['historical-ssp245','hist-GHG','hist-aer','hist-nat','hist-volc','hist-sol','hist-stratO3','hist-CO2','hist-GHG-ssp245-GHG','hist-aer-ssp245-aer','hist-nat-ssp245-nat']
     labels=['Anthropogenic and natural forcings','Greenhouse gases','Aerosols','Natural forcings']
     nexp=len(experiments)-3 #Subtract three to account for repetition of hist-GHG, hist-nat, hist-aer.
-    diag_name='gmst01' #Annual mean GMST.
-    ldiag=170 #length of diagnostic,hard-coded.
-    years=list(range(1850,2020,1)) #Used for plotting.
+    diag_name='gmst02' #Annual mean GMST.
+    ldiag=85 #length of diagnostic,hard-coded.
+    years=list(range(1850,2020,2)) #Used for plotting.
     anom_max=500 #arbitrary max size for number of anomalies.
     mean_diag=np.zeros((ldiag,nexp,nmodel))
     mean_gmst_comp_warming=np.zeros((ldiag,nexp,nmodel))
@@ -113,18 +113,17 @@ def main(cfg):
 
             for ee, ensemble in enumerate(grouped_exp_input_data):
                 logger.info("** Processing ensemble %s", ensemble)
-                files=[]
                 for attributes in grouped_exp_input_data[ensemble]:
                     logger.info("Processing variable %s", attributes['variable_group'])
-                    files.append(attributes['filename'])
-                logger.info("*************** Files for blend and mask %s", files)
+                    file=attributes['filename']
+                logger.info("*************** Files for blend and mask %s", file)
                 #Calculate masked and blended GMST for individual simulation.
                 (exp_diags[:,ee],obs_diag, dec_warming, obs_dec_warming, ann_warming, gmst_comp_warming)=ncbm.ncblendmask_esmval(
-                    files[1],sftlf_file,obs_file,diag_name,obs,ensobs,ensobs_diag,ensobs_dec_warming)
+                    file,obs_file,diag_name,ensobs,ensobs_diag,ensobs_dec_warming, cfg=cfg)
                 ensobs='' #Set to empty string so that ensemble obs diagnostics are only calculated on the first iteration.
                 #Take anomalies relative to 1850-1900.
-                exp_diags[:,ee]=exp_diags[:,ee]-np.mean(exp_diags[0:(1901-1850),ee])
-                obs_diag=obs_diag-np.mean(obs_diag[0:(1901-1850)])
+                exp_diags[:,ee]=exp_diags[:,ee]-np.mean(exp_diags[0:int(np.round((1901-1850)/2)),ee])
+                obs_diag=obs_diag-np.mean(obs_diag[0:int(np.round((1901-1850)/2))])
                 exp_ann_warming[:,ee]=ann_warming
                 exp_gmst_comp_warming[:,ee]=gmst_comp_warming
                 #Plot first ensemble member of historical.
@@ -154,32 +153,24 @@ def main(cfg):
                     for yy in range(ldiag):
                         data_writer.writerow([years[yy],all_ann_warming[yy,experiment,mm,ee],all_ann_warming_comp[yy,experiment,mm,ee],all_ann_warming_gsat[yy,experiment,mm,ee]])
 
-    #Calculate ratio of GSAT to GMST trends over 1970-2014 - used in Liang et al., 2020 and 2021.
-    slope_gsat,intercept,r_value,p_value,std_err=stats.linregress(years[0:45],np.mean(mean_ann_warming[1970-1850:2015-1850,0,:],axis=1))
-    slope_gmst,intercept,r_value,p_value,std_err=stats.linregress(years[0:45],np.mean(mean_diag[1970-1850:2015-1850,0,:],axis=1))
-    print ('Ratio of 1970-2014 warming trends (used in Liang et al., 2020, 2021):',slope_gsat/slope_gmst)
-
-    print ('Ratio of GSAT to GMST warming',np.mean(mean_ann_warming[2010-1850:2020-1850,0,:])/np.mean(mean_diag[2010-1850:2020-1850,0,:]))
-    print ('Ratio of GSAT to GMST_comp warming',np.mean(mean_ann_warming[2010-1850:2020-1850,0,:])/np.mean(mean_gmst_comp_warming[2010-1850:2020-1850,0,:]))
-
 #Calculate ratio of GSAT to GMST warming for individual simulations.
-    denom=np.mean(all_ann_warming[2010-1850:2020-1850,0,:,:],axis=0)
-    ratio_by_model=np.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,:,:],axis=0)/denom
+    denom=np.mean(all_ann_warming[int((2010-1850)/2):int((2020-1850)/2),0,:,:],axis=0)
+    ratio_by_model=np.mean(all_ann_warming_gsat[int((2010-1850)/2):int((2020-1850)/2),0,:,:],axis=0)/denom
     copy_ratio_by_model=np.reshape(ratio_by_model[:,:],nmodel*nensmax)
 #Equivalent calculation for spatially-complete GMST.
-    denom=np.mean(all_ann_warming_comp[2010-1850:2020-1850,0,:,:],axis=0)
-    ratio_by_model_comp=np.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,:,:],axis=0)/denom
+    denom=np.mean(all_ann_warming_comp[int((2010-1850)/2):int((2020-1850)/2),0,:,:],axis=0)
+    ratio_by_model_comp=np.mean(all_ann_warming_gsat[int((2010-1850)/2):int((2020-1850)/2),0,:,:],axis=0)/denom
     copy_ratio_by_model_comp=np.reshape(ratio_by_model_comp[:,:],nmodel*nensmax)
 
 
     plt.plot(years,obs_diag,color='black',linewidth=1,label=hadlabel)
     plt.plot(years,np.mean(mean_diag[:,0,:],axis=1),color=cols[1],linewidth=1,label='Model mean GMST')
     plt.plot(years,np.mean(mean_ann_warming[:,0,:],axis=1),color='red',linewidth=1,label='Model mean GSAT')
-    plt.plot([1850,2020],[0,0],color='black',linewidth=0.5,ls='--',zorder=0)
-    plt.axis([1850,2020,-1,2])
+    plt.plot([1850,2020],[0,0],color='silver',linewidth=0.5,ls='--',zorder=0)
+    plt.axis([1850,2020,-2,3])
     plt.xlabel('Year')
     plt.ylabel('Global mean temperature anomaly ($^\circ$C)')
-    plt.legend(loc="upper left",ncol=2)
+    plt.legend(loc=2, ncol=2, fontsize='x-small', fancybox=False, frameon=False, columnspacing=0.5,handlelength=1)
     for experiment in range(nexp):
         wts=np.zeros((nmodel,nensmax))
         for mm in range(nmodel):
@@ -214,17 +205,17 @@ def main(cfg):
         plt.plot(years,mm_ann_warming[:,experiment]+offset,color=cols[experiment+1,:],linewidth=1,label=labels[experiment],zorder=zzs[experiment]+4)
 
     plt.plot(years,obs_diag,color='black',linewidth=1,label=hadlabel,zorder=8)
-    plt.axis([1850,2020,-1,2])
+    plt.axis([1850,2020,-2,3])
     plt.plot([1850,2020],[0,0],color='black',linewidth=0.5,ls='--',zorder=0)
     plt.xlabel('Year')
     plt.ylabel('Global mean surface temperature anomaly ($^\circ$C)')
-    plt.legend(loc="upper left")
+    plt.legend(loc=2, ncol=2, fontsize='x-small', fancybox=False, frameon=False, columnspacing=0.5,handlelength=1)
     plt.text (1825,2.25,'b',fontsize =7,fontweight='bold', va='center', ha='center')
     plt.savefig(plot_dir+'/Fig1_'+obs+'.'+output_file_type)
     plt.close()
 
 #Plot Extended Data Fig 1 showing all DAMIP GMST timeseries.
-    fig=    plt.figure(figsize=[88*mm_conv,176*mm_conv])
+    fig=plt.figure(figsize=[88*mm_conv,176*mm_conv])
     ax1=fig.add_subplot(111)
     for experiment in range(nexp):
         offset=experiment*-1.5
@@ -244,32 +235,6 @@ def main(cfg):
     plt.savefig(plot_dir+'/supplement_timeseries'+obs+'.'+output_file_type)
     plt.close()
 
-#Plot of ratios of GSAT to GMST (Extended Data Fig 7).
-    plt.figure(figsize=[88*mm_conv,113*mm_conv])
-    plt.subplot(211)
-    plt.ylabel('Ratio of GSAT to HadCRUT4-masked GMST')
-    plt.axis([0,nmodel+1,1.0,1.3])
-    plt.xticks(list(range(1,nmodel+1)),model_names,rotation=30.,ha="right")
-    for mm, dataset in enumerate(grouped_input_data):
-        ens_size=ens_sizes[0,mm]
-        for ee in range(ens_size.astype(int)):
-          plt.plot(mm+1,np.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,mm,ee],axis=0)/np.mean(all_ann_warming[2010-1850:2020-1850,0,mm,ee],axis=0),color=mod_cols[mm],marker='+')
-    plt.text (-2,1.31,'a',fontsize =7,fontweight='bold', va='center', ha='center')
-    plt.tight_layout()
-
-    plt.subplot(212)
-    plt.ylabel('Ratio of GSAT to globally-complete GMST')
-    plt.axis([0,nmodel+1,1.0,1.3])
-    plt.xticks(list(range(1,nmodel+1)),model_names,rotation=30.,ha="right")
-    for mm, dataset in enumerate(grouped_input_data):
-        ens_size=ens_sizes[0,mm]
-        for ee in range(ens_size.astype(int)):
-          plt.plot(mm+1,np.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,mm,ee],axis=0)/np.mean(all_ann_warming_comp[2010-1850:2020-1850,0,mm,ee],axis=0),color=mod_cols[mm],marker='+')
-    plt.text (-2,1.31,'b',fontsize =7,fontweight='bold', va='center', ha='center')
-    plt.tight_layout()
-    plt.savefig(plot_dir+'/gmst_to_gsat_ratios'+obs+'.'+output_file_type)
-    plt.close()
-
 #Calculate uncertainty in GMST and GSAT warming in obs (as reported in Gillett et al.).
     ensobs_dec_warming=np.sort(ensobs_dec_warming)
     enssize=len(ensobs_dec_warming)
@@ -280,7 +245,7 @@ def main(cfg):
       ens=random.randint(0,enssize-1)
       mm=random.randint(0,nmodel-1)
       ee=random.randint(0,ens_sizes[0,mm]-1)
-      obs_gsat[mc_counter]=ensobs_dec_warming[ens]*np.mean(all_ann_warming_gsat[2010-1850:2020-1850,0,mm,ee],axis=0)/np.mean(all_ann_warming[2010-1850:2020-1850,0,mm,ee],axis=0)
+      obs_gsat[mc_counter]=ensobs_dec_warming[ens]*np.mean(all_ann_warming_gsat[int((2010-1850)/2):int((2020-1850)/2),0,mm,ee],axis=0)/np.mean(all_ann_warming[int((2010-1850)/2):int((2020-1850)/2),0,mm,ee],axis=0)
     obs_gsat=np.sort(obs_gsat)
     print ('Obs GSAT warming: mean, 5, 95%',np.mean(obs_gsat),obs_gsat[math.floor((nmc-1)*0.05)],obs_gsat[math.ceil((nmc-1)*0.95)])
 
