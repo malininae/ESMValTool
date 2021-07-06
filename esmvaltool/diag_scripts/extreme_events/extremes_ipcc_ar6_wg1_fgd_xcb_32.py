@@ -406,9 +406,9 @@ def make_figure(data_dic, cfg):
 
     for n, vrbl in enumerate(sorted(data_dic.keys())[::-1]):
         obs = data_dic[vrbl].pop('OBS')
-        for exp_key in sorted(data_dic[vrbl].keys()):
+        for k, exp_key in enumerate(sorted(data_dic[vrbl].keys())):
             make_panel(data_dic[vrbl][exp_key], vrbl, exp_key, ncols, nrows,
-                       n+1, cfg['ref_period'], obs_cube = obs['OBS'])
+                       (n+1)+(k+1)*k, cfg['ref_period'], obs_cube = obs['OBS'])
 
     fig.suptitle('Climate Extremes Indices', fontsize = 'x-large')
     fig.set_dpi(250)
@@ -427,7 +427,7 @@ def main(cfg):
 
     for vrbl in vrbls_list:
         plotting_dic[vrbl] = {}
-        raw_exp_keys = ['ALL', 'OBS']
+        raw_exp_keys = ['ALL', 'NAT', 'OBS']
         for exp_key in raw_exp_keys:
             plotting_dic[vrbl][exp_key] = {}
         projects = set(all_dtsts.get_info_list('project', short_name=vrbl))
@@ -445,6 +445,13 @@ def main(cfg):
                                               project=project, short_name=vrbl,
                                               exp=exp)
                     mod_cblst = ipcc_sea_ice_diag.load_cubelist([dtst['filename'] for dtst in flpths])
+                    if vrbl == 'rx1day':
+                        if exp != 'OBS':
+                            mod_cblst = covert_to_flx(mod_cblst)
+                        r_dir = cfg['run_dir']
+                        mod_cblst = fit_cdf(mod_cblst, cfg['year_gev_end'],
+                                            mod_name=dtst, exp=exp,
+                                            r_dir=r_dir, proj=project)  # very slow process in order to plot quicker commented
                     mod_cblst = dataset_regriding(mod_cblst, exp, obs_filename)
                     mod_cblst = apply_obs_mask(mod_cblst, obs_mask)
                     ano_mod_cblst = ipcc_sea_ice_diag.substract_ref_period(mod_cblst, cfg['ref_period'])
@@ -459,8 +466,8 @@ def main(cfg):
 
     make_figure(plotting_dic, cfg)
 
-    ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes')
-    ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes',
+    ipcc_sea_ice_diag.figure_handling(cfg, name='figure_xcb32')
+    ipcc_sea_ice_diag.figure_handling(cfg, name='figure_xcb32',
                                       img_ext='.png')
 
     logger.info('Success')
