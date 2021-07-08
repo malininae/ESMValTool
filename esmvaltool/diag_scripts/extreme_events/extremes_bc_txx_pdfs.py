@@ -1,6 +1,8 @@
 import cf_units
 import cftime
 import datetime
+
+import esmvalcore.preprocessor
 import iris
 from iris.experimental.equalise_cubes import equalise_attributes
 import iris.plot as iplt
@@ -113,80 +115,24 @@ def obtain_filepaths(all_datasets, dataset, project, short_name, exp):
 
     return(filepaths)
 
-def covert_to_flx(cubelist):
-
-    converted_cblst = iris.cube.CubeList()
-
-    for cube in cubelist:
-        cube = cube * 86400  # convert precipitation_flux / (kg m-2 s-1) to mm 60 s*60 m*24 h
-        cube.standard_name = 'precipitation_amount'
-        cube.var_name = 'precip'
-        cube.units = 'mm'
-        cube.long_name = 'Precipitation'
-        converted_cblst.append(cube)
-
-    return (converted_cblst)
-
-def fit_cdf(cubelist, end_year, mod_name, exp, r_dir, proj):
-
-    cdf_dir = os.path.join(r_dir, 'rx1day_cdfs')
-    if not os.path.isdir(cdf_dir):
-        os.mkdir(cdf_dir)
-
-    cont=np.asarray(os.listdir(cdf_dir))
-
-    if np.any([(mod_name in fname) & (proj in fname) & (exp in fname) for fname in cont]):
-        fname = cont[[(mod_name in fname) & (proj in fname) & (exp in fname) for fname in cont]][0]
-        cdf_cubelist = iris.load(os.path.join(cdf_dir, fname))
-    else:
-        cdf_cubelist = iris.cube.CubeList()
-        constr = iris.Constraint(time=lambda cell: cell.point.year <= end_year)
-
-        for nc, cube in enumerate(cubelist):
-            short_cube = cube.extract(constr)
-            ntim_sh = len(short_cube.coord('time').points)
-            ntim = len(cube.coord('time').points)
-            nlat = len(cube.coord('latitude').points)
-            nlon = len(cube.coord('longitude').points)
-            cdf = np.ma.masked_all((ntim, nlat, nlon))
-            for lat in range(0, nlat):
-                for lon in range(0, nlon):
-                    cube_point = cube.data[:, lat, lon]
-                    short_cube_point = short_cube.data[:, lat, lon]
-                    if not (short_cube_point.mask.all()|(np.sum(short_cube_point.data[~short_cube_point.mask]<=1e-04)>0.35*ntim_sh)):
-                        gev_par = gev.fit(short_cube_point[~short_cube_point.mask])
-                        cdf[:,lat,lon] = gev.cdf(cube_point, gev_par[0], loc=gev_par[1], scale=gev_par[2]) * 100 # *100 to translate it to %
-            cdf.mask[cdf==100]=True
-            cdf_cube=iris.cube.Cube(cdf, long_name='Probability index', var_name='cdf', units='%', attributes=cube.attributes, dim_coords_and_dims=cube._dim_coords_and_dims)
-            cdf_cubelist.append(cdf_cube)
-        iris.save(cdf_cubelist, os.path.join(cdf_dir,
-                                         'cdf_' + proj + '_' + exp +
-                                         '_' + mod_name + '.nc'))
-
-    return (cdf_cubelist)
-
-def dataset_regriding(cubelist, exp, obs_filename):
+def dataset_regriding(cube, exp, obs_filename):
 
     if exp =='OBS':
-        regridded_cubelist = cubelist
+        regridded_cube = cube
     else:
         obs_cube = iris.load_cube(obs_filename)
-        regridded_cubelist = iris.cube.CubeList()
-        for cube in cubelist:
-            regridded_cube = regrid(cube, obs_cube, 'linear')
-            regridded_cubelist.append(regridded_cube)
+        regridded_cube = regrid(cube, obs_cube, 'linear')
 
-    return (regridded_cubelist)
+    return (regridded_cube)
 
-def apply_obs_mask(cubelist, mask):
+def apply_obs_mask(cube, mask):
 
-    for cube in cubelist:
-        if cube.shape[1:] == mask.shape:
-            cube.data.mask = cube.data.mask | mask
-        else:
-            print('The regridding did not work correctly')
+    if cube.shape[1:] == mask.shape:
+        cube.data.mask = cube.data.mask | mask
+    else:
+        print('The regridding did not work correctly')
 
-    return(cubelist)
+    return(cube)
 
 def create_coords(cubelist, year_n):
     # dirty trick, we try to unify time to merge  the cubelist in the end
@@ -245,17 +191,6 @@ def n_year_mean(cubelist, n):
 
     return (n_aver_cubelist)
 
-def area_wght_averaging(cubelist):
-
-    area_wght_cblst = iris.cube.CubeList()
-
-    for cube in cubelist:
-        weights = iris.analysis.cartography.area_weights(cube, normalize=True)
-        area_wght_cube = cube.collapsed(('latitude', 'longitude'), iris.analysis.MEAN, weights=weights)
-        area_wght_cblst.append(area_wght_cube)
-
-    return (area_wght_cblst)
-
 def ens_averaging(cubelist):
 
     if len(cubelist) >1:
@@ -272,50 +207,6 @@ def ens_averaging(cubelist):
 
     return (aver_ens_cube)
 
-def calculate_stats(cubelist):
-
-    stats_dic = {}
-
-    n_models = cubelist.__len__()
-    max_n_ens = np.asarray([mod_cblist.__len__() for mod_cblist in cubelist]).max()
-    n_time = cubelist[0][0].coord('time').points.__len__()
-
-    all_weights = np.zeros((n_time, max_n_ens, n_models))
-    all_mod_values = np.ma.masked_all((n_time, max_n_ens, n_models))
-
-    for nm, mod_cblst in enumerate(cubelist):
-        n_ensembles = mod_cblst.__len__()
-        all_weights[:, 0:n_ensembles, nm] = np.ones((n_time, n_ensembles)) / (
-                n_ensembles * n_models)
-        for nens, ens_cb in enumerate(mod_cblst):
-            all_mod_values[:, nens, nm] = ens_cb.data
-
-    max_ens_coord = iris.coords.DimCoord(np.arange(0, max_n_ens),
-                                         long_name='ens_axis',
-                                         var_name='ens_axis')
-    mod_coord = iris.coords.DimCoord(np.arange(0, n_models),
-                                     long_name='mod_axis',
-                                     var_name='mod_axis')
-
-    all_vals_cube = iris.cube.Cube(all_mod_values,
-                                   long_name='all_model_'+ ens_cb.var_name+'_data',
-                                   var_name='all_'+ ens_cb.var_name,
-                                   units=ens_cb.units,
-                                   dim_coords_and_dims=[
-                                       (ens_cb.coord('time'), 0),
-                                       (max_ens_coord, 1), (mod_coord, 2)])
-
-    stats_dic['5_95_perc'] = all_vals_cube.collapsed(['ens_axis', 'mod_axis'],
-                                          iris.analysis.WPERCENTILE,
-                                          percent=[5, 95],
-                                          weights=all_weights)
-    stats_dic['mean'] = all_vals_cube.collapsed(['ens_axis', 'mod_axis'],
-                                          iris.analysis.MEAN,
-                                          weights=all_weights)
-
-    stats_dic['n_models'] = n_models
-
-    return(stats_dic)
 
 def make_panel(data_dic, variable, exp_key, nrows, ncols, idx, ref_period, obs_cube):
 
@@ -393,24 +284,38 @@ def make_panel(data_dic, variable, exp_key, nrows, ncols, idx, ref_period, obs_c
 
 def make_figure(data_dic, cfg):
 
-    ncols = len(data_dic.keys())
-    # unorthodox way of calculating non observations
-    nrows = np.max([len([exp for exp in data_dic[var].keys() if exp != 'OBS']) for var in data_dic.keys()])
-
     st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
 
     plt.style.use(st_file)
 
+    obs_cb = data_dic.pop('OBS')
+
+    colors = {}
+    colors['ALL'] = (196 / 255, 121 / 255, 0)
+    colors['NAT'] = (0, 79 / 255, 0)
+
     fig = plt.figure()
     fig.set_size_inches(12., 8.)
+    for exp_key in sorted(data_dic.keys()):
+        ens_cubelist = data_dic[exp_key]
+        distrib_data = []
+        for cube in ens_cubelist:
+            for point in cube.data:
+                distrib_data.append(np.around(point - 273.15, 1))
+        distrib_data = np.asarray(distrib_data)
+        n_bins = int((np.max(distrib_data) - np.min(distrib_data))*10)
+        plt.hist(distrib_data, bins=n_bins, color=colors[exp_key], label=exp_key)
+    for n, obs_point in enumerate(obs_cb.data):
+        plt.arrow(obs_point-273.15, 24, 0, -7, color='k')
+        plt.text(obs_point-273.4, 24.5, str(10+n))
 
-    for n, vrbl in enumerate(sorted(data_dic.keys())[::-1]):
-        obs = data_dic[vrbl].pop('OBS')
-        for exp_key in sorted(data_dic[vrbl].keys()):
-            make_panel(data_dic[vrbl][exp_key], vrbl, exp_key, ncols, nrows,
-                       n+1, cfg['ref_period'], obs_cube = obs['OBS'])
+    plt.legend(loc=2, fancybox=False, frameon=False)
+    plt.xlim(20,51)
+    plt.ylim(0,25)
+    plt.xlabel('Temperature, C')
+    plt.ylabel('number of occurences')
 
-    fig.suptitle('Climate Extremes Indices', fontsize = 'x-large')
+    fig.suptitle('Distribution of maximal TXx in BC\n from 2010 to 2017', fontsize = 'x-large')
     fig.set_dpi(250)
 
     return
@@ -421,41 +326,35 @@ def main(cfg):
     all_dtsts = Datasets(cfg)
 
     rename_variables(vrbls, all_dtsts)
-    vrbls_list = list(set(all_dtsts.get_info_list('short_name')))
+    vrbl = list(set(all_dtsts.get_info_list('short_name')))[0]
 
     plotting_dic = {}
 
-    for vrbl in vrbls_list:
-        plotting_dic[vrbl] = {}
-        raw_exp_keys = ['ALL', 'OBS']
-        for exp_key in raw_exp_keys:
-            plotting_dic[vrbl][exp_key] = {}
-        projects = set(all_dtsts.get_info_list('project', short_name=vrbl))
-        obs_filename = all_dtsts.get_dataset_info(project='OBS',
-                                                  short_name=vrbl)['filename']
-        obs_mask = create_obs_mask(obs_filename, vrbl)
-        for project in sorted(projects):
-            exp_keys = reform_exp_keys(project, raw_exp_keys)
-            for exp_key in sorted(exp_keys):
-                dtsts, exp = obtain_datasets(all_dtsts, project=project,
-                                             short_name=vrbl, exp_key=exp_key)
-                ens_cubelist = iris.cube.CubeList()
-                for dtst in dtsts:
-                    flpths = obtain_filepaths(all_dtsts, dataset=dtst,
-                                              project=project, short_name=vrbl,
-                                              exp=exp)
-                    mod_cblst = ipcc_sea_ice_diag.load_cubelist([dtst['filename'] for dtst in flpths])
-                    mod_cblst = dataset_regriding(mod_cblst, exp, obs_filename)
-                    mod_cblst = apply_obs_mask(mod_cblst, obs_mask)
-                    ano_mod_cblst = ipcc_sea_ice_diag.substract_ref_period(mod_cblst, cfg['ref_period'])
-                    wght_mod_cblst = area_wght_averaging(ano_mod_cblst)
-                    aver_mod_cblst = n_year_mean(wght_mod_cblst,5)
-                    # mod_cube = ens_averaging(aver_mod_cblst)
-                    ens_cubelist.append(aver_mod_cblst)
-                if exp == 'OBS':
-                    plotting_dic[vrbl][exp_key][project] = ens_cubelist[0][0]
-                else:
-                    plotting_dic[vrbl][exp_key][project] = calculate_stats(ens_cubelist)
+    raw_exp_keys = ['ALL', 'NAT', 'OBS']
+    projects = set(all_dtsts.get_info_list('project', short_name=vrbl))
+    obs_filename = all_dtsts.get_dataset_info(project='OBS',
+                                              short_name=vrbl)['filename']
+    obs_mask = create_obs_mask(obs_filename, vrbl)
+    for project in sorted(projects):
+        exp_keys = reform_exp_keys(project, raw_exp_keys)
+        for exp_key in sorted(exp_keys):
+            dtsts, exp = obtain_datasets(all_dtsts, project=project,
+                                         short_name=vrbl, exp_key=exp_key)
+            ens_cubelist = iris.cube.CubeList()
+            for dtst in dtsts:
+                flpths = obtain_filepaths(all_dtsts, dataset=dtst,
+                                          project=project, short_name=vrbl,
+                                          exp=exp)
+                for flfpth in flpths:
+                    mod_cb = iris.load_cube(flfpth['filename'])
+                    mod_cb = dataset_regriding(mod_cb, exp, obs_filename)
+                    mod_cb = apply_obs_mask(mod_cb, obs_mask)
+                    wght_mod_cb = esmvalcore.preprocessor.area_statistics(mod_cb, 'max')
+                    ens_cubelist.append(wght_mod_cb)
+            if exp_key == 'OBS':
+                plotting_dic[exp_key] = ens_cubelist[0]
+            else:
+                plotting_dic[exp_key] = ens_cubelist
 
     make_figure(plotting_dic, cfg)
 

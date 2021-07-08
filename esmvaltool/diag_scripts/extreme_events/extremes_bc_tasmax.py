@@ -317,7 +317,7 @@ def calculate_stats(cubelist):
 
     return(stats_dic)
 
-def make_panel(data_dic, variable, exp_key, nrows, ncols, idx, ref_period, obs_cube):
+def make_panel(data_dic, variable, nrows, ncols, idx, ref_period, obs_cube):
 
     ax = plt.subplot(nrows, ncols, idx)
 
@@ -332,53 +332,43 @@ def make_panel(data_dic, variable, exp_key, nrows, ncols, idx, ref_period, obs_c
 
     colors = {}
 
-    colors['CMIP5'] = (37 / 255, 81 / 255, 204 / 255)
-    colors['CMIP6'] = (204 / 255, 35 / 255, 35 / 255)
+    # nat colors: (0, 79/255, 0)
+    # hist-ss245: l: (196/255,121/255,0), ribbon: (204/255, 174/255, 113/255)
+
+    colors['ALL'] = (196 / 255, 121 / 255, 0)
+    colors['NAT'] = (0, 79 / 255, 0)
     colors['ribbon'] = (37 / 255, 81 / 255, 204 / 255)
     colors['lines'] = (204 / 255, 35 / 255, 35 / 255)
 
-    if variable == 'rx1day':
-        ax.set_ylabel('Rx1day (%)')
-        if idx < 3:
-            ax.set_title('Annual maximum 1-day precipitation \n (Rx1day)')
-        ax.set_ylim(-5.5, 10.5)
-        ax.set_yticks(np.arange(-5,11,5))
-        txt_y = 3.12
-        txt_x = datetime.datetime(1968, 7, 1)
-        ax.text(datetime.datetime(ref_period[0]+4, 7, 1), -4.5, 'Reference period', color='grey')
+    ax.set_ylabel('TXx ($^o$C)')
+    if idx < 3:
+        ax.set_title('Annual maximum daily \n maximum temperature (TXx)')
+    ax.set_ylim(-2.2, 4.2)
+    ax.set_yticks(np.arange(-2,5,1))
+    txt_y = 0.6
+    txt_x = datetime.datetime(1950, 1, 1)
+    ax.text(datetime.datetime(ref_period[0] + 4, 7, 1), -1,
+            'Reference period', color='grey')
 
-    elif variable == 'txx':
-        ax.set_ylabel('TXx ($^o$C)')
-        if idx < 3:
-            ax.set_title('Annual maximum daily \n maximum temperature (TXx)')
-        ax.set_ylim(-1.2, 2.4)
-        ax.set_yticks(np.arange(-1,3,1))
-        txt_y = 0.6
-        txt_x = datetime.datetime(1950, 1, 1)
-        ax.text(datetime.datetime(ref_period[0] + 4, 7, 1), -1,
-                'Reference period', color='grey')
-
-    for proj in data_dic.keys():
-        tim = data_dic[proj]['mean'].coord('time')
+    for exp_key in data_dic.keys():
+        if exp_key == 'ALL':
+            label = 'Natural and Human Forcing'
+        elif exp_key == 'NAT':
+            label = 'Natural Forcing'
+        tim = data_dic[exp_key]['CMIP6']['mean'].coord('time')
         conv_time = cftime.num2pydate(tim.points, tim.units.origin, tim.units.calendar)
-        ax.fill_between(conv_time, data_dic[proj]['5_95_perc'][0].data,
-                        data_dic[proj]['5_95_perc'][1].data, color=colors[proj],
+        ax.fill_between(conv_time, data_dic[exp_key]['CMIP6']['5_95_perc'][0].data,
+                        data_dic[exp_key]['CMIP6']['5_95_perc'][1].data, color=colors[exp_key],
                         alpha=0.2, linewidth=0)
-        iplt.plot(data_dic[proj]['mean'], label=proj +' ('+
-                                            str(data_dic[proj]['n_models'])+
-                                            ')', c=colors[proj],
-                  linestyle='solid', axes=ax)
+        iplt.plot(data_dic[exp_key]['CMIP6']['mean'], label=label +' ('+
+                                            str(data_dic[exp_key]['CMIP6']['n_models'])+
+                                            ')', c=colors[exp_key],
+                                            linestyle='solid', axes=ax)
 
     iplt.plot(obs_cube, c='k', linestyle='solid', axes=ax)
     ax.text(txt_x, txt_y, 'Observations:\n   '+obs_cube.attributes['title'].split()[0])
 
-
-    if exp_key == 'ALL':
-        label = 'Natural and Human Forcing'
-    elif exp_key == 'NAT':
-        label = 'Natural Forcing'
-
-    leg = ax.legend(loc=2, frameon=False, ncol=1, title=label, handlelength=0,
+    leg = ax.legend(loc=2, frameon=False, ncol=1, handlelength=0,
                     fontsize='medium', title_fontsize='large', handletextpad=0.2)
 
     for nt, txt in enumerate(leg.get_texts()):
@@ -391,11 +381,8 @@ def make_panel(data_dic, variable, exp_key, nrows, ncols, idx, ref_period, obs_c
 
     return
 
-def make_figure(data_dic, cfg):
 
-    ncols = len(data_dic.keys())
-    # unorthodox way of calculating non observations
-    nrows = np.max([len([exp for exp in data_dic[var].keys() if exp != 'OBS']) for var in data_dic.keys()])
+def make_figure(data_dic, cfg):
 
     st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
 
@@ -406,11 +393,10 @@ def make_figure(data_dic, cfg):
 
     for n, vrbl in enumerate(sorted(data_dic.keys())[::-1]):
         obs = data_dic[vrbl].pop('OBS')
-        for exp_key in sorted(data_dic[vrbl].keys()):
-            make_panel(data_dic[vrbl][exp_key], vrbl, exp_key, ncols, nrows,
-                       n+1, cfg['ref_period'], obs_cube = obs['OBS'])
+        make_panel(data_dic[vrbl], vrbl, 1, 1, 1, cfg['ref_period'],
+                   obs_cube=obs['OBS'])
 
-    fig.suptitle('Climate Extremes Indices', fontsize = 'x-large')
+    fig.suptitle('Climate Extremes Indices', fontsize='x-large')
     fig.set_dpi(250)
 
     return
@@ -427,7 +413,7 @@ def main(cfg):
 
     for vrbl in vrbls_list:
         plotting_dic[vrbl] = {}
-        raw_exp_keys = ['ALL', 'OBS']
+        raw_exp_keys = ['ALL', 'NAT', 'OBS']
         for exp_key in raw_exp_keys:
             plotting_dic[vrbl][exp_key] = {}
         projects = set(all_dtsts.get_info_list('project', short_name=vrbl))

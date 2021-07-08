@@ -17,6 +17,12 @@ preprocessors:
       end_latitude: 52.0
     annual_statistics:
       operator: max
+  preproc_shape:
+    extract_region:
+      start_longitude: -123.0
+      end_longitude: -119.0
+      start_latitude: 45.0
+      end_latitude: 52.0
 
 models_tasmax: &models_tasmax
 # CMIP6
@@ -74,6 +80,7 @@ diagnostics:
     variables:
       txx:
         mip: yr
+        preprocessor: preproc_shape
         additional_datasets:
           *measurements
       tasmax:

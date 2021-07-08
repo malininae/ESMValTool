@@ -16,6 +16,12 @@ preprocessors:
       crop: True
     annual_statistics:
       operator: max
+  preproc_shape:
+    preproc_region:
+      extract_shape:
+        shapefile: 'british_columbia.shp'
+        method: 'contains'
+        crop: True
 
 models_tasmax: &models_tasmax
 # CMIP6
@@ -73,6 +79,7 @@ diagnostics:
     variables:
       txx:
         mip: yr
+        preprocessor: preproc_shape
         additional_datasets:
           *measurements
       tasmax:
