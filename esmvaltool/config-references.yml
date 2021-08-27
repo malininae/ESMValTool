@@ -142,10 +142,6 @@ authors:
     name: Cortesi, Nicola
     institute: BSC, Spain
     orcid: https://orcid.org/0000-0002-1442-9225
-  cowtan_kevin:
-    name: Cowtan, Kevin
-    institute: University of York 
-    orcid: https://orcid.org/0000-0002-0189-1437
   crezee_bas:
     name: Crezee, Bas
     institute: ETH Zurich, Switzerland
@@ -198,10 +194,6 @@ authors:
     name: Gier, Bettina
     institute: University of Bremen, Germany
     orcid:
-  gillett_nathan:
-    name: Gillett, Nathan
-    institute: Environment and Climate Change Canada, Canada
-    orcid: https://orcid.org/0000-0002-2957-0002
   gottschaldt_klaus-dirk:
     name: Gottschaldt, Klaus-Dirk
     institute: DLR, Germany
@@ -254,14 +246,14 @@ authors:
     name: Kindermann, Stephan
     institute: DKRZ, Germany
     orcid: https://orcid.org/0000-0001-9335-1093
-  kirchmeier-young_megan:
-    name: Kirchmeier-Young, Megan
-    institute: Environment and Climate Change Canada
-    orcid: https://orcid.org/0000-0003-3907-8510
   koirala_sujan:
     name: Koirala, Sujan
     institute: MPI-BGC, Germany
     orcid: https://orcid.org/0000-0001-5681-1986
+  kosaka_yu:
+    name: Kosaka, Yu
+    institute: RCAST, University of Tokyo, Japan
+    orcid: https://orcid.org/0000-0001-5575-4668
   krasting_john:
     name: Krasting, John
     institute: NOAA, USA
@@ -298,6 +290,10 @@ authors:
     name: Makela, Jarmo
     institute: FMI, Finland
     orcid:
+  malinina_elizaveta:
+     name: Malinina, Elizaveta
+     insitute: CCCma, Canada
+     orchid: https://orcid.org/0000-0002-4102-2877
   maloney_eric:
     name: Maloney, Eric
     institute: Colorado State University, USA
@@ -381,10 +377,6 @@ authors:
     name: Rio, Catherine
     institute: IPSL, France
     orcid: https://orcid.org/0000-0002-6590-7733
-  roberts_charles:
-    name: Roberts, Charles
-    institute: University of Reading, UK
-    orcid: https://orcid.org/0000-0002-1147-8961
   roehrig_romain:
     name: Roehrig, Romain
     institute: MeteoFr, France
@@ -663,6 +655,7 @@ projects:
   esmval: DLR project ESMVal
   eval4cmip: DLR and University of Bremen project funded by the Initiative and Networking Fund of the Helmholtz Society
   ewatercycle: eWaterCycle project
+  ipcc_ar6: IPCC AR6 contributions
   primavera: EU H2020 project PRIMAVERA
   qa4ecv: QA4ECV
   russell_project: US Clivar, Ocean Carbon Biogeochemistry, ESGF, NOAA, NSF, NASA, US Antarctic program

@@ -44,7 +44,7 @@ diagnostics:
     description: Preprocess data needed for Gillett et al. (2020) figures.
     variables:
       tas:
-        preprocessor: regrid_5_5
+        preprocessor: regrid_canada
         reference_dataset: HadCRUT4
         field: T2Ms
         mip: Amon
@@ -60,7 +60,7 @@ diagnostics:
           - {dataset: ACCESS-ESM1-5, ensemble: "r3i1p1f1", grid: gn, exp: hist-GHG}
           - {dataset: BCC-CSM2-MR, ensemble: "r1i1p1f1", grid: gn, exp: [historical,ssp245]}
           - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-nat}
-          - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-aer}
+          - {dataset: BCC-CSM2-MR, ensemble: "r(1:2)i1p1f1", grid: gn, exp: hist-aer}
           - {dataset: BCC-CSM2-MR, ensemble: "r(1:3)i1p1f1", grid: gn, exp: hist-GHG}
           - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", grid: gn, exp: [historical,ssp245]}
           - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", grid: gn, exp: [historical,ssp245]}
@@ -133,5 +133,5 @@ diagnostics:
         obs: had4
         exp_flag: AER
         diag_name: gmst05
-        rcplot: true
+        rcplot: false
         simple_uncert: false

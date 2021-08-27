@@ -17,7 +17,6 @@ preprocessors:
     annual_statistics:
       operator: max
   preproc_shape:
-    preproc_region:
       extract_shape:
         shapefile: 'british_columbia.shp'
         method: 'contains'
