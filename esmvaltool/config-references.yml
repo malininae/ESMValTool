@@ -254,6 +254,10 @@ authors:
     name: Koirala, Sujan
     institute: MPI-BGC, Germany
     orcid: https://orcid.org/0000-0001-5681-1986
+  kosaka_yu:
+    name: Kosaka, Yu
+    institute: RCAST, University of Tokyo, Japan
+    orcid: https://orcid.org/0000-0001-5575-4668
   krasting_john:
     name: Krasting, John
     institute: NOAA, USA
@@ -294,6 +298,10 @@ authors:
     name: Makela, Jarmo
     institute: FMI, Finland
     orcid:
+  malinina_elizaveta:
+     name: Malinina, Elizaveta
+     insitute: CCCma, Canada
+     orchid: https://orcid.org/0000-0002-4102-2877
   maloney_eric:
     name: Maloney, Eric
     institute: Colorado State University, USA
@@ -381,10 +389,6 @@ authors:
     name: Rio, Catherine
     institute: IPSL, France
     orcid: https://orcid.org/0000-0002-6590-7733
-  roberts_charles:
-    name: Roberts, Charles
-    institute: University of Reading, UK
-    orcid: https://orcid.org/0000-0002-1147-8961
   roehrig_romain:
     name: Roehrig, Romain
     institute: MeteoFr, France
