@@ -13,11 +13,12 @@ import os
 from scipy.stats import genextreme as gev
 
 # import internal esmvaltool modules here
-from esmvaltool.diag_scripts.shared import run_diagnostic, Datasets, Variables
+from esmvaltool.diag_scripts.shared import run_diagnostic, get_diagnostic_filename, Datasets, Variables, ProvenanceLogger
 from esmvaltool.diag_scripts.seaice import ipcc_sea_ice_diag_tools as ipcc_sea_ice_diag
 from esmvalcore.preprocessor import regrid
 import esmvaltool.diag_scripts.shared.plot as eplot
 from esmvaltool.diag_scripts.ocean import diagnostic_tools as diagtools
+from esmvaltool.diag_scripts.shared import ProvenanceLogger
 
 # # This part sends debug statements to stdout
 logger = logging.getLogger(os.path.basename(__file__))
@@ -321,6 +322,13 @@ def make_figure(data_dic, cfg):
     return
 
 def main(cfg):
+
+
+    provenance_rec= { 'authors' : 'malinina_elizaveta', 'statistics': 'max'}
+
+    dig_fname =  get_diagnostic_filename('xcbox32', cfg,'xml')
+    with ProvenanceLogger(cfg) as prov_log:
+        prov_log.log(dig_fname, provenance_rec)
 
     vrbls = Variables(cfg)
     all_dtsts = Datasets(cfg)
