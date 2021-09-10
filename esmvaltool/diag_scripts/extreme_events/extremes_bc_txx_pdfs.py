@@ -1,6 +1,7 @@
 import cf_units
 import cftime
 import datetime
+import pickle
 
 import esmvalcore.preprocessor
 import iris
@@ -13,7 +14,7 @@ import os
 from scipy.stats import genextreme as gev
 
 # import internal esmvaltool modules here
-from esmvaltool.diag_scripts.shared import run_diagnostic, get_diagnostic_filename, Datasets, Variables, ProvenanceLogger
+from esmvaltool.diag_scripts.shared import run_diagnostic, get_diagnostic_filename, save_data, Datasets, Variables, ProvenanceLogger
 from esmvaltool.diag_scripts.seaice import ipcc_sea_ice_diag_tools as ipcc_sea_ice_diag
 from esmvalcore.preprocessor import regrid
 import esmvaltool.diag_scripts.shared.plot as eplot
@@ -323,13 +324,6 @@ def make_figure(data_dic, cfg):
 
 def main(cfg):
 
-
-    provenance_rec= { 'authors' : 'malinina_elizaveta', 'statistics': 'max'}
-
-    dig_fname =  get_diagnostic_filename('xcbox32', cfg,'xml')
-    with ProvenanceLogger(cfg) as prov_log:
-        prov_log.log(dig_fname, provenance_rec)
-
     vrbls = Variables(cfg)
     all_dtsts = Datasets(cfg)
 
@@ -358,11 +352,20 @@ def main(cfg):
                     mod_cb = dataset_regriding(mod_cb, exp, obs_filename)
                     mod_cb = apply_obs_mask(mod_cb, obs_mask)
                     wght_mod_cb = esmvalcore.preprocessor.area_statistics(mod_cb, 'max')
+                    provenance_rec= { 'authors' : 'malinina_elizaveta', 'statistics': 'max', 'ancestors': [flfpth['filename']]}
+                    if flfpth['project'] == 'OBS':
+                        basename = flfpth['short_name'] +'_'+ flfpth['dataset']+'_'+flfpth['project']
+                    else:
+                        basename = flfpth['short_name'] +'_'+ flfpth['dataset']+'_'+flfpth['exp'] + '_'+ flfpth['ensemble']
+                    # save_fname = get_diagnostic_filename(basename, cfg)
+                    # with ProvenanceLogger(cfg) as prov_log:
+                    #     prov_log.log(save_fname, provenance_rec)
+                    save_data(basename, provenance_rec, cfg, wght_mod_cb)
                     ens_cubelist.append(wght_mod_cb)
             if exp_key == 'OBS':
                 plotting_dic[exp_key] = ens_cubelist[0]
             else:
-                plotting_dic[exp_key] = ens_cubelist
+                plotting_dic[exp_key] = ens_cubelist      
 
     make_figure(plotting_dic, cfg)
 
