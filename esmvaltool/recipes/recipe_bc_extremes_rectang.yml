@@ -24,8 +24,7 @@ preprocessors:
       start_latitude: 45.0
       end_latitude: 52.0
 
-datasets:
-# models_tasmax: &models_tasmax
+datasets_tasmax: &datasets_tasmax
 # CMIP6
   - {dataset: ACCESS-ESM1-5, project: CMIP6, exp: [historical, ssp245], ensemble: "r(1:6)i1p1f1", mip: day, grid: gn, start_year: 1951, end_year: 2020}
   - {dataset: ACCESS-ESM1-5, project: CMIP6, exp: [historical, ssp245], ensemble: "r(8:10)i1p1f1", mip: day, grid: gn, start_year: 1951, end_year: 2020}
@@ -48,7 +47,7 @@ datasets:
   # era
   - { dataset: ERA5, project: native6, type: reanaly, version: '1', mip: E1hr, tier: 3, start_year: 1951, end_year: 2020}
 
-measurements: &measurements
+datasets_txx: &datasets_txx
   - { dataset: HadEX3, project: OBS, frequency: yr, tier: 2, mip: yr, type: clim, version: v20200928, start_year: 1951, end_year: 2017}
 
 diagnostics:
@@ -57,10 +56,12 @@ diagnostics:
     variables:
       tasmax:
         preprocessor: preproc_max
+        additional_datasets:
+          *datasets_tasmax
       txx:
         preprocessor: preproc_shape
         additional_datasets:
-          *measurements
+          *datasets_txx
     scripts:
       xcbox32:
         script: extreme_events/extremes_bc_txx_pdfs.py
