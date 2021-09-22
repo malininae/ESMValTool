@@ -10,13 +10,16 @@ documentation:
 preprocessors:
   preproc_max:
     custom_order: True
+    annual_statistics:
+      operator: max
+    regrid:
+      target_grid: HadEX3
+      scheme: linear
     extract_region:
       start_longitude: -123.0
       end_longitude: -119.0
       start_latitude: 45.0
       end_latitude: 52.0
-    annual_statistics:
-      operator: max
   preproc_shape:
     extract_region:
       start_longitude: -123.0
