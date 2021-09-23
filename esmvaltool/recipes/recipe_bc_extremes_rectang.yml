@@ -13,7 +13,9 @@ preprocessors:
     annual_statistics:
       operator: max
     regrid:
-      target_grid: HadEX3
+      target_grid: 1.875x1.25
+      lat_offset: 0.9375
+      lon_offset: 0.625
       scheme: linear
     extract_region:
       start_longitude: -123.0
@@ -26,6 +28,11 @@ preprocessors:
       end_longitude: -119.0
       start_latitude: 45.0
       end_latitude: 52.0
+
+
+datasets_txx: &datasets_txx
+  - { dataset: HadEX3, project: OBS, frequency: yr, tier: 2, mip: yr, type: clim, version: v20200928, start_year: 1951, end_year: 2017}
+
 
 datasets_tasmax: &datasets_tasmax
 # CMIP6
@@ -50,21 +57,18 @@ datasets_tasmax: &datasets_tasmax
   # era
   - { dataset: ERA5, project: native6, type: reanaly, version: '1', mip: E1hr, tier: 3, start_year: 1951, end_year: 2020}
 
-datasets_txx: &datasets_txx
-  - { dataset: HadEX3, project: OBS, frequency: yr, tier: 2, mip: yr, type: clim, version: v20200928, start_year: 1951, end_year: 2017}
-
 diagnostics:
   xcbox32:
     description: Figure for BC extremes
     variables:
-      tasmax:
-        preprocessor: preproc_max
-        additional_datasets:
-          *datasets_tasmax
       txx:
         preprocessor: preproc_shape
         additional_datasets:
           *datasets_txx
+      tasmax:
+        preprocessor: preproc_max
+        additional_datasets:
+          *datasets_tasmax
     scripts:
       xcbox32:
         script: extreme_events/extremes_bc_txx_pdfs.py
