@@ -248,6 +248,33 @@ def ens_averaging(cubelist):
 
     return (aver_ens_cube)
 
+
+def bootstrap_gev(data_dic): 
+
+    # determining the max length of the model realisation, the number of bootstrap
+    # iterations is this value * 100
+    max_cblst_len = np.asarray([len(data_dic[model]) for model in data_dic.keys()]).max()
+    iter_pool = max_cblst_len *100
+
+    shapes = np.zeros(iter_pool)
+    locs = np.zeros(iter_pool)
+    scales = np.zeros(iter_pool)
+
+    for i in range(0, iter_pool):
+        pool_data = list()
+        for model in data_dic.keys(): 
+            n_real = len(data_dic[model])
+            idx = np.random.default_rng().integers(low=0, high=n_real, size=1)[0]
+            pool_data.append(data_dic[model][idx].data.round(2))
+        pool_data = np.asarray(pool_data).flatten()
+        shapes[i], locs[i], scales[i] = gev.fit(pool_data)
+    
+
+    param_dic = {'shape': shapes, 'loc': locs, 'scale': scales}    
+
+    return param_dic
+
+
 def make_hist_figure(data_dic, cfg):
 
     st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
@@ -478,7 +505,8 @@ def main(cfg):
                     mod_cubelist.append(wght_mod_cb)
                 plotting_dic[project][exp_key][dtst] = mod_cubelist
             if exp_key != 'OBS':
-                plotting_dic[project][exp_key]['Multi-Model-Mean'] = ens_cubelist      
+                plotting_dic[project][exp_key]['GEV_uncert'] = bootstrap_gev(plotting_dic[project][exp_key])      
+                plotting_dic[project][exp_key]['Multi-Model-Mean'] = ens_cubelist
 
     era_cube = apply_obs_mask(era_cube, obs_mask)
     plotting_dic['reanalysis'] = era_cube
