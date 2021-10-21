@@ -75,3 +75,4 @@ diagnostics:
         mpl_style: ipcc_ar6_fgd
         reference_period: [1951, 1980]
         plotting_period: [1991, 2020]
+        era_plotting_period: [1991, 2021]
