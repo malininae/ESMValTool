@@ -1,7 +1,7 @@
 import cf_units
 import cftime
 import datetime
-import pickle
+import csv
 
 import esmvalcore.preprocessor
 import iris
@@ -15,7 +15,7 @@ import glob
 from scipy.stats import genextreme as gev
 
 # import internal esmvaltool modules here
-from esmvaltool.diag_scripts.shared import run_diagnostic, get_diagnostic_filename, save_data, Datasets, Variables, ProvenanceLogger
+from esmvaltool.diag_scripts.shared import run_diagnostic, select_metadata, get_diagnostic_filename, save_data, Datasets, Variables, ProvenanceLogger
 from esmvaltool.diag_scripts.seaice import ipcc_sea_ice_diag_tools as ipcc_sea_ice_diag
 from esmvalcore.preprocessor import regrid
 import esmvaltool.diag_scripts.shared.plot as eplot
@@ -79,12 +79,18 @@ def get_era_txx(cfg):
 
     era_cb = era_cubelist.concatenate_cube()
     txxs = esmvalcore.preprocessor.annual_statistics(era_cb, 'max')
+
+    obs_path = select_metadata(cfg['input_data'].values(), project='OBS')[0]['filename']
      
-    obs_cb = iris.load_cube('/home/acrnemr/esmvaltool_output/recipe_bc_extremes_rectang_20210924_050436/preproc/xcbox32/txx/OBS_HadEX3_clim_v20200928_yr_txx_1951-2017.nc')
+    obs_cb = iris.load_cube(obs_path)
 
     regrd_txx = esmvalcore.preprocessor.regrid(txxs, obs_cb, 'linear')
-
-    reg_cb_txx = esmvalcore.preprocessor.extract_region(regrd_txx, -123.0, -119.0, 45.0, 52.0)
+    
+    if cfg['era_regridding_shape']: 
+        reg_cb_txx = esmvalcore.preprocessor.extract_shape(regrd_txx, os.path.join(cfg['auxiliary_data_dir'], cfg['era_regridding_region']))
+    else:
+        reg_cb_txx = esmvalcore.preprocessor.extract_region(regrd_txx, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
+                        cfg['era_regridding_region'][2], cfg['era_regridding_region'][3])
 
     anomal_era_cb = esmvalcore.preprocessor.anomalies(reg_cb_txx, 'full',
                         reference={'start_year': cfg['reference_period'][0],
@@ -175,80 +181,6 @@ def apply_obs_mask(cube, mask):
 
     return(cube)
 
-def create_coords(cubelist, year_n):
-    # dirty trick, we try to unify time to merge  the cubelist in the end
-
-    cb = cubelist [0]
-
-    n_t = len(cb.coord('time').points)
-
-    tim = cb.coord('time')
-    orig = tim.units.origin
-    calendar = tim.units.calendar
-    #  dest orig and calendar are converted, so in the end we can merge cubes
-    dest_orig = 'days since 1850-1-1 00:00:00'
-    dest_calendar = 'gregorian'
-    cf_tim = cf_units.num2date(tim.points, orig, calendar)
-    year = np.asarray([pnt.year for pnt in cf_tim])
-    pnt_dts = np.asarray([datetime.datetime(yr, 7, 1) for yr in year])
-    bds_dts = np.asarray([[datetime.datetime(yr, 1, 1), datetime.datetime(yr, 12, 31)] for yr in year])
-    tim_coor = iris.coords.DimCoord(cf_units.date2num(pnt_dts, dest_orig, dest_calendar), standard_name='time',
-                                    long_name='time', var_name='time', units=cf_units.Unit(dest_orig, dest_calendar),
-                                    bounds=cf_units.date2num(bds_dts, dest_orig, dest_calendar))
-
-    coord = [np.average(tim_coor.points[year_n*i:year_n*i + year_n]) for i in range(0, int(n_t / year_n))]
-    bnds = [[tim_coor.bounds[year_n*i][0], tim_coor.bounds[year_n*i + (year_n - 1)][1]] for i in
-            range(0, int(n_t / year_n))]
-    if n_t%year_n != 0:
-        # raise warning
-        print('The n of years is not divisible by '+str(year_n))
-        # coord.append(np.average(cb.coord('time').points[int(n_t / year_n):-1]))
-        # bnds.append([cb.coord('time').bounds[int(n_t / year_n) * year_n][0], cb.coord('time').bounds[-1][1]])
-
-    dcoord = iris.coords.DimCoord(np.asarray(coord), bounds=np.asarray(bnds), standard_name='time',
-                                  units=cf_units.Unit(dest_orig, dest_calendar), long_name='time', var_name='time')
-
-    return (dcoord)
-
-def n_year_mean(cubelist, n):
-
-    # the idea behind it is that we pass the cubelist with the same time coords
-
-    n_aver_cubelist = iris.cube.CubeList()
-
-    dcoord = create_coords(cubelist, n)
-
-    for cube in cubelist:
-        n_t = len(cube.coord('time').points)
-        if n_t%n!=0:
-            # add here a warning that the last is an average of n_t%n==0 years
-            print('The n of years is not divisible by '+str(n)+' last '+str(n_t%n)+' years were not taken into account')
-        data = np.asarray([np.average(cube.data[n * i:n * i + n], axis=0) for i in range(0, int(n_t / n))])
-        n_aver_cube = iris.cube.Cube(data, long_name=cube.long_name + ', ' + str(n) + 'y mean',
-                                     var_name=cube.var_name, units=cube.units, attributes=cube.attributes,
-                                     dim_coords_and_dims=[(dcoord, 0)])
-
-        n_aver_cubelist.append(n_aver_cube)
-
-    return (n_aver_cubelist)
-
-def ens_averaging(cubelist):
-
-    if len(cubelist) >1:
-        for n, cube in enumerate(cubelist):
-            cube.add_aux_coord(iris.coords.AuxCoord(n, long_name='n_order', var_name='n_order'))
-            if 'precip' in cube.var_name:
-                cube.var_name = 'precip_ano'
-        equalise_attributes(cubelist)
-        ens_cube = cubelist.merge_cube()
-        aver_ens_cube = ens_cube.collapsed('n_order', iris.analysis.MEAN)
-        aver_ens_cube.remove_coord('n_order')
-    else:
-        aver_ens_cube = cubelist[0]
-
-    return (aver_ens_cube)
-
-
 def bootstrap_gev(data_dic): 
 
     # determining the max length of the model realisation, the number of bootstrap
@@ -275,7 +207,104 @@ def bootstrap_gev(data_dic):
     return param_dic
 
 
-def make_hist_figure(data_dic, cfg):
+def make_uncert_figures(data_dic, cfg):
+
+    st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
+
+    plt.style.use(st_file)
+
+    obs_cb = data_dic['OBS']['OBS']['HadEX3'][0]
+    era_cb = data_dic['reanalysis']
+
+    colors = {}
+    colors['ALL'] = (196 / 255, 121 / 255, 0)
+    colors['NAT'] = (0, 79 / 255, 0)
+
+    proj_list = list(data_dic.keys())
+    proj_list.remove('OBS') ; proj_list.remove('reanalysis') 
+
+    x_gev = np.arange(-15,15.1, 0.1)
+
+    uncert_band = dict()
+
+    for proj in proj_list: 
+        # this is a figure where we will plot single distributions from bootstrap
+        fig_single_bootstrap, ax_single_bootstrap = plt.subplots(1)
+        fig_single_bootstrap.set_size_inches(12., 8.)
+
+        # this a figure where we plot how the values for GEV params are distributed 
+        fig_gev_distr, ax_gev_distr = plt.subplots(3)
+        fig_gev_distr.set_size_inches(8., 12.)
+
+        uncert_band[proj] = {}
+        exp_list = list(data_dic[proj].keys())
+        for exp in exp_list: 
+            gev_dic = data_dic[proj][exp].pop('GEV_uncert')
+            # here we plot distribution of single GEV params
+            gev_params = ['shape', 'loc', 'scale']
+            for n, gev_param in enumerate(gev_params):
+                ax_gev_distr[n].hist(gev_dic[gev_param], bins=50, edgecolor='none',
+                        facecolor = colors[exp], alpha=0.3, label = exp, density=True)
+                ax_gev_distr[n].set_xlabel(gev_param)
+                ax_gev_distr[n].set_ylabel('Number density')
+                ax_gev_distr[n].set_title('GEV parameter: ' + gev_param)
+
+            # this is an array where we'll throw all pdfs, to calculate 5/95 perc later 
+            all_pdfs = np.zeros((len(x_gev), len(gev_dic['shape'])))
+
+            # here we plot single distributions
+            for i in range(len(gev_dic['shape'])):
+                gev_pdf = gev.pdf(x_gev, gev_dic['shape'][i],gev_dic['loc'][i], gev_dic['scale'][i])
+                all_pdfs[:, i] = gev_pdf
+                ax_single_bootstrap.plot(x_gev, gev_pdf, color = colors[exp], alpha=0.03)
+            param_str = '                             '+exp\
+                + '\nshape mean:'+str(np.around(gev_dic['shape'].mean(),3))+', max:'+str(np.around(gev_dic['shape'].max(),3)) + ', min:' + str(np.around(gev_dic['shape'].min(),3)) \
+                + '\n loc mean:'+str(np.around(gev_dic['loc'].mean(),3))+', max:'+str(np.around(gev_dic['loc'].max(),3)) + ', min:' + str(np.around(gev_dic['loc'].min(),3)) \
+                + '\nscale mean:'+ str(np.around(gev_dic['scale'].mean(),3))+', max:'+str(np.around(gev_dic['scale'].max(),3)) + ', min:' + str(np.around(gev_dic['scale'].min(),3))               
+            if exp == 'NAT':
+                text_x = -10
+            else:
+                text_x = 4
+            ax_single_bootstrap.text(text_x, 0.17, param_str, color = colors[exp])
+
+            uncert_band[proj][exp] = {'x_gev': x_gev, '5th_perc' : np.percentile(all_pdfs, 5, axis = 1), '95th_perc': np.percentile(all_pdfs, 95, axis = 1)}
+
+        n_bins = np.around(np.arange(-15, 15.1, 0.5), 1)
+        obs_hist = np.histogram(obs_cb.data, bins=n_bins, density=True)
+        obs_hist[0][obs_hist[0]==0] = np.nan
+        era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
+        era_hist[0][era_hist[0]==0] = np.nan
+        ax_single_bootstrap.scatter(obs_hist[1][:-1] + np.diff(obs_hist[1])/2, obs_hist[0], marker='_', c = 'k', label = 'HadEX3', s=225, lw = 2.5)
+        ax_single_bootstrap.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=225, lw = 2.5) 
+
+        ax_gev_distr[0].legend(loc=0, fancybox=False, frameon=False)
+        fig_gev_distr.suptitle('Distribution of GEV parameters after bootstrap',
+                    fontsize = 'x-large')
+        fig_gev_distr.set_dpi(250)
+        plt.tight_layout()
+        fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param' + diagtools.get_image_format(cfg)))
+        fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param.png'))
+        plt.close(fig_gev_distr)
+    
+        ax_single_bootstrap.legend(loc=2, fancybox=False, frameon=False)
+        ax_single_bootstrap.set_xlim(-11,11)
+        ax_single_bootstrap.set_ylim(0, ax_single_bootstrap.get_ylim()[1])
+        ax_single_bootstrap.set_xlabel('Temperature anomaly, C')
+        ax_single_bootstrap.set_ylabel('Number density')
+
+        fig_single_bootstrap.suptitle('Estimation of GEV fit uncertainty from Multi Model Mean with Bootstrap method',
+                    fontsize = 'x-large')
+        fig_single_bootstrap.set_dpi(250)
+
+        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_bootstrap_'+proj)
+        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_bootstrap_'+proj,
+                                        img_ext='.png')
+        plt.close(fig_single_bootstrap)
+                            
+    return uncert_band
+
+
+def make_hist_figure(data_dic, cfg, uncert_band):
 
     st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
 
@@ -292,11 +321,17 @@ def make_hist_figure(data_dic, cfg):
     colors['NAT'] = (0, 79 / 255, 0)
 
     for proj in proj_list:
+        csv_file = open(os.path.join(cfg['work_dir'], 'gev_parameters_'+proj+'.csv'), 'w', newline='')
+        gevs_csv_writer = csv.writer(csv_file, delimiter=',')
         exp_keys = list(data_dic[proj].keys())
+        head_row = ['shape_'+exp_key+', loc_'+exp_key+ ', scale_'+exp_key for exp_key in exp_keys]
+        head_row.insert(0, 'model')
+        gevs_csv_writer.writerow(head_row)
         models = data_dic[proj][exp_keys[0]].keys()
         for model in models: 
             fig = plt.figure()
             fig.set_size_inches(12., 8.)
+            model_row = [model]
             for exp_key in exp_keys:
                 ens_cubelist = data_dic[proj][exp_key][model]
                 distrib_data = []
@@ -329,31 +364,29 @@ def make_hist_figure(data_dic, cfg):
                         new_weights.append(weights[n_dp]/factors[n_dp])
                 upd_distr_data = np.asarray(upd_distr_data)
                 w_shape, w_loc, w_scale = gev.fit(upd_distr_data)
-                t_shape, t_loc, t_scale = gev.fit(distrib_data)
-                x_gev = np.arange(-15, 15.1, 0.1)
+                x_gev = uncert_band[proj][exp_key]['x_gev']
                 w_pdf = gev.pdf(x_gev, w_shape, w_loc, w_scale)
-                t_pdf = gev.pdf(x_gev, t_shape, t_loc, t_scale)
+                model_row.extend([w_shape, w_loc, w_scale])
                 n_bins = np.around(np.arange(-15, 15.1, 0.5), 1)
-                plt.hist(distrib_data, bins=n_bins, edgecolor='none',
-                        facecolor = colors[exp_key], alpha=0.3, label=exp_key + ' weighted', density=True, weights=weights) 
-                plt.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'GEV '+exp_key+' weighted')
+                plt.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
+                        facecolor = colors[exp_key], alpha=0.3, label=exp_key, density=True, weights=weights) 
+                plt.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'GEV '+exp_key)
                 if model == 'Multi-Model-Mean':
-                    plt.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
-                            facecolor = 'none', label=exp_key + ' unweighted', density=True)
-                    plt.plot(x_gev, t_pdf, c = colors[exp_key], ls = 'dotted', label = 'GEV '+exp_key+' unweighted')
+                    perc_5 = uncert_band[proj][exp_key]['5th_perc']
+                    perc_95 = uncert_band[proj][exp_key]['95th_perc']
+                    plt.fill_between(x_gev, perc_5, perc_95, color= colors[exp_key], alpha = 0.3, linewidth=0)
                     if exp_key == 'NAT':
-                        plt.text(-5, 0.25, '   unwght\nshape='+str(np.around(t_shape,3))+ '\n loc='+ str(np.around(t_loc,3)) + '\nscale='+str(np.around(t_scale,3)), color= colors[exp_key])
-                        plt.text(-5, 0.17, '     wght\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
+                        plt.text(-5, 0.17, '     GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
                     elif exp_key == 'ALL':
-                        plt.text(4, 0.25, '   unwght\nshape='+str(np.around(t_shape,3))+ '\n loc='+ str(np.around(t_loc,3)) + '\nscale='+str(np.around(t_scale,3)), color= colors[exp_key])
-                        plt.text(4, 0.17, '     wght\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
+                        plt.text(4, 0.17, '     GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
                 else: 
                     if exp_key == 'NAT':
-                        plt.text(-5, 0.17, 'shape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
-                        plt.text(7.5, 0.35, exp_key+' N realisations = ' + str(len(ens_cubelist)), fontsize = 'large')
+                        plt.text(-5, 0.17, '     GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
+                        plt.text(7.5, 0.35, exp_key+' has ' + str(len(ens_cubelist)) +' realisations', fontsize = 'large')
                     elif exp_key == 'ALL':
-                        plt.text(4, 0.17, 'shape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
-                        plt.text(7.5, 0.325, exp_key+' N realisations = ' + str(len(ens_cubelist)), fontsize = 'large')
+                        plt.text(4, 0.17, '     GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
+                        plt.text(7.5, 0.325, exp_key+' has ' + str(len(ens_cubelist))+' realisations', fontsize = 'large')
+            gevs_csv_writer.writerow(model_row)
             obs_hist = np.histogram(obs_cb.data, bins=n_bins, density=True)
             obs_hist[0][obs_hist[0]==0] = np.nan
             era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
@@ -511,7 +544,9 @@ def main(cfg):
     era_cube = apply_obs_mask(era_cube, obs_mask)
     plotting_dic['reanalysis'] = era_cube
 
-    make_hist_figure(plotting_dic, cfg)
+    uncert_band = make_uncert_figures(plotting_dic, cfg)
+
+    make_hist_figure(plotting_dic, cfg, uncert_band)
 
     make_timeseries_figure(plotting_dic, cfg)                                   
 
