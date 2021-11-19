@@ -97,24 +97,26 @@ preprocessors:
       end_year: 2020
       end_month: 12
       end_day: 31
+    area_statistics:
+      operator: mean
 
 
 datasets_txx: &datasets_txx
   - { dataset: HadEX3, project: OBS, frequency: yr, tier: 2, mip: yr, type: clim, version: v20200928}
 
 datasets_hist: &datasets_hist
-#  - {dataset: ACCESS-ESM1-5, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
-#  - {dataset: ACCESS-CM2, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
-  # - {dataset: BCC-CSM2-MR, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: ACCESS-ESM1-5, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: ACCESS-CM2, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: BCC-CSM2-MR, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
   - {dataset: CanESM5, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
   - {dataset: CNRM-CM6-1, exp: [historical, ssp245], ensemble: r1i1p1f2, mip: day, grid: gr}
 #  - { dataset: FGOALS-g3, exp: [historical, ssp245], ensemble: r3i1p1f1, mip: day, grid: gn }
-#  - { dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gr1 }
+  - { dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gr2 }
   - { dataset: HadGEM3-GC31-LL, exp: [historical, ssp245], ensemble: r1i1p1f3, mip: day, grid: gn }
   - { dataset: IPSL-CM6A-LR, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gr }
-#  - {dataset: MIROC6, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
-#  - {dataset: MRI-ESM2-0, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
-  # - {dataset: NorESM2-LM, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: MIROC6, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: MRI-ESM2-0, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: NorESM2-LM, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
 
 datasets_hist_extended: &datasets_hist_extended
   - {dataset: ACCESS-ESM1-5, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
@@ -143,18 +145,18 @@ datasets_hist_extended: &datasets_hist_extended
   - {dataset: TaiESM1, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
 
 datasets_nat: &datasets_nat
-#  - {dataset: ACCESS-ESM1-5, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
-#  - {dataset: ACCESS-CM2, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
-  # - {dataset: BCC-CSM2-MR, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: ACCESS-ESM1-5, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: ACCESS-CM2, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: BCC-CSM2-MR, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
   - {dataset: CanESM5, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
   - {dataset: CNRM-CM6-1, exp: hist-nat, ensemble: r1i1p1f2, mip: day, grid: gr}
 #  - {dataset: FGOALS-g3, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
-#  - {dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gr1}
+  - {dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gr2}
   - {dataset: HadGEM3-GC31-LL, exp: hist-nat, ensemble: r1i1p1f3, mip: day, grid: gn}
   - {dataset: IPSL-CM6A-LR, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gr}
-#  - { dataset: MIROC6, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn }
-#  - {dataset: MRI-ESM2-0, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
-  # - {dataset: NorESM2-LM, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - { dataset: MIROC6, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn }
+  - {dataset: MRI-ESM2-0, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: NorESM2-LM, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
 
 diagnostics:
   hist_hist_nat:
@@ -194,5 +196,6 @@ diagnostics:
         reference_period: [1950, 1979]
         plotting_period: [1991, 2020]
         era_plotting_period: [1991, 2021]
-
+        era_regridding_shape: false
+        era_regridding_region: [-123.0,-119.0, 45.0, 52.0]
   
