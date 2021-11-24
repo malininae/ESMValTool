@@ -198,4 +198,8 @@ diagnostics:
         era_plotting_period: [1991, 2021]
         era_regridding_shape: false
         era_regridding_region: [-123.0,-119.0, 45.0, 52.0]
+        region: BC 
+        ax_var_label: Temperature
+        title_var_label: TXx
+        un_label: C
   

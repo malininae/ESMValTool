@@ -56,7 +56,12 @@ def get_era_txx(cfg):
      
     obs_cb = iris.load_cube(obs_path)
 
-    regrd_txx = esmvalcore.preprocessor.regrid(txxs, obs_cb, 'linear')
+    regrd_txx = esmvalcore.preprocessor.regrid(txxs, {'start_longitude' : 233.4375, 
+                                                       'end_longitude' : 321.5625, 
+                                                       'step_longitude' : 1.875,
+                                                       'start_latitude' : 39.375, 
+                                                       'end_latitude' : 83.125,
+                                                       'step_latitude' : 1.25}, 'linear')
     
     if cfg['era_regridding_shape']: 
         reg_cb_txx = esmvalcore.preprocessor.extract_shape(regrd_txx, os.path.join(cfg['auxiliary_data_dir'], cfg['era_regridding_region']))
@@ -106,11 +111,7 @@ def bootstrap_gev(data_dic):
     return param_dic
 
 
-def make_uncert_figures(data_dic, cfg):
-
-    st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
-
-    plt.style.use(st_file)
+def make_uncert_figures(data_dic, cfg, border):
 
     obs_cb = data_dic['obs']['HadEX3'][0]
     era_cb = data_dic['reanalysis']
@@ -123,7 +124,7 @@ def make_uncert_figures(data_dic, cfg):
     exp_list = list(data_dic.keys())
     exp_list.remove('obs') ; exp_list.remove('reanalysis') 
 
-    x_gev = np.arange(-15,15.1, 0.1)
+    x_gev = np.arange(-border,border+0.1, 0.1)
   
     # this is a figure where we will plot single distributions from bootstrap
     fig_single_bootstrap, ax_single_bootstrap = plt.subplots(1)
@@ -153,70 +154,76 @@ def make_uncert_figures(data_dic, cfg):
             gev_pdf = gev.pdf(x_gev, gev_dic['shape'][i],gev_dic['loc'][i], gev_dic['scale'][i])
             all_pdfs[:, i] = gev_pdf
             ax_single_bootstrap.plot(x_gev, gev_pdf, color = colors[exp], alpha=0.03)
+
+        
+    for exp in exp_list:    
         param_str = '                             '+exp\
             + '\nshape mean:'+str(np.around(gev_dic['shape'].mean(),3))+', max:'+str(np.around(gev_dic['shape'].max(),3)) + ', min:' + str(np.around(gev_dic['shape'].min(),3)) \
             + '\n loc mean:'+str(np.around(gev_dic['loc'].mean(),3))+', max:'+str(np.around(gev_dic['loc'].max(),3)) + ', min:' + str(np.around(gev_dic['loc'].min(),3)) \
             + '\nscale mean:'+ str(np.around(gev_dic['scale'].mean(),3))+', max:'+str(np.around(gev_dic['scale'].max(),3)) + ', min:' + str(np.around(gev_dic['scale'].min(),3))               
         if exp == 'nat':
             text_x = -10
+            text_y = 0.05
         elif exp == 'all':
             text_x = 4
+            text_y = 0.12
         else:
             text_x = 8
-        ax_single_bootstrap.text(text_x, 0.17, param_str, color = colors[exp])
+            text_y = 0.17
+        ax_single_bootstrap.text(-0.95*border, text_y, param_str, color = colors[exp])
 
         uncert_band[exp] = {'x_gev': x_gev, '5th_perc' : np.percentile(all_pdfs, 5, axis = 1), '95th_perc': np.percentile(all_pdfs, 95, axis = 1)}
 
-        n_bins = np.around(np.arange(-15, 15.1, 0.5), 1)
-        obs_hist = np.histogram(obs_cb.data, bins=n_bins, density=True)
-        obs_hist[0][obs_hist[0]==0] = np.nan
-        era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
-        era_hist[0][era_hist[0]==0] = np.nan
-        ax_single_bootstrap.scatter(obs_hist[1][:-1] + np.diff(obs_hist[1])/2, obs_hist[0], marker='_', c = 'k', label = 'HadEX3', s=225, lw = 2.5)
-        ax_single_bootstrap.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=225, lw = 2.5) 
+    n_bins = np.around(np.arange(-border, border +0.1, 0.5), 1)
+    obs_hist = np.histogram(obs_cb.data, bins=n_bins, density=True)
+    obs_hist[0][obs_hist[0]==0] = np.nan
+    era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
+    era_hist[0][era_hist[0]==0] = np.nan
+    ax_single_bootstrap.scatter(obs_hist[1][:-1] + np.diff(obs_hist[1])/2, obs_hist[0], marker='_', c = 'k', label = 'HadEX3', s=225, lw = 2.5)
+    ax_single_bootstrap.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=225, lw = 2.5) 
 
-        ax_gev_distr[0].legend(loc=0, fancybox=False, frameon=False)
-        fig_gev_distr.suptitle('Distribution of GEV parameters after bootstrap',
-                    fontsize = 'x-large')
-        fig_gev_distr.set_dpi(250)
-        plt.tight_layout()
-        fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param' + diagtools.get_image_format(cfg)))
-        fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param.png'))
-        plt.close(fig_gev_distr)
-    
-        ax_single_bootstrap.legend(loc=2, fancybox=False, frameon=False)
-        ax_single_bootstrap.set_xlim(-11,11)
-        ax_single_bootstrap.set_ylim(0, ax_single_bootstrap.get_ylim()[1])
-        ax_single_bootstrap.set_xlabel('Temperature anomaly, C')
-        ax_single_bootstrap.set_ylabel('Number density')
+    ax_gev_distr[0].legend(loc=0, fancybox=False, frameon=False)
+    fig_gev_distr.suptitle('Distribution of GEV parameters after bootstrap',
+                fontsize = 'x-large')
+    fig_gev_distr.set_dpi(250)
+    plt.tight_layout()
+    fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param' + diagtools.get_image_format(cfg)))
+    fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param.png'))
+    plt.close(fig_gev_distr)
 
-        fig_single_bootstrap.suptitle('Estimation of GEV fit uncertainty from Multi Model Mean with Bootstrap method',
-                    fontsize = 'x-large')
-        fig_single_bootstrap.set_dpi(250)
+    ax_single_bootstrap.legend(loc=2, fancybox=False, frameon=False)
+    ax_single_bootstrap.set_xlim(-border, border)
+    ax_single_bootstrap.set_ylim(0, ax_single_bootstrap.get_ylim()[1])
+    ax_single_bootstrap.set_xlabel('Temperature anomaly, C')
+    ax_single_bootstrap.set_ylabel('Number density')
 
-        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_bootstrap')
-        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_bootstrap',  img_ext='.png')
-        plt.close(fig_single_bootstrap)
+    fig_single_bootstrap.suptitle('Estimation of GEV fit uncertainty from Multi Model Mean with Bootstrap method',
+                fontsize = 'x-large')
+    fig_single_bootstrap.set_dpi(250)
+
+    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_bootstrap'+ diagtools.get_image_format(cfg)))
+    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_bootstrap.png'))
+
+    # ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_bootstrap')
+    # ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_bootstrap',  img_ext='.png')
+    plt.close(fig_single_bootstrap)
                             
     return uncert_band
 
 
-def make_hist_figure(data_dic, cfg, uncert_band):
-
-    st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
-
-    plt.style.use(st_file)
+def make_hist_figure(data_dic, cfg, uncert_band, border):
 
     obs_cb = data_dic['obs']['HadEX3'][0]
     era_cb = data_dic['reanalysis']
 
     exp_list = list(data_dic.keys())
-    exp_list.remove('obs') ; _list.remove('reanalysis')    
+    exp_list.remove('obs') ; exp_list.remove('reanalysis')    
 
-    colors = {}
-    colors['all'] = (196 / 255, 121 / 255, 0)
-    colors['nat'] = (0, 79 / 255, 0)
-    colors['ssp245'] = (69 / 255, 118 / 255, 191 / 255)
+    colors = {'all' : (196 / 255, 121 / 255, 0), 
+              'nat' : (0, 79 / 255, 0), 
+              'ssp245' : (69 / 255, 118 / 255, 191 / 255)}
+
+    tlocs = {'all': 0.12 , 'nat': 0.05,  'ssp245': 0.17}
 
     csv_file = open(os.path.join(cfg['work_dir'], 'gev_parameters.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
@@ -263,25 +270,16 @@ def make_hist_figure(data_dic, cfg, uncert_band):
             x_gev = uncert_band[exp_key]['x_gev']
             w_pdf = gev.pdf(x_gev, w_shape, w_loc, w_scale)
             model_row.extend([w_shape, w_loc, w_scale])
-            n_bins = np.around(np.arange(-15, 15.1, 0.5), 1)
+            n_bins = np.around(np.arange(-border, border + 0.1, 0.5), 1)
             plt.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
-                    facecolor = colors[exp_key], alpha=0.3, label=exp_key, density=True, weights=weights) 
+                    facecolor = colors[exp_key], alpha=0.3, label=exp_key + ' N_real=' +str(len(ens_cubelist)), density=True, weights=weights) 
             plt.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'GEV '+exp_key)
+            plt.text(-0.95*border, tlocs[exp_key], '  ' +exp_key+' GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) \
+                    + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
             if model == 'Multi-Model-Mean':
                 perc_5 = uncert_band[exp_key]['5th_perc']
                 perc_95 = uncert_band[exp_key]['95th_perc']
                 plt.fill_between(x_gev, perc_5, perc_95, color= colors[exp_key], alpha = 0.3, linewidth=0)
-                if exp_key == 'nat':
-                    plt.text(-5, 0.17, '     GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
-                elif exp_key == 'all':
-                    plt.text(4, 0.17, '     GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
-            else: 
-                if exp_key == 'nat':
-                    plt.text(-5, 0.17, '     GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
-                    plt.text(7.5, 0.35, exp_key+' has ' + str(len(ens_cubelist)) +' realisations', fontsize = 'large')
-                elif exp_key == 'all':
-                    plt.text(4, 0.17, '     GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
-                    plt.text(7.5, 0.325, exp_key+' has ' + str(len(ens_cubelist))+' realisations', fontsize = 'large')
         gevs_csv_writer.writerow(model_row)
         obs_hist = np.histogram(obs_cb.data, bins=n_bins, density=True)
         obs_hist[0][obs_hist[0]==0] = np.nan
@@ -291,12 +289,12 @@ def make_hist_figure(data_dic, cfg, uncert_band):
         plt.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=225, lw = 2.5) 
 
         plt.legend(loc=2, fancybox=False, frameon=False)
-        plt.xlim(-11,11)
-        plt.xlabel('Temperature anomaly, C')
+        plt.xlim(-border,border)
+        plt.xlabel(cfg['ax_var_label']+' anomaly, ' +cfg['un_label'])
         plt.ylabel('Number density')
 
-        fig.suptitle('Distribution of TXx anomalies in BC from 1991 to 2020 \n relative to 1951-1980 calculated from '+model, 
-                    fontsize = 'x-large')
+        fig.suptitle('Distribution of '+cfg['title_var_label']+' anomalies in '+cfg['region']+' \nrelative to '+ str(cfg['reference_period'][0]) \
+            + '-' + str(cfg['reference_period'][1])+ 'calculated from '+model, fontsize = 'x-large')
         fig.set_dpi(250)
 
         ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_'+model)
@@ -325,6 +323,7 @@ def make_timeseries_figure(data_dic, cfg):
     for model in models:
         fig = plt.figure()
         fig.set_size_inches(12., 8.)
+        plt.hlines(0, -200, 200, colors = 'grey', linestyles='dashed')
         for exp_key in exp_list:
             ens_cubelist = data_dic[exp_key][model]
             time_data = []
@@ -338,28 +337,26 @@ def make_timeseries_figure(data_dic, cfg):
                 time_data.append(cube.data)
             time_data = np.asarray(time_data)
             weights = np.asarray(weights)
-            tim_coord = cube.coord('time')
-            try:
-                tims=cf_units.num2pydate(tim_coord.points, tim_coord.units.origin, calendar=tim_coord.units.calendar)
-            except:
-                tims=cf_units.num2pydate(tim_coord.points, tim_coord.units.origin, calendar='gregorian')
+            tim_coord = iris.coords.DimCoord(np.arange(0, len(cube.coord('time').points)), long_name = 'n_years', var_name = 'n_years')
             aux_coord = iris.coords.DimCoord(np.arange(0, len(ens_cubelist)), standard_name=None, long_name='aux_ens_coord', var_name='aux_ens_coord')
             full_cube = iris.cube.Cube(time_data, long_name =cube.long_name, var_name = cube.var_name, units = cube.units,  dim_coords_and_dims = [(aux_coord, 0),(tim_coord, 1)])
             if len(ens_cubelist) > 1:
                 mean_cb = full_cube.collapsed('aux_ens_coord', iris.analysis.MEAN, weights = weights)
                 perc_cb = full_cube.collapsed('aux_ens_coord', iris.analysis.WPERCENTILE, percent=[5,95], weights = weights)
-                plt.fill_between(tims, perc_cb.data[0,:], perc_cb.data[1,:], color=colors[exp_key], alpha=0.2, lw=0)
+                plt.fill_between(tim_coord.points, perc_cb.data[0,:], perc_cb.data[1,:], color=colors[exp_key], alpha=0.1, lw=0)
             else: 
                 mean_cb = cube
-            plt.plot(tims, mean_cb.data, c=colors[exp_key], label = exp_key, lw=1.5)
-        plt.plot(cf_units.num2pydate(obs_cb.coord('time').points, obs_cb.coord('time').units.origin, calendar=obs_cb.coord('time').units.calendar), obs_cb.data, lw=1.5, c='k', label = 'HadEX3')
-        plt.plot(cf_units.num2pydate(era_cb.coord('time').points, era_cb.coord('time').units.origin, calendar=era_cb.coord('time').units.calendar), era_cb.data, lw=1.5, c='r', label = 'ERA5')
+            plt.plot(tim_coord.points, mean_cb.data, c=colors[exp_key], label = exp_key, lw=1.5)
+        plt.plot(np.arange(0, len(obs_cb.coord('time').points)), obs_cb.data, lw=1.5, c='k', label = 'HadEX3')
+        plt.plot(np.arange(0, len(era_cb.coord('time').points)), era_cb.data, lw=1.5, c='r', label = 'ERA5')
 
         plt.legend(loc=2, fancybox=False, frameon=False)
-        plt.ylim(-10,10)
-        plt.ylabel('Temperature anomaly, C')
+        plt.xlim(-1,len(era_cb.coord('time').points))
+        plt.ylabel(cfg['ax_var_label']+' anomaly, ' + cfg['un_label'])
+        plt.xlabel('Years since the start of a dataset')
 
-        fig.suptitle('Timeseries of TXx anomalies in BC from 1991 to 2020\nrelative to 1951-1980 from ' + model, fontsize = 'x-large')
+        fig.suptitle('Timeseries of '+cfg['title_var_label']+' anomalies in '+cfg['region']+' \nrelative to '+ str(cfg['reference_period'][0]) \
+            + '-' + str(cfg['reference_period'][1])+' from ' + model, fontsize = 'x-large')
         fig.set_dpi(250)
         
         ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_timeseries_'+model)
@@ -376,7 +373,9 @@ def main(cfg):
 
     era_cube = get_era_txx(cfg)
 
-    plotting_dic = {}
+    mins = list(); maxs = list()
+
+    plotting_dic = {'reanalysis': era_cube}
 
     for group in groups.keys():
         plotting_dic[group] = {}
@@ -389,21 +388,28 @@ def main(cfg):
             mod_cubelist = iris.cube.CubeList()
             for filepath in filepaths:
                 mod_cb = iris.load_cube(filepath)
+                mins.append(mod_cb.collapsed('time', iris.analysis.MIN).data)
+                maxs.append(mod_cb.collapsed('time', iris.analysis.MAX).data)
                 mod_cb.attributes['ensemble_weight'] = 1 / n_real
                 mod_cb.attributes['reverse_dtsts_n'] = 1/ len(datasets)
                 # provenance_rec= { 'authors' : 'malinina_elizaveta', 'statistics': 'max', 'ancestors': [filepath]}
                 ens_cubelist.append(mod_cb)
                 mod_cubelist.append(mod_cb)
             plotting_dic[group][dataset] = mod_cubelist
-        if group != 'obs':
-            plotting_dic[group]['GEV_uncert'] = bootstrap_gev(plotting_dic[group])      
+        if group != 'obs':     
+            plotting_dic[group]['GEV_uncert'] = bootstrap_gev(plotting_dic[group]) 
             plotting_dic[group]['Multi-Model-Mean'] = ens_cubelist
+    
+    min_var = np.asarray(mins).min() ; max_var = np.asarray(maxs).max()  
 
-    plotting_dic['reanalysis'] = era_cube
+    border = np.ceil(np.max(np.abs([min_var, max_var]))*1.75)
 
-    uncert_band = make_uncert_figures(plotting_dic, cfg)
+    st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
+    plt.style.use(st_file)
 
-    make_hist_figure(plotting_dic, cfg, uncert_band)
+    uncert_band = make_uncert_figures(plotting_dic, cfg, border)
+
+    make_hist_figure(plotting_dic, cfg, uncert_band, border)
 
     make_timeseries_figure(plotting_dic, cfg)                                   
 
