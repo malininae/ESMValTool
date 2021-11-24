@@ -111,7 +111,7 @@ datasets_hist: &datasets_hist
   - {dataset: CanESM5, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
   - {dataset: CNRM-CM6-1, exp: [historical, ssp245], ensemble: r1i1p1f2, mip: day, grid: gr}
 #  - { dataset: FGOALS-g3, exp: [historical, ssp245], ensemble: r3i1p1f1, mip: day, grid: gn }
-  - { dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gr2 }
+  - { dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gr1 }
   - { dataset: HadGEM3-GC31-LL, exp: [historical, ssp245], ensemble: r1i1p1f3, mip: day, grid: gn }
   - { dataset: IPSL-CM6A-LR, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gr }
   - {dataset: MIROC6, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
@@ -151,7 +151,7 @@ datasets_nat: &datasets_nat
   - {dataset: CanESM5, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
   - {dataset: CNRM-CM6-1, exp: hist-nat, ensemble: r1i1p1f2, mip: day, grid: gr}
 #  - {dataset: FGOALS-g3, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
-  - {dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gr2}
+  - {dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gr1}
   - {dataset: HadGEM3-GC31-LL, exp: hist-nat, ensemble: r1i1p1f3, mip: day, grid: gn}
   - {dataset: IPSL-CM6A-LR, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gr}
   - { dataset: MIROC6, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn }
@@ -180,7 +180,7 @@ diagnostics:
         start_year: 1950
         end_year: 2100
         project: CMIP6
-        preprocessor: preproc_max
+        preprocessor: preproc_max_future
         additional_datasets: *datasets_hist        
       nat: 
         short_name: tasmax
@@ -195,6 +195,7 @@ diagnostics:
         mpl_style: ipcc_ar6_fgd
         reference_period: [1950, 1979]
         plotting_period: [1991, 2020]
+        era_fname_pattern: maximum_2m_temperature_since_previous_post_processing
         era_plotting_period: [1991, 2021]
         era_regridding_shape: false
         era_regridding_region: [-123.0,-119.0, 45.0, 52.0]
