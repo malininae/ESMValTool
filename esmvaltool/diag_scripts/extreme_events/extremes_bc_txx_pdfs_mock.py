@@ -36,10 +36,12 @@ def get_era_txx(cfg):
     for era_fname in cont_aux: 
         f_ending = era_fname[len(aux_dir)+6+len(pattern):] 
         era_cb = iris.load_cube(era_fname) 
+        if pattern == 'total_precipitation':
+            era_cb = esmvalcore.preprocessor.daily_statistics(era_cb, operator = 'sum')*1000
         txx_cb = esmvalcore.preprocessor.annual_statistics(era_cb, 'max')   
-        iris.save(txx_cb, os.path.join(work_dir,'txx_era5'+f_ending))
+        iris.save(txx_cb, os.path.join(work_dir,'max_era5_'+pattern +'_'+f_ending))
 
-    txx_files = sorted(glob.glob(work_dir + '/txx_era5*'))
+    txx_files = sorted(glob.glob(work_dir + '/max_era5_'+pattern +'_*'))
 
     txx_era_cubelist = iris.load(txx_files)
     equalise_attributes(txx_era_cubelist)
@@ -51,10 +53,6 @@ def get_era_txx(cfg):
             txx_era_cubelist[n].coord('time').units = txx_era_cubelist[0].coord('time').units
 
     txxs = txx_era_cubelist.concatenate_cube()
-
-    obs_path = select_metadata(cfg['input_data'].values(), project='OBS')[0]['filename']
-     
-    obs_cb = iris.load_cube(obs_path)
 
     regrd_txx = esmvalcore.preprocessor.regrid(txxs, {'start_longitude' : 233.4375, 
                                                        'end_longitude' : 321.5625, 
@@ -294,7 +292,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border):
         plt.ylabel('Number density')
 
         fig.suptitle('Distribution of '+cfg['title_var_label']+' anomalies in '+cfg['region']+' \nrelative to '+ str(cfg['reference_period'][0]) \
-            + '-' + str(cfg['reference_period'][1])+ 'calculated from '+model, fontsize = 'x-large')
+            + '-' + str(cfg['reference_period'][1])+ ' calculated from '+model, fontsize = 'x-large')
         fig.set_dpi(250)
 
         ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_'+model)
@@ -388,6 +386,8 @@ def main(cfg):
             mod_cubelist = iris.cube.CubeList()
             for filepath in filepaths:
                 mod_cb = iris.load_cube(filepath)
+                if ( cfg['mult_factor'] != 1)&(group != 'obs'):
+                    mod_cb = mod_cb * cfg['mult_factor']
                 mins.append(mod_cb.collapsed('time', iris.analysis.MIN).data)
                 maxs.append(mod_cb.collapsed('time', iris.analysis.MAX).data)
                 mod_cb.attributes['ensemble_weight'] = 1 / n_real
