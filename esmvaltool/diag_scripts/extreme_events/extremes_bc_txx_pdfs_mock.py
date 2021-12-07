@@ -26,6 +26,34 @@ from esmvaltool.diag_scripts.shared import ProvenanceLogger
 logger = logging.getLogger(os.path.basename(__file__))
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
+
+def anomaly_rxNday(cfg):
+
+    anomaly_metadata = select_metadata(cfg['input_data'].values(), variable_group='anomaly')
+
+    new_fdir = os.path.join(cfg['work_dir'], 'anomaly')
+    if not os.path.exists(new_fdir):    
+        os.makedirs(new_fdir)
+
+    for single_anomaly in anomaly_metadata: 
+        orig_fname = single_anomaly['filename']
+        f_name = orig_fname.split('/')[-1]
+        new_fname = os.path.join(new_fdir, 'rx'+str(cfg['n_days'])+'day_'+f_name)
+        ano_cb = iris.load_cube(orig_fname)
+        rxNd_cube = ano_cb.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
+        if (cfg['mult_factor'] != 1):
+            rxNd_cube = rxNd_cube * cfg['mult_factor']
+        rxNd_cube = esmvalcore.preprocessor.annual_statistics(rxNd_cube, operator='max')
+        rxNd_cube = esmvalcore.preprocessor.climate_statistics(rxNd_cube,
+                                                               operator='mean',
+                                                               period='full')
+        iris.save(rxNd_cube, os.path.join(new_fdir,new_fname))
+        cfg['input_data'][new_fname] = cfg['input_data'].pop(orig_fname)
+        cfg['input_data'][new_fname]['filename'] = new_fname
+
+    return
+
+
 def get_era_txx(cfg):
 
     aux_dir = cfg['auxiliary_data_dir']
@@ -33,41 +61,49 @@ def get_era_txx(cfg):
     pattern = cfg['era_fname_pattern']
     cont_aux = sorted(glob.glob(aux_dir + '/era5_' + pattern+'*.nc'))
 
+    era_dir = os.path.join(work_dir, 'era5')
+    if not os.path.exists(era_dir):
+        os.makedirs(era_dir)
+
     for era_fname in cont_aux: 
         f_ending = era_fname[len(aux_dir)+6+len(pattern):] 
         era_cb = iris.load_cube(era_fname) 
         if pattern == 'total_precipitation':
             era_cb = esmvalcore.preprocessor.daily_statistics(era_cb, operator = 'sum')*1000
-        txx_cb = esmvalcore.preprocessor.annual_statistics(era_cb, 'max')   
-        iris.save(txx_cb, os.path.join(work_dir,'max_era5_'+pattern +'_'+f_ending))
-
-    txx_files = sorted(glob.glob(work_dir + '/max_era5_'+pattern +'_*'))
-
-    txx_era_cubelist = iris.load(txx_files)
-    equalise_attributes(txx_era_cubelist)
-
-    for n in range(len(txx_era_cubelist)): 
-        txx_era_cubelist[n].data = txx_era_cubelist[n].data.astype('float32')
-        logger.info('The era cubelist index is '+ str(n))
-        if txx_era_cubelist[n].coord('time').units != txx_era_cubelist[0].coord('time').units: 
-            txx_era_cubelist[n].coord('time').units = txx_era_cubelist[0].coord('time').units
-
-    txxs = txx_era_cubelist.concatenate_cube()
-
-    regrd_txx = esmvalcore.preprocessor.regrid(txxs, {'start_longitude' : 233.4375, 
-                                                       'end_longitude' : 321.5625, 
-                                                       'step_longitude' : 1.875,
-                                                       'start_latitude' : 39.375, 
-                                                       'end_latitude' : 83.125,
-                                                       'step_latitude' : 1.25}, 'linear')
-    
-    if cfg['era_regridding_shape']: 
-        reg_cb_txx = esmvalcore.preprocessor.extract_shape(regrd_txx, os.path.join(cfg['auxiliary_data_dir'], cfg['era_regridding_region']))
-    else:
-        reg_cb_txx = esmvalcore.preprocessor.extract_region(regrd_txx, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
+        regrid_cube = esmvalcore.preprocessor.regrid(era_cb, {'start_longitude' : 217.25, 
+                                                       'end_longitude' : 310.25, 
+                                                       'step_longitude' : 0.5,
+                                                       'start_latitude' : 39.5, 
+                                                       'end_latitude' : 84.5,
+                                                       'step_latitude' : 0.5}, 'linear') 
+        reg_cube = esmvalcore.preprocessor.extract_region(regrid_cube, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
                         cfg['era_regridding_region'][2], cfg['era_regridding_region'][3])
+        era_cb_pr = esmvalcore.preprocessor.area_statistics(reg_cube, 'mean')
+        iris.save(era_cb_pr, os.path.join(era_dir,'daily_era5_'+pattern +'_'+f_ending)) 
 
-    anomal_era_cb = esmvalcore.preprocessor.anomalies(reg_cb_txx, 'full',
+    era_files = sorted(glob.glob(era_dir + '/daily_era5_'+pattern +'*'))
+
+    era_cubelist = iris.load(era_files)
+    equalise_attributes(era_cubelist)
+
+    for n in range(len(era_cubelist)): 
+        era_cubelist[n].data = era_cubelist[n].data.astype('float32')
+        if era_cubelist[n].coord('time').units != era_cubelist[0].coord('time').units: 
+            era_cubelist[n].coord('time').units = era_cubelist[0].coord('time').units
+
+    era_big_cube = era_cubelist.concatenate_cube()
+
+    era_rxNday_big_cube = era_big_cube.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
+
+    era_rxNday_big_cube = esmvalcore.preprocessor.annual_statistics(era_rxNday_big_cube, 'max')  
+    
+    # if cfg['era_regridding_shape']: 
+    #     reg_cb_txx = esmvalcore.preprocessor.extract_shape(regrd_txx, os.path.join(cfg['auxiliary_data_dir'], cfg['era_regridding_region']))
+    # else:
+    #     reg_cb_txx = esmvalcore.preprocessor.extract_region(regrd_txx, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
+    #                     cfg['era_regridding_region'][2], cfg['era_regridding_region'][3])
+
+    anomal_era_cb = esmvalcore.preprocessor.anomalies(era_rxNday_big_cube, 'full',
                         reference={'start_year': cfg['reference_period'][0],
                         'start_month': 1, 'start_day':1,
                         'end_year': cfg['reference_period'][1],
@@ -78,9 +114,7 @@ def get_era_txx(cfg):
                         end_year=cfg['era_plotting_period'][1],
                         end_month=12, end_day=31)
 
-    era_cb_txx = esmvalcore.preprocessor.area_statistics(crop_era_cb, 'mean')
-
-    return era_cb_txx
+    return crop_era_cb /10**12
 
 
 def bootstrap_gev(data_dic): 
@@ -99,7 +133,7 @@ def bootstrap_gev(data_dic):
         for model in data_dic.keys(): 
             n_real = len(data_dic[model])
             idx = np.random.default_rng().integers(low=0, high=n_real, size=1)[0]
-            pool_data.append(data_dic[model][idx].data.round(2))
+            pool_data.append(data_dic[model][idx].data.data.round(2))
         pool_data = np.asarray(pool_data).flatten()
         shapes[i], locs[i], scales[i] = gev.fit(pool_data)
     
@@ -111,18 +145,18 @@ def bootstrap_gev(data_dic):
 
 def make_uncert_figures(data_dic, cfg, border):
 
-    obs_cb = data_dic['obs']['HadEX3'][0]
-    era_cb = data_dic['reanalysis']
+   # era_cb = data_dic['reanalysis']
 
     colors = {}
     colors['all'] = (196 / 255, 121 / 255, 0)
     colors['nat'] = (0, 79 / 255, 0)
     colors['ssp245'] = (69 / 255, 118 / 255, 191 / 255)
 
-    exp_list = list(data_dic.keys())
-    exp_list.remove('obs') ; exp_list.remove('reanalysis') 
+    exp_list = list(data_dic.keys()) ; exp_list.remove('reanalysis') 
 
     x_gev = np.arange(-border,border+0.1, 0.1)
+
+    tlocs = {'all': 0.04 , 'nat': 0.01,  'ssp245': 0.08}
   
     # this is a figure where we will plot single distributions from bootstrap
     fig_single_bootstrap, ax_single_bootstrap = plt.subplots(1)
@@ -152,33 +186,20 @@ def make_uncert_figures(data_dic, cfg, border):
             gev_pdf = gev.pdf(x_gev, gev_dic['shape'][i],gev_dic['loc'][i], gev_dic['scale'][i])
             all_pdfs[:, i] = gev_pdf
             ax_single_bootstrap.plot(x_gev, gev_pdf, color = colors[exp], alpha=0.03)
-
         
-    for exp in exp_list:    
+        uncert_band[exp] = {'x_gev': x_gev, '5th_perc' : np.percentile(all_pdfs, 5, axis = 1), '95th_perc': np.percentile(all_pdfs, 95, axis = 1)}
+  
         param_str = '                             '+exp\
             + '\nshape mean:'+str(np.around(gev_dic['shape'].mean(),3))+', max:'+str(np.around(gev_dic['shape'].max(),3)) + ', min:' + str(np.around(gev_dic['shape'].min(),3)) \
             + '\n loc mean:'+str(np.around(gev_dic['loc'].mean(),3))+', max:'+str(np.around(gev_dic['loc'].max(),3)) + ', min:' + str(np.around(gev_dic['loc'].min(),3)) \
             + '\nscale mean:'+ str(np.around(gev_dic['scale'].mean(),3))+', max:'+str(np.around(gev_dic['scale'].max(),3)) + ', min:' + str(np.around(gev_dic['scale'].min(),3))               
-        if exp == 'nat':
-            text_x = -10
-            text_y = 0.05
-        elif exp == 'all':
-            text_x = 4
-            text_y = 0.12
-        else:
-            text_x = 8
-            text_y = 0.17
-        ax_single_bootstrap.text(-0.95*border, text_y, param_str, color = colors[exp])
+        
+        ax_single_bootstrap.text(-0.95*border, tlocs[exp], param_str, color = colors[exp])
 
-        uncert_band[exp] = {'x_gev': x_gev, '5th_perc' : np.percentile(all_pdfs, 5, axis = 1), '95th_perc': np.percentile(all_pdfs, 95, axis = 1)}
-
-    n_bins = np.around(np.arange(-border, border +0.1, 0.5), 1)
-    obs_hist = np.histogram(obs_cb.data, bins=n_bins, density=True)
-    obs_hist[0][obs_hist[0]==0] = np.nan
-    era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
-    era_hist[0][era_hist[0]==0] = np.nan
-    ax_single_bootstrap.scatter(obs_hist[1][:-1] + np.diff(obs_hist[1])/2, obs_hist[0], marker='_', c = 'k', label = 'HadEX3', s=225, lw = 2.5)
-    ax_single_bootstrap.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=225, lw = 2.5) 
+    n_bins = np.around(np.arange(-border, border +0.1, 2), 1)
+    # era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
+    # era_hist[0][era_hist[0]==0] = np.nan
+    # ax_single_bootstrap.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=100, lw = 2.5) 
 
     ax_gev_distr[0].legend(loc=0, fancybox=False, frameon=False)
     fig_gev_distr.suptitle('Distribution of GEV parameters after bootstrap',
@@ -211,17 +232,18 @@ def make_uncert_figures(data_dic, cfg, border):
 
 def make_hist_figure(data_dic, cfg, uncert_band, border):
 
-    obs_cb = data_dic['obs']['HadEX3'][0]
     era_cb = data_dic['reanalysis']
-
-    exp_list = list(data_dic.keys())
-    exp_list.remove('obs') ; exp_list.remove('reanalysis')    
+    era_max = era_cb.data.max()
+    year_max = 2000+era_cb.data.argmax()
+    era_2021 = era_cb.data[-1]
+    
+    exp_list = list(data_dic.keys()) ; exp_list.remove('reanalysis')    
 
     colors = {'all' : (196 / 255, 121 / 255, 0), 
               'nat' : (0, 79 / 255, 0), 
               'ssp245' : (69 / 255, 118 / 255, 191 / 255)}
 
-    tlocs = {'all': 0.12 , 'nat': 0.05,  'ssp245': 0.17}
+    tlocs = {'all': 0.03 , 'nat': 0.005,  'ssp245': 0.055}
 
     csv_file = open(os.path.join(cfg['work_dir'], 'gev_parameters.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
@@ -268,26 +290,26 @@ def make_hist_figure(data_dic, cfg, uncert_band, border):
             x_gev = uncert_band[exp_key]['x_gev']
             w_pdf = gev.pdf(x_gev, w_shape, w_loc, w_scale)
             model_row.extend([w_shape, w_loc, w_scale])
-            n_bins = np.around(np.arange(-border, border + 0.1, 0.5), 1)
+            n_bins = np.around(np.arange(-border, border + 0.1, 0.2), 1)
             plt.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
                     facecolor = colors[exp_key], alpha=0.3, label=exp_key + ' N_real=' +str(len(ens_cubelist)), density=True, weights=weights) 
-            plt.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'GEV '+exp_key)
-            plt.text(-0.95*border, tlocs[exp_key], '  ' +exp_key+' GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) \
-                    + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
+            plt.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'Fitted GEV '+exp_key)
+            plt.text(-35, tlocs[exp_key], '  ' +exp_key+' GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) \
+                   + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
             if model == 'Multi-Model-Mean':
                 perc_5 = uncert_band[exp_key]['5th_perc']
                 perc_95 = uncert_band[exp_key]['95th_perc']
                 plt.fill_between(x_gev, perc_5, perc_95, color= colors[exp_key], alpha = 0.3, linewidth=0)
         gevs_csv_writer.writerow(model_row)
-        obs_hist = np.histogram(obs_cb.data, bins=n_bins, density=True)
-        obs_hist[0][obs_hist[0]==0] = np.nan
-        era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
-        era_hist[0][era_hist[0]==0] = np.nan
-        plt.scatter(obs_hist[1][:-1] + np.diff(obs_hist[1])/2, obs_hist[0], marker='_', c = 'k', label = 'HadEX3', s=225, lw = 2.5)
-        plt.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=225, lw = 2.5) 
+       # era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
+       #  era_hist[0][era_hist[0]==0] = np.nan
+       #  plt.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=100, lw = 2.5) 
+
+        plt.scatter(era_2021, 0.2, s = 100, marker='o', c='r', label ='ERA5 (2021)')
+        plt.scatter(era_max, 0.2, s = 100, marker='*', c='r', label ='ERA5 max ('+ str(year_max)+')')
 
         plt.legend(loc=2, fancybox=False, frameon=False)
-        plt.xlim(-border,border)
+        plt.xlim(-border, border)
         plt.xlabel(cfg['ax_var_label']+' anomaly, ' +cfg['un_label'])
         plt.ylabel('Number density')
 
@@ -306,11 +328,9 @@ def make_timeseries_figure(data_dic, cfg):
 
     plt.style.use(st_file)
 
-    obs_cb = data_dic['obs']['HadEX3'][0]
     era_cb = data_dic['reanalysis']
 
-    exp_list = list(data_dic.keys())
-    exp_list.remove('obs') ; exp_list.remove('reanalysis') 
+    exp_list = list(data_dic.keys()) ; exp_list.remove('reanalysis') 
 
     colors = {}
     colors['all'] = (196 / 255, 121 / 255, 0)
@@ -345,7 +365,6 @@ def make_timeseries_figure(data_dic, cfg):
             else: 
                 mean_cb = cube
             plt.plot(tim_coord.points, mean_cb.data, c=colors[exp_key], label = exp_key, lw=1.5)
-        plt.plot(np.arange(0, len(obs_cb.coord('time').points)), obs_cb.data, lw=1.5, c='k', label = 'HadEX3')
         plt.plot(np.arange(0, len(era_cb.coord('time').points)), era_cb.data, lw=1.5, c='r', label = 'ERA5')
 
         plt.legend(loc=2, fancybox=False, frameon=False)
@@ -365,17 +384,21 @@ def make_timeseries_figure(data_dic, cfg):
 
 def main(cfg):
 
+    anomaly_rxNday(cfg)
+
     input_data = cfg['input_data']
 
     groups = group_metadata(input_data.values(), 'variable_group', sort=True)
+
+    groups_l = list(groups.keys()) ; groups_l.remove('anomaly')
 
     era_cube = get_era_txx(cfg)
 
     mins = list(); maxs = list()
 
-    plotting_dic = {'reanalysis': era_cube}
+    plotting_dic = {}
 
-    for group in groups.keys():
+    for group in groups_l:
         plotting_dic[group] = {}
         group_data = groups[group]
         datasets = group_metadata(group_data, 'dataset')
@@ -386,20 +409,28 @@ def main(cfg):
             mod_cubelist = iris.cube.CubeList()
             for filepath in filepaths:
                 mod_cb = iris.load_cube(filepath)
+                file_metadata = select_metadata(datasets[dataset], filename = filepath)
+                ens = file_metadata[0]['ensemble']
                 if ( cfg['mult_factor'] != 1)&(group != 'obs'):
                     mod_cb = mod_cb * cfg['mult_factor']
-                mins.append(mod_cb.collapsed('time', iris.analysis.MIN).data)
-                maxs.append(mod_cb.collapsed('time', iris.analysis.MAX).data)
-                mod_cb.attributes['ensemble_weight'] = 1 / n_real
-                mod_cb.attributes['reverse_dtsts_n'] = 1/ len(datasets)
+                rxNday_cb = mod_cb.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
+                rxNday_cb = esmvalcore.preprocessor.annual_statistics(rxNday_cb, operator='max')
+                anom_cb = iris.load_cube(select_metadata(input_data.values(), dataset = dataset, ensemble = ens, variable_group = 'anomaly')[0]['filename'])
+                rxNday_ano_cb = (rxNday_cb - anom_cb)/10**12
+                mins.append(rxNday_ano_cb.collapsed('time', iris.analysis.MIN).data)
+                maxs.append(rxNday_ano_cb.collapsed('time', iris.analysis.MAX).data)
+                rxNday_ano_cb.attributes['ensemble_weight'] = 1 / n_real
+                rxNday_ano_cb.attributes['reverse_dtsts_n'] = 1/ len(datasets)
                 # provenance_rec= { 'authors' : 'malinina_elizaveta', 'statistics': 'max', 'ancestors': [filepath]}
-                ens_cubelist.append(mod_cb)
-                mod_cubelist.append(mod_cb)
+                ens_cubelist.append(rxNday_ano_cb)
+                mod_cubelist.append(rxNday_ano_cb)
             plotting_dic[group][dataset] = mod_cubelist
         if group != 'obs':     
             plotting_dic[group]['GEV_uncert'] = bootstrap_gev(plotting_dic[group]) 
             plotting_dic[group]['Multi-Model-Mean'] = ens_cubelist
     
+    plotting_dic['reanalysis'] = era_cube
+
     min_var = np.asarray(mins).min() ; max_var = np.asarray(maxs).max()  
 
     border = np.ceil(np.max(np.abs([min_var, max_var]))*1.75)
