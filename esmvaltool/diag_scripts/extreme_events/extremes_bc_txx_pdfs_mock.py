@@ -114,7 +114,7 @@ def get_era_txx(cfg):
                         end_year=cfg['era_plotting_period'][1],
                         end_month=12, end_day=31)
 
-    return crop_era_cb /10**12
+    return crop_era_cb 
 
 
 def bootstrap_gev(data_dic): 
@@ -154,7 +154,7 @@ def make_uncert_figures(data_dic, cfg, border):
 
     exp_list = list(data_dic.keys()) ; exp_list.remove('reanalysis') 
 
-    x_gev = np.arange(-border,border+0.1, 0.1)
+    x_gev = np.arange(-border,border+0.1, 1)
 
     tlocs = {'all': 0.04 , 'nat': 0.01,  'ssp245': 0.08}
   
@@ -196,7 +196,7 @@ def make_uncert_figures(data_dic, cfg, border):
         
         ax_single_bootstrap.text(-0.95*border, tlocs[exp], param_str, color = colors[exp])
 
-    n_bins = np.around(np.arange(-border, border +0.1, 2), 1)
+    n_bins = np.around(np.arange(-border, border +0.1, 2))
     # era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
     # era_hist[0][era_hist[0]==0] = np.nan
     # ax_single_bootstrap.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=100, lw = 2.5) 
@@ -243,7 +243,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border):
               'nat' : (0, 79 / 255, 0), 
               'ssp245' : (69 / 255, 118 / 255, 191 / 255)}
 
-    tlocs = {'all': 0.03 , 'nat': 0.005,  'ssp245': 0.055}
+    tlocs = {'all': 0.02 , 'nat': 0.005,  'ssp245': 0.035}
 
     csv_file = open(os.path.join(cfg['work_dir'], 'gev_parameters.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
@@ -270,7 +270,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border):
             distrib_data = np.asarray(distrib_data)
             weights = np.asarray(weights)
             un_weights = np.unique(weights)
-            rev_un_weights = np.asarray(1/un_weights).astype('int32')
+            rev_un_weights = np.asarray(1/un_weights).round(0).astype('int32')
             large_denom = np.gcd.reduce(rev_un_weights)
             dev_weights = rev_un_weights/large_denom
             least_mult = np.lcm.reduce(dev_weights.astype('int32'))
@@ -286,15 +286,17 @@ def make_hist_figure(data_dic, cfg, uncert_band, border):
                     upd_distr_data.append(distrib_point)
                     new_weights.append(weights[n_dp]/factors[n_dp])
             upd_distr_data = np.asarray(upd_distr_data)
+            if model == 'Multi-Model-Mean':
+                print('Liza')
             w_shape, w_loc, w_scale = gev.fit(upd_distr_data)
             x_gev = uncert_band[exp_key]['x_gev']
             w_pdf = gev.pdf(x_gev, w_shape, w_loc, w_scale)
             model_row.extend([w_shape, w_loc, w_scale])
-            n_bins = np.around(np.arange(-border, border + 0.1, 0.2), 1)
+            n_bins = np.around(np.arange(-border, border + 0.1, 5))
             plt.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
                     facecolor = colors[exp_key], alpha=0.3, label=exp_key + ' N_real=' +str(len(ens_cubelist)), density=True, weights=weights) 
             plt.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'Fitted GEV '+exp_key)
-            plt.text(-35, tlocs[exp_key], '  ' +exp_key+' GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) \
+            plt.text(135, tlocs[exp_key], '  ' +exp_key+' GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) \
                    + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
             if model == 'Multi-Model-Mean':
                 perc_5 = uncert_band[exp_key]['5th_perc']
@@ -305,11 +307,11 @@ def make_hist_figure(data_dic, cfg, uncert_band, border):
        #  era_hist[0][era_hist[0]==0] = np.nan
        #  plt.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=100, lw = 2.5) 
 
-        plt.scatter(era_2021, 0.2, s = 100, marker='o', c='r', label ='ERA5 (2021)')
-        plt.scatter(era_max, 0.2, s = 100, marker='*', c='r', label ='ERA5 max ('+ str(year_max)+')')
+        plt.scatter(era_2021, 0.04, s = 100, marker='o', c='r', label ='ERA5 (2021)')
+        plt.scatter(era_max, 0.04, s = 100, marker='*', c='r', label ='ERA5 max ('+ str(year_max)+')')
 
         plt.legend(loc=2, fancybox=False, frameon=False)
-        plt.xlim(-border, border)
+        plt.xlim(-75, 175)
         plt.xlabel(cfg['ax_var_label']+' anomaly, ' +cfg['un_label'])
         plt.ylabel('Number density')
 
@@ -416,7 +418,7 @@ def main(cfg):
                 rxNday_cb = mod_cb.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
                 rxNday_cb = esmvalcore.preprocessor.annual_statistics(rxNday_cb, operator='max')
                 anom_cb = iris.load_cube(select_metadata(input_data.values(), dataset = dataset, ensemble = ens, variable_group = 'anomaly')[0]['filename'])
-                rxNday_ano_cb = (rxNday_cb - anom_cb)/10**12
+                rxNday_ano_cb = (rxNday_cb - anom_cb)
                 mins.append(rxNday_ano_cb.collapsed('time', iris.analysis.MIN).data)
                 maxs.append(rxNday_ano_cb.collapsed('time', iris.analysis.MAX).data)
                 rxNday_ano_cb.attributes['ensemble_weight'] = 1 / n_real
