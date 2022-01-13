@@ -2,6 +2,8 @@ import cf_units
 import cftime
 import datetime
 import csv
+from numpy.lib.function_base import quantile
+import pandas as pd
 
 import esmvalcore.preprocessor
 import iris
@@ -13,6 +15,7 @@ import matplotlib.pyplot as plt
 import os
 import glob
 from scipy.stats import genextreme as gev
+from scipy.stats import mode as mode
 
 # import internal esmvaltool modules here
 from esmvaltool.diag_scripts.shared import run_diagnostic, select_metadata, group_metadata, get_diagnostic_filename, save_data, ProvenanceLogger
@@ -76,8 +79,12 @@ def get_era_txx(cfg):
                                                        'start_latitude' : 39.5, 
                                                        'end_latitude' : 84.5,
                                                        'step_latitude' : 0.5}, 'linear') 
-        reg_cube = esmvalcore.preprocessor.extract_region(regrid_cube, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
-                        cfg['era_regridding_region'][2], cfg['era_regridding_region'][3])
+        if cfg['era_regridding_shape']:
+            reg_cube = esmvalcore.preprocessor.extract_shape(regrid_cube, os.path.join(aux_dir,cfg['era_shape_file']), method='contains', crop=True)
+        else:
+            reg_cube = esmvalcore.preprocessor.extract_region(regrid_cube, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
+                            cfg['era_regridding_region'][2], cfg['era_regridding_region'][3])
+
         era_cb_pr = esmvalcore.preprocessor.area_statistics(reg_cube, 'mean')
         iris.save(era_cb_pr, os.path.join(era_dir,'daily_era5_'+pattern +'_'+f_ending)) 
 
@@ -96,25 +103,20 @@ def get_era_txx(cfg):
     era_rxNday_big_cube = era_big_cube.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
 
     era_rxNday_big_cube = esmvalcore.preprocessor.annual_statistics(era_rxNday_big_cube, 'max')  
-    
-    # if cfg['era_regridding_shape']: 
-    #     reg_cb_txx = esmvalcore.preprocessor.extract_shape(regrd_txx, os.path.join(cfg['auxiliary_data_dir'], cfg['era_regridding_region']))
-    # else:
-    #     reg_cb_txx = esmvalcore.preprocessor.extract_region(regrd_txx, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
-    #                     cfg['era_regridding_region'][2], cfg['era_regridding_region'][3])
 
-    anomal_era_cb = esmvalcore.preprocessor.anomalies(era_rxNday_big_cube, 'full',
-                        reference={'start_year': cfg['reference_period'][0],
-                        'start_month': 1, 'start_day':1,
-                        'end_year': cfg['reference_period'][1],
-                        'end_month': 12, 'end_day':31} )
-    crop_era_cb = esmvalcore.preprocessor.extract_time(anomal_era_cb,
-                        start_year=cfg['era_plotting_period'][0],
+    ref_era_cb = esmvalcore.preprocessor.extract_time(era_rxNday_big_cube,
+                        start_year=cfg['reference_period'][0],
                         start_month=1, start_day=1,
-                        end_year=cfg['era_plotting_period'][1],
-                        end_month=12, end_day=31)
+                        end_year=cfg['reference_period'][1]+1,
+                        end_month=1, end_day=1)
 
-    return crop_era_cb 
+    ref_era_cb = esmvalcore.preprocessor.climate_statistics(ref_era_cb, operator='mean',
+                                                           period='full')
+
+
+    use_era_cb = era_rxNday_big_cube / ref_era_cb 
+
+    return use_era_cb 
 
 
 def bootstrap_gev(data_dic): 
@@ -135,9 +137,8 @@ def bootstrap_gev(data_dic):
             idx = np.random.default_rng().integers(low=0, high=n_real, size=1)[0]
             pool_data.append(data_dic[model][idx].data.data.round(2))
         pool_data = np.asarray(pool_data).flatten()
-        shapes[i], locs[i], scales[i] = gev.fit(pool_data)
+        shapes[i], locs[i], scales[i] = gev.fit(pool_data, method='MLE')
     
-
     param_dic = {'shape': shapes, 'loc': locs, 'scale': scales}    
 
     return param_dic
@@ -154,7 +155,7 @@ def make_uncert_figures(data_dic, cfg, border):
 
     exp_list = list(data_dic.keys()) ; exp_list.remove('reanalysis') 
 
-    x_gev = np.arange(-border,border+0.1, 1)
+    x_gev = np.arange(border[0],border[1], 0.02)
 
     tlocs = {'all': 0.04 , 'nat': 0.01,  'ssp245': 0.08}
   
@@ -194,12 +195,7 @@ def make_uncert_figures(data_dic, cfg, border):
             + '\n loc mean:'+str(np.around(gev_dic['loc'].mean(),3))+', max:'+str(np.around(gev_dic['loc'].max(),3)) + ', min:' + str(np.around(gev_dic['loc'].min(),3)) \
             + '\nscale mean:'+ str(np.around(gev_dic['scale'].mean(),3))+', max:'+str(np.around(gev_dic['scale'].max(),3)) + ', min:' + str(np.around(gev_dic['scale'].min(),3))               
         
-        ax_single_bootstrap.text(-0.95*border, tlocs[exp], param_str, color = colors[exp])
-
-    n_bins = np.around(np.arange(-border, border +0.1, 2))
-    # era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
-    # era_hist[0][era_hist[0]==0] = np.nan
-    # ax_single_bootstrap.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=100, lw = 2.5) 
+        ax_single_bootstrap.text(-0.95*border[0], tlocs[exp], param_str, color = colors[exp])
 
     ax_gev_distr[0].legend(loc=0, fancybox=False, frameon=False)
     fig_gev_distr.suptitle('Distribution of GEV parameters after bootstrap',
@@ -211,9 +207,9 @@ def make_uncert_figures(data_dic, cfg, border):
     plt.close(fig_gev_distr)
 
     ax_single_bootstrap.legend(loc=2, fancybox=False, frameon=False)
-    ax_single_bootstrap.set_xlim(-border, border)
+    ax_single_bootstrap.set_xlim(border[0], border[1])
     ax_single_bootstrap.set_ylim(0, ax_single_bootstrap.get_ylim()[1])
-    ax_single_bootstrap.set_xlabel('Temperature anomaly, C')
+    ax_single_bootstrap.set_xlabel('Precipitation ratio, mm')
     ax_single_bootstrap.set_ylabel('Number density')
 
     fig_single_bootstrap.suptitle('Estimation of GEV fit uncertainty from Multi Model Mean with Bootstrap method',
@@ -230,30 +226,37 @@ def make_uncert_figures(data_dic, cfg, border):
     return uncert_band
 
 
-def make_hist_figure(data_dic, cfg, uncert_band, border):
+def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
 
     era_cb = data_dic['reanalysis']
     era_max = era_cb.data.max()
-    year_max = 2000+era_cb.data.argmax()
+    year_max = 1950+era_cb.data.argmax()
     era_2021 = era_cb.data[-1]
     
     exp_list = list(data_dic.keys()) ; exp_list.remove('reanalysis')    
+
+    quantile_measures = np.arange(0, 1.01, 0.01); quantile_measures[0] = 0.001
 
     colors = {'all' : (196 / 255, 121 / 255, 0), 
               'nat' : (0, 79 / 255, 0), 
               'ssp245' : (69 / 255, 118 / 255, 191 / 255)}
 
-    tlocs = {'all': 0.02 , 'nat': 0.005,  'ssp245': 0.035}
+    tlocs = {'all': 0.55 , 'nat': 0.15,  'ssp245': 0.95}
 
     csv_file = open(os.path.join(cfg['work_dir'], 'gev_parameters.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
-    head_row = ['shape_'+exp_key+', loc_'+exp_key+ ', scale_'+exp_key for exp_key in exp_list]
-    head_row.insert(0, 'model')
+    head_row = ['model']
+    for exp_key in exp_list:
+        head_row.append('shape_'+exp_key) ; head_row.append('loc_'+exp_key); head_row.append('scale_'+exp_key)
     gevs_csv_writer.writerow(head_row)
     models = data_dic[exp_list[0]].keys()
     for model in models: 
-        fig = plt.figure()
+        fig = plt.figure(constrained_layout=False)
         fig.set_size_inches(12., 8.)
+        gs = fig.add_gridspec(nrows=2, ncols=6)
+        ax_hist = fig.add_subplot(gs[:, :-2])
+        ax_qq= fig.add_subplot(gs[0, -2:])
+        ax_surv= fig.add_subplot(gs[1, -2:])
         model_row = [model]
         for exp_key in exp_list:
             ens_cubelist = data_dic[exp_key][model]
@@ -288,98 +291,64 @@ def make_hist_figure(data_dic, cfg, uncert_band, border):
             upd_distr_data = np.asarray(upd_distr_data)
             if model == 'Multi-Model-Mean':
                 print('Liza')
-            w_shape, w_loc, w_scale = gev.fit(upd_distr_data)
+            w_shape, w_loc, w_scale = gev.fit(upd_distr_data, loc=apr_param[exp_key]['loc'], scale=apr_param[exp_key]['scale'], method='MLE')
             x_gev = uncert_band[exp_key]['x_gev']
             w_pdf = gev.pdf(x_gev, w_shape, w_loc, w_scale)
             model_row.extend([w_shape, w_loc, w_scale])
-            n_bins = np.around(np.arange(-border, border + 0.1, 5))
-            plt.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
-                    facecolor = colors[exp_key], alpha=0.3, label=exp_key + ' N_real=' +str(len(ens_cubelist)), density=True, weights=weights) 
-            plt.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'Fitted GEV '+exp_key)
-            plt.text(135, tlocs[exp_key], '  ' +exp_key+' GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) \
+            n_bins = np.arange(int(border[0]*20)/20, border[1]+0.1, 0.1)
+            ax_hist.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
+                    facecolor = colors[exp_key], alpha=0.3, label=exp_key + ' N_real=' +str(len(ens_cubelist)), density=True, weights=weights)
+            ax_hist.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'Fitted GEV '+exp_key)
+            ax_hist.text(2.55, tlocs[exp_key], '  ' +exp_key+' GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) \
                    + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
             if model == 'Multi-Model-Mean':
                 perc_5 = uncert_band[exp_key]['5th_perc']
                 perc_95 = uncert_band[exp_key]['95th_perc']
-                plt.fill_between(x_gev, perc_5, perc_95, color= colors[exp_key], alpha = 0.3, linewidth=0)
+                ax_hist.fill_between(x_gev, perc_5, perc_95, color= colors[exp_key], alpha = 0.3, linewidth=0)
+            w_survival = gev.sf(x_gev, w_shape, w_loc, w_scale)
+            theor_quants = gev(w_shape, w_loc, w_scale).ppf(quantile_measures)
+            pract_quants = np.quantile(upd_distr_data, quantile_measures)
+            ax_qq.scatter(theor_quants, pract_quants, edgecolors=colors[exp_key], marker='o', facecolors='None', lw=1.5, label=exp_key, zorder=3)
+            ax_surv.plot(x_gev, w_survival, color=colors[exp_key], label=exp_key)
         gevs_csv_writer.writerow(model_row)
-       # era_hist = np.histogram(era_cb.data, bins=n_bins, density=True)
-       #  era_hist[0][era_hist[0]==0] = np.nan
-       #  plt.scatter(era_hist[1][:-1] + np.diff(era_hist[1])/2, era_hist[0], marker='_', c = 'r', label = 'ERA5', s=100, lw = 2.5) 
 
-        plt.scatter(era_2021, 0.04, s = 100, marker='o', c='r', label ='ERA5 (2021)')
-        plt.scatter(era_max, 0.04, s = 100, marker='*', c='r', label ='ERA5 max ('+ str(year_max)+')')
+        ax_hist.scatter(era_2021, 1.5, s = 100, marker='o', facecolors = 'None', edgecolors='tab:red', lw=2, label ='ERA5 (2021)')
+        ax_hist.scatter(era_max, 1.5, s = 100, marker='*', facecolors = 'None', edgecolors='tab:red', lw=2, label ='ERA5 max ('+ str(year_max)+')')
 
-        plt.legend(loc=2, fancybox=False, frameon=False)
-        plt.xlim(-75, 175)
-        plt.xlabel(cfg['ax_var_label']+' anomaly, ' +cfg['un_label'])
-        plt.ylabel('Number density')
+        ax_surv.scatter(era_2021, 0.023, s = 100, marker='o', facecolors = 'None', edgecolors='tab:red', lw=2)
+        ax_surv.scatter(era_max, 0.023, s = 100, marker='*', facecolors = 'None',  edgecolors='tab:red', lw=2)
 
-        fig.suptitle('Distribution of '+cfg['title_var_label']+' anomalies in '+cfg['region']+' \nrelative to '+ str(cfg['reference_period'][0]) \
+        ax_hist.legend(loc=1, fancybox=False, frameon=False)
+        # ax_qq.legend(loc=2, fancybox=False, frameon=False)
+        ax_qq.plot([0,5],[0,5], c='tab:grey', zorder=1)
+        # plt.xlim(-0.5*border, 0.7*border)
+        ax_hist.set_xlim(x_gev[0], 3)
+        ax_qq.set_xlim(x_gev[0], 3)
+        ax_qq.set_ylim(x_gev[0], 3)
+        ax_surv.set_ylim(0,1.001)
+        ax_surv.set_xlim(x_gev[0], 3)
+        ax_hist.set_title('Probability distribution function')
+        ax_qq.set_title('Quality assessment')
+        ax_qq.set_ylabel('Data quantile')
+        ax_qq.set_xlabel('GEV quantile')
+        ax_surv.set_title('GEV survival function')
+        ax_surv.set_ylabel('Probability')
+        ax_surv.set_xlabel('Normalized '+cfg['ax_var_label'])
+        ax_hist.set_xlabel('Normalized '+cfg['ax_var_label'])
+        ax_hist.set_ylabel('Number density')
+
+        if model == 'Multi-Model-Mean':
+            fig.suptitle('Normalised '+cfg['title_var_label']+' in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
+            + '-' + str(cfg['reference_period'][1])+ ' calculated from '+str(len(models) - 1) +' CMIP6 models' , fontsize = 'x-large')
+        else:
+            fig.suptitle('Normalised '+cfg['title_var_label']+' in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
             + '-' + str(cfg['reference_period'][1])+ ' calculated from '+model, fontsize = 'x-large')
         fig.set_dpi(250)
 
+        plt.tight_layout()
+
         ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_'+model)
         ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_'+model, img_ext='.png')
-
-    return
-
-def make_timeseries_figure(data_dic, cfg):
-
-    st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
-
-    plt.style.use(st_file)
-
-    era_cb = data_dic['reanalysis']
-
-    exp_list = list(data_dic.keys()) ; exp_list.remove('reanalysis') 
-
-    colors = {}
-    colors['all'] = (196 / 255, 121 / 255, 0)
-    colors['nat'] = (0, 79 / 255, 0)
-    colors['ssp245'] = (69 / 255, 118 / 255, 191 / 255)
-
-    models = data_dic[exp_list[0]].keys()
-    for model in models:
-        fig = plt.figure()
-        fig.set_size_inches(12., 8.)
-        plt.hlines(0, -200, 200, colors = 'grey', linestyles='dashed')
-        for exp_key in exp_list:
-            ens_cubelist = data_dic[exp_key][model]
-            time_data = []
-            weights = []
-            for cube in ens_cubelist:
-                if model == 'Multi-Model-Mean':
-                    cube_weight = cube.attributes['ensemble_weight']*cube.attributes['reverse_dtsts_n']
-                else:
-                    cube_weight = cube.attributes['ensemble_weight']
-                weights.append([cube_weight]*len(cube.data))
-                time_data.append(cube.data)
-            time_data = np.asarray(time_data)
-            weights = np.asarray(weights)
-            tim_coord = iris.coords.DimCoord(np.arange(0, len(cube.coord('time').points)), long_name = 'n_years', var_name = 'n_years')
-            aux_coord = iris.coords.DimCoord(np.arange(0, len(ens_cubelist)), standard_name=None, long_name='aux_ens_coord', var_name='aux_ens_coord')
-            full_cube = iris.cube.Cube(time_data, long_name =cube.long_name, var_name = cube.var_name, units = cube.units,  dim_coords_and_dims = [(aux_coord, 0),(tim_coord, 1)])
-            if len(ens_cubelist) > 1:
-                mean_cb = full_cube.collapsed('aux_ens_coord', iris.analysis.MEAN, weights = weights)
-                perc_cb = full_cube.collapsed('aux_ens_coord', iris.analysis.WPERCENTILE, percent=[5,95], weights = weights)
-                plt.fill_between(tim_coord.points, perc_cb.data[0,:], perc_cb.data[1,:], color=colors[exp_key], alpha=0.1, lw=0)
-            else: 
-                mean_cb = cube
-            plt.plot(tim_coord.points, mean_cb.data, c=colors[exp_key], label = exp_key, lw=1.5)
-        plt.plot(np.arange(0, len(era_cb.coord('time').points)), era_cb.data, lw=1.5, c='r', label = 'ERA5')
-
-        plt.legend(loc=2, fancybox=False, frameon=False)
-        plt.xlim(-1,len(era_cb.coord('time').points))
-        plt.ylabel(cfg['ax_var_label']+' anomaly, ' + cfg['un_label'])
-        plt.xlabel('Years since the start of a dataset')
-
-        fig.suptitle('Timeseries of '+cfg['title_var_label']+' anomalies in '+cfg['region']+' \nrelative to '+ str(cfg['reference_period'][0]) \
-            + '-' + str(cfg['reference_period'][1])+' from ' + model, fontsize = 'x-large')
-        fig.set_dpi(250)
-        
-        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_timeseries_'+model)
-        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_timeseries_'+model, img_ext='.png')   
 
     return
 
@@ -400,6 +369,8 @@ def main(cfg):
 
     plotting_dic = {}
 
+    fit_param_apr = {}
+
     for group in groups_l:
         plotting_dic[group] = {}
         group_data = groups[group]
@@ -418,33 +389,33 @@ def main(cfg):
                 rxNday_cb = mod_cb.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
                 rxNday_cb = esmvalcore.preprocessor.annual_statistics(rxNday_cb, operator='max')
                 anom_cb = iris.load_cube(select_metadata(input_data.values(), dataset = dataset, ensemble = ens, variable_group = 'anomaly')[0]['filename'])
-                rxNday_ano_cb = (rxNday_cb - anom_cb)
+                rxNday_ano_cb = rxNday_cb / anom_cb
                 mins.append(rxNday_ano_cb.collapsed('time', iris.analysis.MIN).data)
                 maxs.append(rxNday_ano_cb.collapsed('time', iris.analysis.MAX).data)
                 rxNday_ano_cb.attributes['ensemble_weight'] = 1 / n_real
                 rxNday_ano_cb.attributes['reverse_dtsts_n'] = 1/ len(datasets)
-                # provenance_rec= { 'authors' : 'malinina_elizaveta', 'statistics': 'max', 'ancestors': [filepath]}
                 ens_cubelist.append(rxNday_ano_cb)
                 mod_cubelist.append(rxNday_ano_cb)
             plotting_dic[group][dataset] = mod_cubelist
         if group != 'obs':     
             plotting_dic[group]['GEV_uncert'] = bootstrap_gev(plotting_dic[group]) 
             plotting_dic[group]['Multi-Model-Mean'] = ens_cubelist
+            fit_param_apr[group] = {'shape': np.around(plotting_dic[group]['GEV_uncert']['shape'].mean(),3),
+                                    'loc': np.around(plotting_dic[group]['GEV_uncert']['loc'].mean(),3),
+                                    'scale': np.around(plotting_dic[group]['GEV_uncert']['scale'].mean(),3)}
     
     plotting_dic['reanalysis'] = era_cube
 
     min_var = np.asarray(mins).min() ; max_var = np.asarray(maxs).max()  
 
-    border = np.ceil(np.max(np.abs([min_var, max_var]))*1.75)
+    border = [np.around(min_var*0.25,2), np.around(max_var*1.75,2)]
 
     st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
     plt.style.use(st_file)
 
     uncert_band = make_uncert_figures(plotting_dic, cfg, border)
 
-    make_hist_figure(plotting_dic, cfg, uncert_band, border)
-
-    make_timeseries_figure(plotting_dic, cfg)                                   
+    make_hist_figure(plotting_dic, cfg, uncert_band, border, fit_param_apr)
 
     logger.info('Success')
 
