@@ -1,3 +1,4 @@
+from turtle import color
 import cf_units
 import cftime
 import datetime
@@ -43,7 +44,19 @@ def anomaly_rxNday(cfg):
         f_name = orig_fname.split('/')[-1]
         new_fname = os.path.join(new_fdir, 'rx'+str(cfg['n_days'])+'day_'+f_name)
         ano_cb = iris.load_cube(orig_fname)
-        rxNd_cube = ano_cb.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
+        if cfg.get('calculate_api'): 
+            k = cfg['api_k']
+            n_arr = len(ano_cb.coord('time').points) - cfg['n_days']
+            api_data = np.zeros(n_arr)
+            for i in range(0,n_arr):
+                api_data[i] = np.sum([(k**t)*ano_cb.data[i+cfg['n_days'] - t] for t in range(1,cfg['n_days']+1)])
+            t_coord = iris.coords.DimCoord(ano_cb.coord('time').points[cfg['n_days']:], bounds=ano_cb.coord('time').bounds[cfg['n_days']:,:], 
+                      long_name=ano_cb.coord('time').long_name, standard_name=ano_cb.coord('time').standard_name, units=ano_cb.coord('time').units,
+                      var_name=ano_cb.coord('time').var_name)
+            rxNd_cube = iris.cube.Cube(api_data, dim_coords_and_dims=[(t_coord,0)], long_name='Antecedent Precipitation Index', var_name='api', 
+                        units=ano_cb.units,attributes=ano_cb.attributes)
+        else:
+            rxNd_cube = ano_cb.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
         if (cfg['mult_factor'] != 1):
             rxNd_cube = rxNd_cube * cfg['mult_factor']
         rxNd_cube = esmvalcore.preprocessor.annual_statistics(rxNd_cube, operator='max')
@@ -100,7 +113,19 @@ def get_era_txx(cfg):
 
     era_big_cube = era_cubelist.concatenate_cube()
 
-    era_rxNday_big_cube = era_big_cube.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
+    if cfg.get('calculate_api'): 
+        k = cfg['api_k']
+        n_arr = len(era_big_cube.coord('time').points) - cfg['n_days']
+        api_data = np.zeros(n_arr)
+        for i in range(0,n_arr):
+            api_data[i] = np.sum([(k**t)*era_big_cube.data[i+cfg['n_days'] - t] for t in range(1,cfg['n_days']+1)])
+        t_coord = iris.coords.DimCoord(era_big_cube.coord('time').points[cfg['n_days']:], bounds=era_big_cube.coord('time').bounds[cfg['n_days']:,:], 
+                    long_name=era_big_cube.coord('time').long_name, standard_name=era_big_cube.coord('time').standard_name, 
+                    units=era_big_cube.coord('time').units, var_name=era_big_cube.coord('time').var_name)
+        era_rxNday_big_cube = iris.cube.Cube(api_data, dim_coords_and_dims=[(t_coord,0)], long_name='Antecedent Precipitation Index', var_name='api', 
+                    units=era_big_cube.units,attributes=era_big_cube.attributes)
+    else:
+        era_rxNday_big_cube = era_big_cube.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
 
     era_rxNday_big_cube = esmvalcore.preprocessor.annual_statistics(era_rxNday_big_cube, 'max')  
 
@@ -155,7 +180,7 @@ def make_uncert_figures(data_dic, cfg, border):
 
     exp_list = list(data_dic.keys()) ; exp_list.remove('reanalysis') 
 
-    x_gev = np.arange(border[0],border[1], 0.02)
+    x_gev = np.arange(border[0],border[1], 0.01)
 
     tlocs = {'all': 0.04 , 'nat': 0.01,  'ssp245': 0.08}
   
@@ -232,7 +257,21 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
     era_max = era_cb.data.max()
     year_max = 1950+era_cb.data.argmax()
     era_2021 = era_cb.data[-1]
-    
+    era_gev_params = gev.fit(era_cb.data)
+
+    era_csv = open(os.path.join(cfg['work_dir'], 'era_data.csv'), 'w', newline='')
+    era_csv_writer = csv.writer(era_csv, delimiter=',')
+    era_csv_writer.writerow(['2021 ERA value '+str(era_2021)])
+    era_csv_writer.writerow(['Max ERA value '+str(era_max)+ ' in '+ str(year_max)])
+    era_csv_writer.writerow(['ERA GEV params'])
+    era_csv_writer.writerow(['shape', 'loc', 'scale'])
+    era_csv_writer.writerow(era_gev_params)
+    era_csv.close()
+
+    risk_csv = open(os.path.join(cfg['work_dir'], 'era_data.csv'), 'w', newline='')
+    risk_csv_writer = csv.writer(risk_csv, delimiter=',')
+    risk_head_row = ['model']
+
     exp_list = list(data_dic.keys()) ; exp_list.remove('reanalysis')    
 
     quantile_measures = np.arange(0, 1.01, 0.01); quantile_measures[0] = 0.001
@@ -248,7 +287,9 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
     head_row = ['model']
     for exp_key in exp_list:
         head_row.append('shape_'+exp_key) ; head_row.append('loc_'+exp_key); head_row.append('scale_'+exp_key)
+        risk_head_row.append(exp_key+'_prob'); risk_head_row.append(exp_key+'_return_p')
     gevs_csv_writer.writerow(head_row)
+    risk_csv_writer.writerow(risk_head_row)
     models = data_dic[exp_list[0]].keys()
     for model in models: 
         fig = plt.figure(constrained_layout=False)
@@ -258,6 +299,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         ax_qq= fig.add_subplot(gs[0, -2:])
         ax_surv= fig.add_subplot(gs[1, -2:])
         model_row = [model]
+        risk_model_row = [model]
         for exp_key in exp_list:
             ens_cubelist = data_dic[exp_key][model]
             distrib_data = []
@@ -297,42 +339,56 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
             model_row.extend([w_shape, w_loc, w_scale])
             n_bins = np.arange(int(border[0]*20)/20, border[1]+0.1, 0.1)
             ax_hist.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
-                    facecolor = colors[exp_key], alpha=0.3, label=exp_key + ' N_real=' +str(len(ens_cubelist)), density=True, weights=weights)
-            ax_hist.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'Fitted GEV '+exp_key)
-            ax_hist.text(2.55, tlocs[exp_key], '  ' +exp_key+' GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) \
-                   + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
+                    facecolor = colors[exp_key], alpha=0.3, label=cfg['name_' + exp_key] , density=True, weights=weights, zorder = 2)
+            ax_hist.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'GEV fit '+cfg['name_' + exp_key], zorder=3)
+            # ax_hist.text(2.55, tlocs[exp_key], '  ' +exp_key+' GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) \
+            #        + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
             if model == 'Multi-Model-Mean':
                 perc_5 = uncert_band[exp_key]['5th_perc']
                 perc_95 = uncert_band[exp_key]['95th_perc']
-                ax_hist.fill_between(x_gev, perc_5, perc_95, color= colors[exp_key], alpha = 0.3, linewidth=0)
+                ax_hist.fill_between(x_gev, perc_5, perc_95, color= colors[exp_key], alpha = 0.3, linewidth=0, zorder=4)
             w_survival = gev.sf(x_gev, w_shape, w_loc, w_scale)
+            event_idx = np.argmin(np.abs(x_gev - era_2021))
+            max_idx = np.argmin(np.abs(x_gev - era_max))
+            risk_model_row.extend([w_survival[event_idx], 1/w_survival[event_idx]])
             theor_quants = gev(w_shape, w_loc, w_scale).ppf(quantile_measures)
             pract_quants = np.quantile(upd_distr_data, quantile_measures)
-            ax_qq.scatter(theor_quants, pract_quants, edgecolors=colors[exp_key], marker='o', facecolors='None', lw=1.5, label=exp_key, zorder=3)
-            ax_surv.plot(x_gev, w_survival, color=colors[exp_key], label=exp_key)
+            ax_qq.scatter(theor_quants, pract_quants, edgecolors=colors[exp_key], marker='o', facecolors='None', lw=0.75, label=cfg['name_' + exp_key], zorder=3)
+            ax_surv.plot(x_gev, 1/w_survival, color=colors[exp_key], zorder=2)
         gevs_csv_writer.writerow(model_row)
+        risk_csv_writer.writerow(risk_model_row)
 
-        ax_hist.scatter(era_2021, 1.5, s = 100, marker='o', facecolors = 'None', edgecolors='tab:red', lw=2, label ='ERA5 (2021)')
-        ax_hist.scatter(era_max, 1.5, s = 100, marker='*', facecolors = 'None', edgecolors='tab:red', lw=2, label ='ERA5 max ('+ str(year_max)+')')
+        ylims = ax_hist.get_ylim()
+        ax_hist.set_ylim(*ylims)
 
-        ax_surv.scatter(era_2021, 0.023, s = 100, marker='o', facecolors = 'None', edgecolors='tab:red', lw=2)
-        ax_surv.scatter(era_max, 0.023, s = 100, marker='*', facecolors = 'None',  edgecolors='tab:red', lw=2)
+        ax_hist.text(2.4, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
+        ax_hist.vlines(era_2021, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 (2021)')
+        ax_hist.vlines(era_max, *ylims, color = 'indianred', linestyle = 'dashed', lw=1.5, zorder=1, label = 'ERA5 max ('+ str(year_max)+')')
+
+        era_surv = gev.sf(x_gev, *era_gev_params)
+        era_event_prob = era_surv[event_idx]
+        era_max_prob = era_surv[max_idx]
+
+        ax_surv.scatter(era_2021, 1/era_event_prob, s = 40, marker='o', facecolors = 'None', edgecolors='indianred', lw=1.5, zorder=5,  label = 'ERA5 (2021)')
+        ax_surv.scatter(era_max, 1/era_max_prob, s = 40, marker='D', facecolors = 'None',  edgecolors='indianred', lw=1.5, zorder=4, label = 'ERA5 ('+ str(year_max)+')')
 
         ax_hist.legend(loc=1, fancybox=False, frameon=False)
-        # ax_qq.legend(loc=2, fancybox=False, frameon=False)
+        ax_qq.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
+        ax_surv.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
         ax_qq.plot([0,5],[0,5], c='tab:grey', zorder=1)
         # plt.xlim(-0.5*border, 0.7*border)
         ax_hist.set_xlim(x_gev[0], 3)
         ax_qq.set_xlim(x_gev[0], 3)
         ax_qq.set_ylim(x_gev[0], 3)
-        ax_surv.set_ylim(0,1.001)
+        ax_surv.set_ylim(1,10000)
         ax_surv.set_xlim(x_gev[0], 3)
-        ax_hist.set_title('Probability distribution function')
+        ax_surv.set_yscale('log')
+        ax_hist.set_title('Probability density function')
         ax_qq.set_title('Quality assessment')
         ax_qq.set_ylabel('Data quantile')
         ax_qq.set_xlabel('GEV quantile')
-        ax_surv.set_title('GEV survival function')
-        ax_surv.set_ylabel('Probability')
+        ax_surv.set_title('Return period')
+        ax_surv.set_ylabel('years')
         ax_surv.set_xlabel('Normalized '+cfg['ax_var_label'])
         ax_hist.set_xlabel('Normalized '+cfg['ax_var_label'])
         ax_hist.set_ylabel('Number density')
@@ -386,7 +442,19 @@ def main(cfg):
                 ens = file_metadata[0]['ensemble']
                 if ( cfg['mult_factor'] != 1)&(group != 'obs'):
                     mod_cb = mod_cb * cfg['mult_factor']
-                rxNday_cb = mod_cb.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
+                if cfg.get('calculate_api'): 
+                    k = cfg['api_k']
+                    n_arr = len(mod_cb.coord('time').points) - cfg['n_days']
+                    api_data = np.zeros(n_arr)
+                    for i in range(0,n_arr):
+                        api_data[i] = np.sum([(k**t)*mod_cb.data[i+cfg['n_days'] - t] for t in range(1,cfg['n_days']+1)])
+                    t_coord = iris.coords.DimCoord(mod_cb.coord('time').points[cfg['n_days']:], bounds=mod_cb.coord('time').bounds[cfg['n_days']:,:], 
+                            long_name=mod_cb.coord('time').long_name, standard_name=mod_cb.coord('time').standard_name, units=mod_cb.coord('time').units,
+                            var_name=mod_cb.coord('time').var_name)
+                    rxNday_cb = iris.cube.Cube(api_data, dim_coords_and_dims=[(t_coord,0)], long_name='Antecedent Precipitation Index', var_name='api', 
+                                units=mod_cb.units,attributes=mod_cb.attributes)
+                else:
+                    rxNday_cb = mod_cb.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
                 rxNday_cb = esmvalcore.preprocessor.annual_statistics(rxNday_cb, operator='max')
                 anom_cb = iris.load_cube(select_metadata(input_data.values(), dataset = dataset, ensemble = ens, variable_group = 'anomaly')[0]['filename'])
                 rxNday_ano_cb = rxNday_cb / anom_cb
