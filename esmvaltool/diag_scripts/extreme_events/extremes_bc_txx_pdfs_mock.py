@@ -268,7 +268,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
     era_csv_writer.writerow(era_gev_params)
     era_csv.close()
 
-    risk_csv = open(os.path.join(cfg['work_dir'], 'era_data.csv'), 'w', newline='')
+    risk_csv = open(os.path.join(cfg['work_dir'], 'risk_data.csv'), 'w', newline='')
     risk_csv_writer = csv.writer(risk_csv, delimiter=',')
     risk_head_row = ['model']
 
@@ -354,7 +354,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
             theor_quants = gev(w_shape, w_loc, w_scale).ppf(quantile_measures)
             pract_quants = np.quantile(upd_distr_data, quantile_measures)
             ax_qq.scatter(theor_quants, pract_quants, edgecolors=colors[exp_key], marker='o', facecolors='None', lw=0.75, label=cfg['name_' + exp_key], zorder=3)
-            ax_surv.plot(x_gev, 1/w_survival, color=colors[exp_key], zorder=2)
+            ax_surv.plot(x_gev, 1/w_survival, color=colors[exp_key], zorder=3)
         gevs_csv_writer.writerow(model_row)
         risk_csv_writer.writerow(risk_model_row)
 
@@ -369,12 +369,17 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         era_event_prob = era_surv[event_idx]
         era_max_prob = era_surv[max_idx]
 
-        ax_surv.scatter(era_2021, 1/era_event_prob, s = 40, marker='o', facecolors = 'None', edgecolors='indianred', lw=1.5, zorder=5,  label = 'ERA5 (2021)')
-        ax_surv.scatter(era_max, 1/era_max_prob, s = 40, marker='D', facecolors = 'None',  edgecolors='indianred', lw=1.5, zorder=4, label = 'ERA5 ('+ str(year_max)+')')
+        # ax_surv.scatter(era_2021, 1/era_event_prob, s = 40, marker='o', facecolors = 'None', edgecolors='indianred', lw=1.5, zorder=5,  label = 'ERA5 (2021)')
+        # ax_surv.scatter(era_max, 1/era_max_prob, s = 40, marker='D', facecolors = 'None',  edgecolors='indianred', lw=1.5, zorder=4, label = 'ERA5 ('+ str(year_max)+')')
+        
+        ax_surv.vlines(era_2021, 0.1, 1/era_event_prob, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 (2021)')
+        ax_surv.vlines(era_max, 0.1, 1/era_max_prob, linestyle = 'dashed', color='indianred', zorder=1, label = 'ERA5 ('+ str(year_max)+')')
+        ax_surv.hlines(1/era_event_prob, x_gev[0], era_2021,linestyle = 'solid', color='indianred', zorder=2)
+        ax_surv.hlines(1/era_max_prob, x_gev[0], era_max,  linestyle = 'dashed', color='indianred', zorder=1)
 
         ax_hist.legend(loc=1, fancybox=False, frameon=False)
         ax_qq.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
-        ax_surv.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
+        # ax_surv.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
         ax_qq.plot([0,5],[0,5], c='tab:grey', zorder=1)
         # plt.xlim(-0.5*border, 0.7*border)
         ax_hist.set_xlim(x_gev[0], 3)
