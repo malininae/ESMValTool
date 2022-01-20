@@ -1,22 +1,15 @@
-from turtle import color
-import cf_units
-import cftime
-import datetime
 import csv
-from numpy.lib.function_base import quantile
-import pandas as pd
-
+from math import dist
 import esmvalcore.preprocessor
 import iris
 from iris.util import equalise_attributes
-import iris.plot as iplt
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 import glob
 from scipy.stats import genextreme as gev
-from scipy.stats import mode as mode
+from scipy.stats import gumbel_r as gumbel
 
 # import internal esmvaltool modules here
 from esmvaltool.diag_scripts.shared import run_diagnostic, select_metadata, group_metadata, get_diagnostic_filename, save_data, ProvenanceLogger
@@ -144,34 +137,44 @@ def get_era_txx(cfg):
     return use_era_cb 
 
 
-def bootstrap_gev(data_dic): 
+def bootstrap_gev(data_dic, distrib = 'gev', yblock = 5, n_years=5): 
 
     # determining the max length of the model realisation, the number of bootstrap
     # iterations is this value * 100
     max_cblst_len = np.asarray([len(data_dic[model]) for model in data_dic.keys()]).max()
     iter_pool = max_cblst_len *100
+    n_real = len(data_dic.keys())
+
+    pool_data = list()
+    for model in data_dic.keys():
+        for i in range(len(data_dic[model])):
+            pool_data.append(data_dic[model][i].data)
+    pool_data = np.asarray(pool_data)
 
     shapes = np.zeros(iter_pool)
     locs = np.zeros(iter_pool)
     scales = np.zeros(iter_pool)
 
     for i in range(0, iter_pool):
-        pool_data = list()
-        for model in data_dic.keys(): 
-            n_real = len(data_dic[model])
-            idx = np.random.default_rng().integers(low=0, high=n_real, size=1)[0]
-            pool_data.append(data_dic[model][idx].data.data.round(2))
-        pool_data = np.asarray(pool_data).flatten()
-        shapes[i], locs[i], scales[i] = gev.fit(pool_data, method='MLE')
+        sample_data = list()
+        mod_idxs = np.random.randint(0, high = pool_data.shape[0], size=np.int(np.around(n_real*n_years/yblock)))
+        for mod_idx in mod_idxs: 
+            y_idx = np.random.randint(0, high=n_years-yblock)
+            sample_data.append(pool_data[mod_idx, y_idx:y_idx+yblock])
+        sample_data = np.asarray(sample_data).flatten()
+        if distrib.lower()=='gev':
+            shapes[i], locs[i], scales[i] = gev.fit(sample_data, method='MLE')
+        elif distrib.lower()=='gumbel':
+            locs[i], scales[i] = gumbel.fit(sample_data, method='MLE')
     
-    param_dic = {'shape': shapes, 'loc': locs, 'scale': scales}    
+    param_dic = {'loc': locs, 'scale': scales}    
+    if distrib.lower()=='gev': 
+        param_dic['shape'] = shapes
 
     return param_dic
 
 
-def make_uncert_figures(data_dic, cfg, border):
-
-   # era_cb = data_dic['reanalysis']
+def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
 
     colors = {}
     colors['all'] = (196 / 255, 121 / 255, 0)
@@ -188,47 +191,62 @@ def make_uncert_figures(data_dic, cfg, border):
     fig_single_bootstrap, ax_single_bootstrap = plt.subplots(1)
     fig_single_bootstrap.set_size_inches(12., 8.)
 
+    if distrib.lower() == 'gev': 
+        gev_params = ['shape', 'loc', 'scale']
+    elif distrib.lower() == 'gumbel':
+        gev_params = ['loc', 'scale']
+
     # this a figure where we plot how the values for GEV params are distributed 
-    fig_gev_distr, ax_gev_distr = plt.subplots(3)
+    fig_gev_distr, ax_gev_distr = plt.subplots(len(gev_params))
     fig_gev_distr.set_size_inches(8., 12.)
 
     uncert_band = {}
     for exp in exp_list: 
         gev_dic = data_dic[exp].pop('GEV_uncert')
         # here we plot distribution of single GEV params
-        gev_params = ['shape', 'loc', 'scale']
         for n, gev_param in enumerate(gev_params):
             ax_gev_distr[n].hist(gev_dic[gev_param], bins=50, edgecolor='none',
                     facecolor = colors[exp], alpha=0.3, label = exp, density=True)
             ax_gev_distr[n].set_xlabel(gev_param)
             ax_gev_distr[n].set_ylabel('Number density')
-            ax_gev_distr[n].set_title('GEV parameter: ' + gev_param)
+            ax_gev_distr[n].set_title(distrib +' parameter: ' + gev_param)
 
         # this is an array where we'll throw all pdfs, to calculate 5/95 perc later 
-        all_pdfs = np.zeros((len(x_gev), len(gev_dic['shape'])))
+        all_pdfs = np.zeros((len(x_gev), len(gev_dic['loc'])))
+        all_sfs = np.zeros((len(x_gev), len(gev_dic['loc'])))
 
         # here we plot single distributions
-        for i in range(len(gev_dic['shape'])):
-            gev_pdf = gev.pdf(x_gev, gev_dic['shape'][i],gev_dic['loc'][i], gev_dic['scale'][i])
+        for i in range(len(gev_dic['loc'])):
+            if distrib.lower() == 'gev':
+                gev_pdf = gev.pdf(x_gev, gev_dic['shape'][i],gev_dic['loc'][i], gev_dic['scale'][i])
+                gev_sf = gev.sf(x_gev, gev_dic['shape'][i],gev_dic['loc'][i], gev_dic['scale'][i])
+            elif distrib.lower() == 'gumbel': 
+                gev_pdf = gumbel.pdf(x_gev, gev_dic['loc'][i], gev_dic['scale'][i])
+                gev_sf = gumbel.sf(x_gev, gev_dic['loc'][i], gev_dic['scale'][i])
             all_pdfs[:, i] = gev_pdf
+            all_sfs[:, i] = gev_sf
             ax_single_bootstrap.plot(x_gev, gev_pdf, color = colors[exp], alpha=0.03)
         
-        uncert_band[exp] = {'x_gev': x_gev, '5th_perc' : np.percentile(all_pdfs, 5, axis = 1), '95th_perc': np.percentile(all_pdfs, 95, axis = 1)}
+        uncert_band[exp] = {'x_gev': x_gev, 'pdf_5th_perc' : np.percentile(all_pdfs, 5, axis = 1), 
+                                            'pdf_95th_perc': np.percentile(all_pdfs, 95, axis = 1),
+                                            'sf_5th_perc' : np.percentile(all_sfs, 5, axis = 1), 
+                                            'sf_95th_perc' : np.percentile(all_sfs, 95, axis = 1)}
   
-        param_str = '                             '+exp\
-            + '\nshape mean:'+str(np.around(gev_dic['shape'].mean(),3))+', max:'+str(np.around(gev_dic['shape'].max(),3)) + ', min:' + str(np.around(gev_dic['shape'].min(),3)) \
-            + '\n loc mean:'+str(np.around(gev_dic['loc'].mean(),3))+', max:'+str(np.around(gev_dic['loc'].max(),3)) + ', min:' + str(np.around(gev_dic['loc'].min(),3)) \
+        param_str = '                             '+exp
+        if distrib.lower() == 'gev':
+            param_str += '\nshape mean:'+str(np.around(gev_dic['shape'].mean(),3))+', max:'+str(np.around(gev_dic['shape'].max(),3)) + ', min:' + str(np.around(gev_dic['shape'].min(),3)) 
+        param_str += '\n loc mean:'+str(np.around(gev_dic['loc'].mean(),3))+', max:'+str(np.around(gev_dic['loc'].max(),3)) + ', min:' + str(np.around(gev_dic['loc'].min(),3)) \
             + '\nscale mean:'+ str(np.around(gev_dic['scale'].mean(),3))+', max:'+str(np.around(gev_dic['scale'].max(),3)) + ', min:' + str(np.around(gev_dic['scale'].min(),3))               
         
         ax_single_bootstrap.text(-0.95*border[0], tlocs[exp], param_str, color = colors[exp])
 
     ax_gev_distr[0].legend(loc=0, fancybox=False, frameon=False)
-    fig_gev_distr.suptitle('Distribution of GEV parameters after bootstrap',
+    fig_gev_distr.suptitle('Distribution of ' + distrib+' parameters after bootstrap',
                 fontsize = 'x-large')
     fig_gev_distr.set_dpi(250)
     plt.tight_layout()
-    fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param' + diagtools.get_image_format(cfg)))
-    fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param.png'))
+    fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param_'+distrib.lower() + diagtools.get_image_format(cfg)))
+    fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param_'+distrib.lower()+'.png'))
     plt.close(fig_gev_distr)
 
     ax_single_bootstrap.legend(loc=2, fancybox=False, frameon=False)
@@ -237,38 +255,41 @@ def make_uncert_figures(data_dic, cfg, border):
     ax_single_bootstrap.set_xlabel('Precipitation ratio, mm')
     ax_single_bootstrap.set_ylabel('Number density')
 
-    fig_single_bootstrap.suptitle('Estimation of GEV fit uncertainty from Multi Model Mean with Bootstrap method',
+    fig_single_bootstrap.suptitle('Estimation of ' + distrib +' fit uncertainty from Multi Model Mean with Bootstrap method',
                 fontsize = 'x-large')
     fig_single_bootstrap.set_dpi(250)
 
-    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_bootstrap'+ diagtools.get_image_format(cfg)))
-    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_bootstrap.png'))
-
-    # ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_bootstrap')
-    # ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_bootstrap',  img_ext='.png')
+    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_bootstrap_'+distrib.lower() + diagtools.get_image_format(cfg)))
+    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_bootstrap_'+distrib.lower() +'.png'))
     plt.close(fig_single_bootstrap)
                             
     return uncert_band
 
 
-def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
+def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'gev'):
 
     era_cb = data_dic['reanalysis']
     era_max = era_cb.data.max()
     year_max = 1950+era_cb.data.argmax()
     era_2021 = era_cb.data[-1]
-    era_gev_params = gev.fit(era_cb.data)
+    if distrib.lower() == 'gev':
+        era_gev_params = gev.fit(era_cb.data)
+    elif distrib.lower() == 'gumbel':
+        era_gev_params = gumbel.fit(era_cb.data)
 
-    era_csv = open(os.path.join(cfg['work_dir'], 'era_data.csv'), 'w', newline='')
+    era_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_era_data.csv'), 'w', newline='')
     era_csv_writer = csv.writer(era_csv, delimiter=',')
     era_csv_writer.writerow(['2021 ERA value '+str(era_2021)])
     era_csv_writer.writerow(['Max ERA value '+str(era_max)+ ' in '+ str(year_max)])
-    era_csv_writer.writerow(['ERA GEV params'])
-    era_csv_writer.writerow(['shape', 'loc', 'scale'])
+    era_csv_writer.writerow(['ERA ' +distrib +' params'])
+    if distrib.lower() == 'gev':
+        era_csv_writer.writerow(['shape', 'loc', 'scale'])
+    elif distrib.lower() == 'gumbel':
+        era_csv_writer.writerow(['loc', 'scale'])
     era_csv_writer.writerow(era_gev_params)
     era_csv.close()
 
-    risk_csv = open(os.path.join(cfg['work_dir'], 'risk_data.csv'), 'w', newline='')
+    risk_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_risk_data.csv'), 'w', newline='')
     risk_csv_writer = csv.writer(risk_csv, delimiter=',')
     risk_head_row = ['model']
 
@@ -282,11 +303,13 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
 
     tlocs = {'all': 0.55 , 'nat': 0.15,  'ssp245': 0.95}
 
-    csv_file = open(os.path.join(cfg['work_dir'], 'gev_parameters.csv'), 'w', newline='')
+    csv_file = open(os.path.join(cfg['work_dir'], distrib.lower()+'_parameters.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
     head_row = ['model']
     for exp_key in exp_list:
-        head_row.append('shape_'+exp_key) ; head_row.append('loc_'+exp_key); head_row.append('scale_'+exp_key)
+        if distrib.lower() == 'gev':
+            head_row.append('shape_'+exp_key) 
+        head_row.append('loc_'+exp_key); head_row.append('scale_'+exp_key)
         risk_head_row.append(exp_key+'_prob'); risk_head_row.append(exp_key+'_return_p')
     gevs_csv_writer.writerow(head_row)
     risk_csv_writer.writerow(risk_head_row)
@@ -331,27 +354,32 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
                     upd_distr_data.append(distrib_point)
                     new_weights.append(weights[n_dp]/factors[n_dp])
             upd_distr_data = np.asarray(upd_distr_data)
-            if model == 'Multi-Model-Mean':
-                print('Liza')
-            w_shape, w_loc, w_scale = gev.fit(upd_distr_data, loc=apr_param[exp_key]['loc'], scale=apr_param[exp_key]['scale'], method='MLE')
             x_gev = uncert_band[exp_key]['x_gev']
-            w_pdf = gev.pdf(x_gev, w_shape, w_loc, w_scale)
-            model_row.extend([w_shape, w_loc, w_scale])
+            if distrib.lower() == 'gev':
+                w_distr_par = gev.fit(upd_distr_data, loc=apr_param[exp_key]['loc'], scale=apr_param[exp_key]['scale'], method='MLE')
+                w_pdf = gev.pdf(x_gev, *w_distr_par)
+                w_survival = gev.sf(x_gev, *w_distr_par)
+                theor_quants = gev(*w_distr_par).ppf(quantile_measures)
+            elif distrib.lower() == 'gumbel':
+                w_distr_par = gumbel.fit(upd_distr_data, loc=apr_param[exp_key]['loc'], method='MLE')
+                w_pdf = gumbel.pdf(x_gev, *w_distr_par)
+                w_survival = gumbel.sf(x_gev, *w_distr_par)
+                theor_quants = gumbel(*w_distr_par).ppf(quantile_measures)
+            model_row.extend(w_distr_par)
             n_bins = np.arange(int(border[0]*20)/20, border[1]+0.1, 0.1)
             ax_hist.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
                     facecolor = colors[exp_key], alpha=0.3, label=cfg['name_' + exp_key] , density=True, weights=weights, zorder = 2)
-            ax_hist.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'GEV fit '+cfg['name_' + exp_key], zorder=3)
-            # ax_hist.text(2.55, tlocs[exp_key], '  ' +exp_key+' GEV\nshape='+str(np.around(w_shape,3))+ '\n loc='+ str(np.around(w_loc,3)) \
-            #        + '\nscale='+str(np.around(w_scale,3)), color= colors[exp_key])
+            ax_hist.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = distrib+' fit '+cfg['name_' + exp_key], zorder=3)
             if model == 'Multi-Model-Mean':
-                perc_5 = uncert_band[exp_key]['5th_perc']
-                perc_95 = uncert_band[exp_key]['95th_perc']
-                ax_hist.fill_between(x_gev, perc_5, perc_95, color= colors[exp_key], alpha = 0.3, linewidth=0, zorder=4)
-            w_survival = gev.sf(x_gev, w_shape, w_loc, w_scale)
+                pdf_perc_5 = uncert_band[exp_key]['pdf_5th_perc']
+                pdf_perc_95 = uncert_band[exp_key]['pdf_95th_perc']
+                sf_perc_5 = uncert_band[exp_key]['sf_5th_perc']
+                sf_perc_95 = uncert_band[exp_key]['sf_95th_perc']
+                ax_hist.fill_between(x_gev, pdf_perc_5, pdf_perc_95, color=colors[exp_key], alpha=0.3, linewidth=0, zorder=4)
+                ax_surv.fill_between(x_gev, 1/sf_perc_5, 1/sf_perc_95, color=colors[exp_key], alpha=0.3, linewidth=0, zorder=4)
             event_idx = np.argmin(np.abs(x_gev - era_2021))
             max_idx = np.argmin(np.abs(x_gev - era_max))
             risk_model_row.extend([w_survival[event_idx], 1/w_survival[event_idx]])
-            theor_quants = gev(w_shape, w_loc, w_scale).ppf(quantile_measures)
             pract_quants = np.quantile(upd_distr_data, quantile_measures)
             ax_qq.scatter(theor_quants, pract_quants, edgecolors=colors[exp_key], marker='o', facecolors='None', lw=0.75, label=cfg['name_' + exp_key], zorder=3)
             ax_surv.plot(x_gev, 1/w_survival, color=colors[exp_key], zorder=3)
@@ -365,7 +393,10 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         ax_hist.vlines(era_2021, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 (2021)')
         ax_hist.vlines(era_max, *ylims, color = 'indianred', linestyle = 'dashed', lw=1.5, zorder=1, label = 'ERA5 max ('+ str(year_max)+')')
 
-        era_surv = gev.sf(x_gev, *era_gev_params)
+        if distrib.lower() == 'gev':
+            era_surv = gev.sf(x_gev, *era_gev_params)
+        elif distrib.lower() == 'gumbel': 
+            era_surv = gumbel.sf(x_gev, *era_gev_params)
         era_event_prob = era_surv[event_idx]
         era_max_prob = era_surv[max_idx]
 
@@ -391,7 +422,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         ax_hist.set_title('Probability density function')
         ax_qq.set_title('Quality assessment')
         ax_qq.set_ylabel('Data quantile')
-        ax_qq.set_xlabel('GEV quantile')
+        ax_qq.set_xlabel(distrib+' quantile')
         ax_surv.set_title('Return period')
         ax_surv.set_ylabel('years')
         ax_surv.set_xlabel('Normalized '+cfg['ax_var_label'])
@@ -408,8 +439,8 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
 
         plt.tight_layout()
 
-        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_'+model)
-        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_'+model, img_ext='.png')
+        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_'+distrib.lower()+'_'+model)
+        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_'+distrib.lower()+'_'+model, img_ext='.png')
 
     return
 
@@ -427,6 +458,8 @@ def main(cfg):
     era_cube = get_era_txx(cfg)
 
     mins = list(); maxs = list()
+
+    distrib_fit= cfg['fit_distribution']
 
     plotting_dic = {}
 
@@ -470,12 +503,12 @@ def main(cfg):
                 ens_cubelist.append(rxNday_ano_cb)
                 mod_cubelist.append(rxNday_ano_cb)
             plotting_dic[group][dataset] = mod_cubelist
-        if group != 'obs':     
-            plotting_dic[group]['GEV_uncert'] = bootstrap_gev(plotting_dic[group]) 
-            plotting_dic[group]['Multi-Model-Mean'] = ens_cubelist
-            fit_param_apr[group] = {'shape': np.around(plotting_dic[group]['GEV_uncert']['shape'].mean(),3),
-                                    'loc': np.around(plotting_dic[group]['GEV_uncert']['loc'].mean(),3),
-                                    'scale': np.around(plotting_dic[group]['GEV_uncert']['scale'].mean(),3)}
+        plotting_dic[group]['GEV_uncert'] = bootstrap_gev(plotting_dic[group], distrib=distrib_fit, yblock = cfg['yblock'], n_years = cfg['n_years']) 
+        plotting_dic[group]['Multi-Model-Mean'] = ens_cubelist
+        fit_param_apr[group] = {'loc': np.around(plotting_dic[group]['GEV_uncert']['loc'].mean(),3),
+                                'scale': np.around(plotting_dic[group]['GEV_uncert']['scale'].mean(),3)}
+        if distrib_fit.lower() == 'gev':
+            fit_param_apr[group]['shape'] = np.around(plotting_dic[group]['GEV_uncert']['shape'].mean(),3)
     
     plotting_dic['reanalysis'] = era_cube
 
@@ -486,9 +519,9 @@ def main(cfg):
     st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
     plt.style.use(st_file)
 
-    uncert_band = make_uncert_figures(plotting_dic, cfg, border)
+    uncert_band = make_uncert_figures(plotting_dic, cfg, border, distrib = distrib_fit)
 
-    make_hist_figure(plotting_dic, cfg, uncert_band, border, fit_param_apr)
+    make_hist_figure(plotting_dic, cfg, uncert_band, border, fit_param_apr, distrib = distrib_fit)
 
     logger.info('Success')
 

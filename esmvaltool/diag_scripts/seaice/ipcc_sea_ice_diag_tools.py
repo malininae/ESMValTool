@@ -189,18 +189,12 @@ def substract_ref_period(cubelist, ref_period):
 
 def figure_handling(cfg, name = 'plot', img_ext=None):
 
-    if cfg['write_plots']:
+    if img_ext == None:
+        img_ext = diagtools.get_image_format(cfg)
 
-        if img_ext == None:
-            img_ext = diagtools.get_image_format(cfg)
+    path=os.path.join(cfg['plot_dir'], name + img_ext)
 
-        path=os.path.join(cfg['plot_dir'], name + img_ext)
-
-        logger.info('Saving plots to %s', path)
-        plt.savefig(path)
-
-    else:
-
-        plt.show()
+    logger.info('Saving plots to %s', path)
+    plt.savefig(path)
 
     return
