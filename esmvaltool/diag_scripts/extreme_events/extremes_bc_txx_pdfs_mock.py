@@ -137,13 +137,14 @@ def get_era_txx(cfg):
     return use_era_cb 
 
 
-def bootstrap_gev(data_dic, distrib = 'gev', yblock = 5, n_years=5): 
+def bootstrap_gev(data_dic, distrib = 'gev', yblock = 5): 
 
     # determining the max length of the model realisation, the number of bootstrap
     # iterations is this value * 100
     max_cblst_len = np.asarray([len(data_dic[model]) for model in data_dic.keys()]).max()
     iter_pool = max_cblst_len *100
     n_real = len(data_dic.keys())
+    n_years = np.asarray([data_dic[model][0].shape for model in data_dic.keys()]).max()
 
     pool_data = list()
     for model in data_dic.keys():
@@ -400,9 +401,6 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         era_event_prob = era_surv[event_idx]
         era_max_prob = era_surv[max_idx]
 
-        # ax_surv.scatter(era_2021, 1/era_event_prob, s = 40, marker='o', facecolors = 'None', edgecolors='indianred', lw=1.5, zorder=5,  label = 'ERA5 (2021)')
-        # ax_surv.scatter(era_max, 1/era_max_prob, s = 40, marker='D', facecolors = 'None',  edgecolors='indianred', lw=1.5, zorder=4, label = 'ERA5 ('+ str(year_max)+')')
-        
         ax_surv.vlines(era_2021, 0.1, 1/era_event_prob, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 (2021)')
         ax_surv.vlines(era_max, 0.1, 1/era_max_prob, linestyle = 'dashed', color='indianred', zorder=1, label = 'ERA5 ('+ str(year_max)+')')
         ax_surv.hlines(1/era_event_prob, x_gev[0], era_2021,linestyle = 'solid', color='indianred', zorder=2)
@@ -410,13 +408,12 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
 
         ax_hist.legend(loc=1, fancybox=False, frameon=False)
         ax_qq.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
-        # ax_surv.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
         ax_qq.plot([0,5],[0,5], c='tab:grey', zorder=1)
         # plt.xlim(-0.5*border, 0.7*border)
         ax_hist.set_xlim(x_gev[0], 3)
         ax_qq.set_xlim(x_gev[0], 3)
         ax_qq.set_ylim(x_gev[0], 3)
-        ax_surv.set_ylim(1,10000)
+        ax_surv.set_ylim(1,1000)
         ax_surv.set_xlim(x_gev[0], 3)
         ax_surv.set_yscale('log')
         ax_hist.set_title('Probability density function')
@@ -503,7 +500,7 @@ def main(cfg):
                 ens_cubelist.append(rxNday_ano_cb)
                 mod_cubelist.append(rxNday_ano_cb)
             plotting_dic[group][dataset] = mod_cubelist
-        plotting_dic[group]['GEV_uncert'] = bootstrap_gev(plotting_dic[group], distrib=distrib_fit, yblock = cfg['yblock'], n_years = cfg['n_years']) 
+        plotting_dic[group]['GEV_uncert'] = bootstrap_gev(plotting_dic[group], distrib=distrib_fit, yblock = cfg['yblock']) 
         plotting_dic[group]['Multi-Model-Mean'] = ens_cubelist
         fit_param_apr[group] = {'loc': np.around(plotting_dic[group]['GEV_uncert']['loc'].mean(),3),
                                 'scale': np.around(plotting_dic[group]['GEV_uncert']['scale'].mean(),3)}
