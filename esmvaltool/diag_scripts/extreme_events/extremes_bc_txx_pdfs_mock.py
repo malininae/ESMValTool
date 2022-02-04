@@ -1,5 +1,4 @@
 import csv
-from math import dist
 import esmvalcore.preprocessor
 import iris
 from iris.util import equalise_attributes
@@ -13,8 +12,6 @@ from scipy.stats import gumbel_r as gumbel
 
 # import internal esmvaltool modules here
 from esmvaltool.diag_scripts.shared import run_diagnostic, select_metadata, group_metadata, get_diagnostic_filename, save_data, ProvenanceLogger
-from esmvaltool.diag_scripts.seaice import ipcc_sea_ice_diag_tools as ipcc_sea_ice_diag
-from esmvalcore.preprocessor import regrid
 import esmvaltool.diag_scripts.shared.plot as eplot
 from esmvaltool.diag_scripts.ocean import diagnostic_tools as diagtools
 from esmvaltool.diag_scripts.shared import ProvenanceLogger
@@ -79,16 +76,10 @@ def get_era_txx(cfg):
         era_cb = iris.load_cube(era_fname) 
         if pattern == 'total_precipitation':
             era_cb = esmvalcore.preprocessor.daily_statistics(era_cb, operator = 'sum')*1000
-        regrid_cube = esmvalcore.preprocessor.regrid(era_cb, {'start_longitude' : 217.25, 
-                                                       'end_longitude' : 310.25, 
-                                                       'step_longitude' : 0.5,
-                                                       'start_latitude' : 39.5, 
-                                                       'end_latitude' : 84.5,
-                                                       'step_latitude' : 0.5}, 'linear') 
         if cfg['era_regridding_shape']:
-            reg_cube = esmvalcore.preprocessor.extract_shape(regrid_cube, os.path.join(aux_dir,cfg['era_shape_file']), method='contains', crop=True)
+            reg_cube = esmvalcore.preprocessor.extract_shape(era_cb, os.path.join(aux_dir,cfg['era_shape_file']), method='contains', crop=True)
         else:
-            reg_cube = esmvalcore.preprocessor.extract_region(regrid_cube, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
+            reg_cube = esmvalcore.preprocessor.extract_region(era_cb, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
                             cfg['era_regridding_region'][2], cfg['era_regridding_region'][3])
 
         era_cb_pr = esmvalcore.preprocessor.area_statistics(reg_cube, 'mean')
@@ -231,7 +222,8 @@ def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
         uncert_band[exp] = {'x_gev': x_gev, 'pdf_5th_perc' : np.percentile(all_pdfs, 5, axis = 1), 
                                             'pdf_95th_perc': np.percentile(all_pdfs, 95, axis = 1),
                                             'sf_5th_perc' : np.percentile(all_sfs, 5, axis = 1), 
-                                            'sf_95th_perc' : np.percentile(all_sfs, 95, axis = 1)}
+                                            'sf_95th_perc' : np.percentile(all_sfs, 95, axis = 1),
+                                            'sf_data_full' : all_sfs}
   
         param_str = '                             '+exp
         if distrib.lower() == 'gev':
@@ -247,7 +239,6 @@ def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
     fig_gev_distr.set_dpi(250)
     plt.tight_layout()
     fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param_'+distrib.lower() + diagtools.get_image_format(cfg)))
-    fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param_'+distrib.lower()+'.png'))
     plt.close(fig_gev_distr)
 
     ax_single_bootstrap.legend(loc=2, fancybox=False, frameon=False)
@@ -260,8 +251,7 @@ def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
                 fontsize = 'x-large')
     fig_single_bootstrap.set_dpi(250)
 
-    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_bootstrap_'+distrib.lower() + diagtools.get_image_format(cfg)))
-    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_bootstrap_'+distrib.lower() +'.png'))
+    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'unwght_figure_bc_extremes_bootstrap_'+distrib.lower() + diagtools.get_image_format(cfg)))
     plt.close(fig_single_bootstrap)
                             
     return uncert_band
@@ -278,7 +268,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
     elif distrib.lower() == 'gumbel':
         era_gev_params = gumbel.fit(era_cb.data)
 
-    era_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_era_data.csv'), 'w', newline='')
+    era_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_unwght_era_data.csv'), 'w', newline='')
     era_csv_writer = csv.writer(era_csv, delimiter=',')
     era_csv_writer.writerow(['2021 ERA value '+str(era_2021)])
     era_csv_writer.writerow(['Max ERA value '+str(era_max)+ ' in '+ str(year_max)])
@@ -290,7 +280,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
     era_csv_writer.writerow(era_gev_params)
     era_csv.close()
 
-    risk_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_risk_data.csv'), 'w', newline='')
+    risk_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_unwght_risk_data.csv'), 'w', newline='')
     risk_csv_writer = csv.writer(risk_csv, delimiter=',')
     risk_head_row = ['model']
 
@@ -302,9 +292,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
               'nat' : (0, 79 / 255, 0), 
               'ssp245' : (69 / 255, 118 / 255, 191 / 255)}
 
-    tlocs = {'all': 0.55 , 'nat': 0.15,  'ssp245': 0.95}
-
-    csv_file = open(os.path.join(cfg['work_dir'], distrib.lower()+'_parameters.csv'), 'w', newline='')
+    csv_file = open(os.path.join(cfg['work_dir'], distrib.lower()+'_unwght_parameters.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
     head_row = ['model']
     for exp_key in exp_list:
@@ -312,6 +300,9 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
             head_row.append('shape_'+exp_key) 
         head_row.append('loc_'+exp_key); head_row.append('scale_'+exp_key)
         risk_head_row.append(exp_key+'_prob'); risk_head_row.append(exp_key+'_return_p')
+        risk_head_row.append(exp_key+'_return_p_5'); risk_head_row.append(exp_key+'_return_p_95')
+        risk_head_row.append(exp_key+'_return_p_5'); risk_head_row.append(exp_key+'_return_p_95')
+        risk_head_row.append(exp_key+'_intens'); risk_head_row.append(exp_key+'_intens_5'); risk_head_row.append(exp_key+'_intens_95')
     gevs_csv_writer.writerow(head_row)
     risk_csv_writer.writerow(risk_head_row)
     models = data_dic[exp_list[0]].keys()
@@ -329,43 +320,51 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
             distrib_data = []
             weights = []
             for cube in ens_cubelist:
-                if model == 'Multi-Model-Mean':
+                if (model == 'Multi-Model-Mean')&(cfg['model_weighting']):
                     cube_weight = cube.attributes['ensemble_weight']*cube.attributes['reverse_dtsts_n']
                 else:
-                    cube_weight = cube.attributes['ensemble_weight']
+                    cube_weight = 1
                 for point in cube.data:
                     distrib_data.append(np.around(point, 2))
                     weights.append(cube_weight/len(cube.data))
             distrib_data = np.asarray(distrib_data)
             weights = np.asarray(weights)
-            un_weights = np.unique(weights)
-            rev_un_weights = np.asarray(1/un_weights).round(0).astype('int32')
-            large_denom = np.gcd.reduce(rev_un_weights)
-            dev_weights = rev_un_weights/large_denom
-            least_mult = np.lcm.reduce(dev_weights.astype('int32'))
-            un_factors = least_mult/dev_weights
-            factors = np.zeros(len(weights))
-            for n_w, un_wght in enumerate(un_weights):
-                factors[np.where(weights==un_wght)] = un_factors[n_w]
-            factors = factors.astype('int32')
-            upd_distr_data = list()
-            new_weights = list()
-            for n_dp, distrib_point in enumerate(distrib_data): 
-                for f in range(factors[n_dp]):
-                    upd_distr_data.append(distrib_point)
-                    new_weights.append(weights[n_dp]/factors[n_dp])
-            upd_distr_data = np.asarray(upd_distr_data)
+            if cfg['model_weighting']:
+                un_weights = np.unique(weights)
+                rev_un_weights = np.asarray(1/un_weights).round(0).astype('int32')
+                large_denom = np.gcd.reduce(rev_un_weights)
+                dev_weights = rev_un_weights/large_denom
+                least_mult = np.lcm.reduce(dev_weights.astype('int32'))
+                un_factors = least_mult/dev_weights
+                factors = np.zeros(len(weights))
+                for n_w, un_wght in enumerate(un_weights):
+                    factors[np.where(weights==un_wght)] = un_factors[n_w]
+                factors = factors.astype('int32')
+                upd_distr_data = list()
+                new_weights = list()
+                for n_dp, distrib_point in enumerate(distrib_data): 
+                    for f in range(factors[n_dp]):
+                        upd_distr_data.append(distrib_point)
+                        new_weights.append(weights[n_dp]/factors[n_dp])
+                distrib_data = np.asarray(upd_distr_data)
+                weights = np.asarray(new_weights)
             x_gev = uncert_band[exp_key]['x_gev']
             if distrib.lower() == 'gev':
-                w_distr_par = gev.fit(upd_distr_data, loc=apr_param[exp_key]['loc'], scale=apr_param[exp_key]['scale'], method='MLE')
+                w_distr_par = gev.fit(distrib_data, loc=apr_param[exp_key]['loc'], scale=apr_param[exp_key]['scale'], method='MLE')
                 w_pdf = gev.pdf(x_gev, *w_distr_par)
                 w_survival = gev.sf(x_gev, *w_distr_par)
                 theor_quants = gev(*w_distr_par).ppf(quantile_measures)
+                era_surv = gev.sf(x_gev, *era_gev_params)
             elif distrib.lower() == 'gumbel':
-                w_distr_par = gumbel.fit(upd_distr_data, loc=apr_param[exp_key]['loc'], method='MLE')
+                w_distr_par = gumbel.fit(distrib_data, loc=apr_param[exp_key]['loc'], method='MLE')
                 w_pdf = gumbel.pdf(x_gev, *w_distr_par)
                 w_survival = gumbel.sf(x_gev, *w_distr_par)
                 theor_quants = gumbel(*w_distr_par).ppf(quantile_measures)
+                era_surv = gumbel.sf(x_gev, *era_gev_params)
+            event_idx = np.argmin(np.abs(x_gev - era_2021))
+            max_idx = np.argmin(np.abs(x_gev - era_max))
+            era_event_prob = era_surv[event_idx]
+            era_max_prob = era_surv[max_idx]
             model_row.extend(w_distr_par)
             n_bins = np.arange(int(border[0]*20)/20, border[1]+0.1, 0.1)
             ax_hist.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
@@ -378,10 +377,13 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
                 sf_perc_95 = uncert_band[exp_key]['sf_95th_perc']
                 ax_hist.fill_between(x_gev, pdf_perc_5, pdf_perc_95, color=colors[exp_key], alpha=0.3, linewidth=0, zorder=4)
                 ax_surv.fill_between(x_gev, 1/sf_perc_5, 1/sf_perc_95, color=colors[exp_key], alpha=0.3, linewidth=0, zorder=4)
-            event_idx = np.argmin(np.abs(x_gev - era_2021))
-            max_idx = np.argmin(np.abs(x_gev - era_max))
-            risk_model_row.extend([w_survival[event_idx], 1/w_survival[event_idx]])
-            pract_quants = np.quantile(upd_distr_data, quantile_measures)
+                intens = x_gev[np.argmin(np.abs(w_survival-era_event_prob))]
+                intens_95 = x_gev[np.argmin(np.abs(sf_perc_95-era_event_prob))]
+                intens_5 = x_gev[np.argmin(np.abs(sf_perc_5-era_event_prob))]
+                risk_model_row.extend([w_survival[event_idx], 1/w_survival[event_idx], 1/sf_perc_5[event_idx], 1/sf_perc_95[event_idx], intens, intens_5, intens_95])
+            else:
+                risk_model_row.extend([w_survival[event_idx], 1/w_survival[event_idx]])
+            pract_quants = np.quantile(distrib_data, quantile_measures)
             ax_qq.scatter(theor_quants, pract_quants, edgecolors=colors[exp_key], marker='o', facecolors='None', lw=0.75, label=cfg['name_' + exp_key], zorder=3)
             ax_surv.plot(x_gev, 1/w_survival, color=colors[exp_key], zorder=3)
         gevs_csv_writer.writerow(model_row)
@@ -394,12 +396,6 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         ax_hist.vlines(era_2021, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 (2021)')
         ax_hist.vlines(era_max, *ylims, color = 'indianred', linestyle = 'dashed', lw=1.5, zorder=1, label = 'ERA5 max ('+ str(year_max)+')')
 
-        if distrib.lower() == 'gev':
-            era_surv = gev.sf(x_gev, *era_gev_params)
-        elif distrib.lower() == 'gumbel': 
-            era_surv = gumbel.sf(x_gev, *era_gev_params)
-        era_event_prob = era_surv[event_idx]
-        era_max_prob = era_surv[max_idx]
 
         ax_surv.vlines(era_2021, 0.1, 1/era_event_prob, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 (2021)')
         ax_surv.vlines(era_max, 0.1, 1/era_max_prob, linestyle = 'dashed', color='indianred', zorder=1, label = 'ERA5 ('+ str(year_max)+')')
@@ -409,12 +405,11 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         ax_hist.legend(loc=1, fancybox=False, frameon=False)
         ax_qq.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
         ax_qq.plot([0,5],[0,5], c='tab:grey', zorder=1)
-        # plt.xlim(-0.5*border, 0.7*border)
-        ax_hist.set_xlim(x_gev[0], 3)
-        ax_qq.set_xlim(x_gev[0], 3)
-        ax_qq.set_ylim(x_gev[0], 3)
+        ax_hist.set_xlim(border[0]*3, border[1]*0.6)
+        ax_qq.set_xlim(border[0]*3, border[1]*0.6)
+        ax_qq.set_ylim(border[0]*3, border[1]*0.6)
         ax_surv.set_ylim(1,1000)
-        ax_surv.set_xlim(x_gev[0], 3)
+        ax_surv.set_xlim(border[0]*3, border[1]*0.6)
         ax_surv.set_yscale('log')
         ax_hist.set_title('Probability density function')
         ax_qq.set_title('Quality assessment')
@@ -435,9 +430,31 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         fig.set_dpi(250)
 
         plt.tight_layout()
+        
 
-        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_'+distrib.lower()+'_'+model)
-        ipcc_sea_ice_diag.figure_handling(cfg, name='figure_bc_extremes_'+distrib.lower()+'_'+model, img_ext='.png')
+        fig.savefig(os.path.join(cfg['plot_dir'], 'unwght_figure_bc_extremes_'+distrib.lower() +'_'+model + diagtools.get_image_format(cfg)))
+
+        if model == 'Multi-Model-Mean':
+            risk_uncert_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_uncert_unwght_risk_data.csv'), 'w', newline='')
+            risk_uncert_csv_writer = csv.writer(risk_uncert_csv, delimiter=',')
+            risk_uncert_head_row = ['all/nat_r_r_5', 'all/nat_r_r_10', 'all/nat_r_r_50','all/nat_r_r_90', 'all/nat_r_r_95',
+                                    'ssp/nat_r_r_5', 'ssp/nat_r_r_10', 'ssp/nat_r_r_50', 'ssp/nat_r_r_90', 'ssp/nat_r_r_95',
+                                    'ssp/all_r_r_5', 'ssp/all_r_r_10', 'ssp/all_r_r_50', 'ssp/all_r_r_90', 'ssp/all_r_r_95']
+            risk_uncert_csv_writer.writerow(risk_uncert_head_row)
+            all_to_nat = list()
+            ssp_to_nat = list()
+            ssp_to_all = list()
+            for i in range(uncert_band['all']['sf_data_full'].shape[1]):
+                for j in range(uncert_band['all']['sf_data_full'].shape[1]):
+                    all_to_nat.append(uncert_band['all']['sf_data_full'][event_idx,i]/uncert_band['nat']['sf_data_full'][event_idx,j])
+                    ssp_to_nat.append(uncert_band['ssp245']['sf_data_full'][event_idx,i]/uncert_band['nat']['sf_data_full'][event_idx,j])
+                    ssp_to_all.append(uncert_band['ssp245']['sf_data_full'][event_idx,j]/uncert_band['all']['sf_data_full'][event_idx,i])
+            all_to_nat_perc = np.percentile(all_to_nat, [5,10,50,90,95])
+            ssp_to_nat_perc = np.percentile(ssp_to_nat, [5,10,50,90,95])
+            ssp_to_all_perc = np.percentile(ssp_to_all, [5,10,50,90,95])
+            risk_uncert_row = np.concatenate((all_to_nat_perc, ssp_to_nat_perc, ssp_to_all_perc))
+            risk_uncert_csv_writer.writerow(risk_uncert_row)
+            risk_uncert_csv.close()
 
     return
 
