@@ -251,7 +251,7 @@ def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
                 fontsize = 'x-large')
     fig_single_bootstrap.set_dpi(250)
 
-    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'unwght_figure_bc_extremes_bootstrap_'+distrib.lower() + diagtools.get_image_format(cfg)))
+    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_bootstrap_'+distrib.lower() + diagtools.get_image_format(cfg)))
     plt.close(fig_single_bootstrap)
                             
     return uncert_band
@@ -268,7 +268,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
     elif distrib.lower() == 'gumbel':
         era_gev_params = gumbel.fit(era_cb.data)
 
-    era_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_unwght_era_data.csv'), 'w', newline='')
+    era_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_era_data.csv'), 'w', newline='')
     era_csv_writer = csv.writer(era_csv, delimiter=',')
     era_csv_writer.writerow(['2021 ERA value '+str(era_2021)])
     era_csv_writer.writerow(['Max ERA value '+str(era_max)+ ' in '+ str(year_max)])
@@ -280,7 +280,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
     era_csv_writer.writerow(era_gev_params)
     era_csv.close()
 
-    risk_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_unwght_risk_data.csv'), 'w', newline='')
+    risk_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_risk_data.csv'), 'w', newline='')
     risk_csv_writer = csv.writer(risk_csv, delimiter=',')
     risk_head_row = ['model']
 
@@ -292,7 +292,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
               'nat' : (0, 79 / 255, 0), 
               'ssp245' : (69 / 255, 118 / 255, 191 / 255)}
 
-    csv_file = open(os.path.join(cfg['work_dir'], distrib.lower()+'_unwght_parameters.csv'), 'w', newline='')
+    csv_file = open(os.path.join(cfg['work_dir'], distrib.lower()+'_parameters.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
     head_row = ['model']
     for exp_key in exp_list:
@@ -392,7 +392,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         ylims = ax_hist.get_ylim()
         ax_hist.set_ylim(*ylims)
 
-        ax_hist.text(2.4, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
+        ax_hist.text(border[1]*0.5, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
         ax_hist.vlines(era_2021, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 (2021)')
         ax_hist.vlines(era_max, *ylims, color = 'indianred', linestyle = 'dashed', lw=1.5, zorder=1, label = 'ERA5 max ('+ str(year_max)+')')
 
@@ -432,10 +432,10 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         plt.tight_layout()
         
 
-        fig.savefig(os.path.join(cfg['plot_dir'], 'unwght_figure_bc_extremes_'+distrib.lower() +'_'+model + diagtools.get_image_format(cfg)))
+        fig.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_'+distrib.lower() +'_'+model + diagtools.get_image_format(cfg)))
 
         if model == 'Multi-Model-Mean':
-            risk_uncert_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_uncert_unwght_risk_data.csv'), 'w', newline='')
+            risk_uncert_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_uncert_risk_data.csv'), 'w', newline='')
             risk_uncert_csv_writer = csv.writer(risk_uncert_csv, delimiter=',')
             risk_uncert_head_row = ['all/nat_r_r_5', 'all/nat_r_r_10', 'all/nat_r_r_50','all/nat_r_r_90', 'all/nat_r_r_95',
                                     'ssp/nat_r_r_5', 'ssp/nat_r_r_10', 'ssp/nat_r_r_50', 'ssp/nat_r_r_90', 'ssp/nat_r_r_95',
