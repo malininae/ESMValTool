@@ -1,6 +1,7 @@
 import csv
 import esmvalcore.preprocessor
 import iris
+import cf_units
 from iris.util import equalise_attributes
 import logging
 import numpy as np
@@ -19,46 +20,6 @@ from esmvaltool.diag_scripts.shared import ProvenanceLogger
 # # This part sends debug statements to stdout
 logger = logging.getLogger(os.path.basename(__file__))
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-
-
-def anomaly_rxNday(cfg):
-
-    anomaly_metadata = select_metadata(cfg['input_data'].values(), variable_group='anomaly')
-
-    new_fdir = os.path.join(cfg['work_dir'], 'anomaly')
-    if not os.path.exists(new_fdir):    
-        os.makedirs(new_fdir)
-
-    for single_anomaly in anomaly_metadata: 
-        orig_fname = single_anomaly['filename']
-        f_name = orig_fname.split('/')[-1]
-        new_fname = os.path.join(new_fdir, 'rx'+str(cfg['n_days'])+'day_'+f_name)
-        ano_cb = iris.load_cube(orig_fname)
-        if cfg.get('calculate_api'): 
-            k = cfg['api_k']
-            n_arr = len(ano_cb.coord('time').points) - cfg['n_days']
-            api_data = np.zeros(n_arr)
-            for i in range(0,n_arr):
-                api_data[i] = np.sum([(k**t)*ano_cb.data[i+cfg['n_days'] - t] for t in range(1,cfg['n_days']+1)])
-            t_coord = iris.coords.DimCoord(ano_cb.coord('time').points[cfg['n_days']:], bounds=ano_cb.coord('time').bounds[cfg['n_days']:,:], 
-                      long_name=ano_cb.coord('time').long_name, standard_name=ano_cb.coord('time').standard_name, units=ano_cb.coord('time').units,
-                      var_name=ano_cb.coord('time').var_name)
-            rxNd_cube = iris.cube.Cube(api_data, dim_coords_and_dims=[(t_coord,0)], long_name='Antecedent Precipitation Index', var_name='api', 
-                        units=ano_cb.units,attributes=ano_cb.attributes)
-        else:
-            rxNd_cube = ano_cb.rolling_window('time', iris.analysis.SUM, cfg['n_days'])
-        if (cfg['mult_factor'] != 1):
-            rxNd_cube = rxNd_cube * cfg['mult_factor']
-        rxNd_cube = esmvalcore.preprocessor.annual_statistics(rxNd_cube, operator='max')
-        rxNd_cube = esmvalcore.preprocessor.climate_statistics(rxNd_cube,
-                                                               operator='mean',
-                                                               period='full')
-        iris.save(rxNd_cube, os.path.join(new_fdir,new_fname))
-        cfg['input_data'][new_fname] = cfg['input_data'].pop(orig_fname)
-        cfg['input_data'][new_fname]['filename'] = new_fname
-
-    return
-
 
 def get_era_txx(cfg):
 
@@ -99,9 +60,9 @@ def get_era_txx(cfg):
 
     era_big_cube = era_cubelist.concatenate_cube()
 
-    era_rxNday_big_cube = esmvalcore.preprocessor.annual_statistics(era_big_cube, 'max')  
+    era_txx_big_cube = esmvalcore.preprocessor.annual_statistics(era_big_cube, 'max')  
 
-    ref_era_cb = esmvalcore.preprocessor.extract_time(era_rxNday_big_cube,
+    ref_era_cb = esmvalcore.preprocessor.extract_time(era_txx_big_cube,
                         start_year=cfg['reference_period'][0],
                         start_month=1, start_day=1,
                         end_year=cfg['reference_period'][1]+1,
@@ -111,9 +72,9 @@ def get_era_txx(cfg):
                                                            period='full')
 
 
-    use_era_cb = era_rxNday_big_cube - ref_era_cb 
+    ano_era_cb = era_txx_big_cube - ref_era_cb 
 
-    return use_era_cb 
+    return era_txx_big_cube, ano_era_cb 
 
 
 def bootstrap_gev(data_dic, distrib = 'gev', yblock = 5): 
@@ -163,7 +124,7 @@ def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
 
     exp_list = list(data_dic.keys()) ; exp_list.remove('reanalysis') 
 
-    x_gev = np.arange(border[0],border[1], 0.01)
+    x_gev = np.arange(border[0],border[1], 0.1)
 
     tlocs = {'all': 0.04 , 'nat': 0.01,  'ssp245': 0.08}
   
@@ -229,10 +190,10 @@ def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
     fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param_'+distrib.lower() + diagtools.get_image_format(cfg)))
     plt.close(fig_gev_distr)
 
-    ax_single_bootstrap.legend(loc=2, fancybox=False, frameon=False)
+    ax_single_bootstrap.legend(loc=0, fancybox=False, frameon=False)
     ax_single_bootstrap.set_xlim(border[0], border[1])
     ax_single_bootstrap.set_ylim(0, ax_single_bootstrap.get_ylim()[1])
-    ax_single_bootstrap.set_xlabel('Precipitation ratio, mm')
+    ax_single_bootstrap.set_xlabel('TXx anomaly, C')
     ax_single_bootstrap.set_ylabel('Number density')
 
     fig_single_bootstrap.suptitle('Estimation of ' + distrib +' fit uncertainty from Multi Model Mean with Bootstrap method',
@@ -248,8 +209,6 @@ def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
 def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'gev'):
 
     era_cb = data_dic['reanalysis']
-    era_max = era_cb.data.max()
-    year_max = 1950+era_cb.data.argmax()
     era_2021 = era_cb.data[-1]
     if distrib.lower() == 'gev':
         era_gev_params = gev.fit(era_cb.data)
@@ -259,7 +218,6 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
     era_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_era_data.csv'), 'w', newline='')
     era_csv_writer = csv.writer(era_csv, delimiter=',')
     era_csv_writer.writerow(['2021 ERA value '+str(era_2021)])
-    era_csv_writer.writerow(['Max ERA value '+str(era_max)+ ' in '+ str(year_max)])
     era_csv_writer.writerow(['ERA ' +distrib +' params'])
     if distrib.lower() == 'gev':
         era_csv_writer.writerow(['shape', 'loc', 'scale'])
@@ -313,7 +271,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
                 else:
                     cube_weight = 1
                 for point in cube.data:
-                    distrib_data.append(np.around(point, 2))
+                    distrib_data.append(np.around(point, 1))
                     weights.append(cube_weight/len(cube.data))
             distrib_data = np.asarray(distrib_data)
             weights = np.asarray(weights)
@@ -350,11 +308,9 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
                 theor_quants = gumbel(*w_distr_par).ppf(quantile_measures)
                 era_surv = gumbel.sf(x_gev, *era_gev_params)
             event_idx = np.argmin(np.abs(x_gev - era_2021))
-            max_idx = np.argmin(np.abs(x_gev - era_max))
             era_event_prob = era_surv[event_idx]
-            era_max_prob = era_surv[max_idx]
             model_row.extend(w_distr_par)
-            n_bins = np.arange(int(border[0]*20)/20, border[1]+0.1, 0.1)
+            n_bins = np.arange(border[0], border[1]+0.1, 1)
             ax_hist.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
                     facecolor = colors[exp_key], alpha=0.3, label=cfg['name_' + exp_key] , density=True, weights=weights, zorder = 2)
             ax_hist.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = distrib+' fit '+cfg['name_' + exp_key], zorder=3)
@@ -380,40 +336,38 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         ylims = ax_hist.get_ylim()
         ax_hist.set_ylim(*ylims)
 
-        ax_hist.text(border[1]*0.5, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
+        ax_hist.text(border[0], ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
         ax_hist.vlines(era_2021, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 (2021)')
-        ax_hist.vlines(era_max, *ylims, color = 'indianred', linestyle = 'dashed', lw=1.5, zorder=1, label = 'ERA5 max ('+ str(year_max)+')')
-
 
         ax_surv.vlines(era_2021, 0.1, 1/era_event_prob, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 (2021)')
-        ax_surv.vlines(era_max, 0.1, 1/era_max_prob, linestyle = 'dashed', color='indianred', zorder=1, label = 'ERA5 ('+ str(year_max)+')')
         ax_surv.hlines(1/era_event_prob, x_gev[0], era_2021,linestyle = 'solid', color='indianred', zorder=2)
-        ax_surv.hlines(1/era_max_prob, x_gev[0], era_max,  linestyle = 'dashed', color='indianred', zorder=1)
 
-        ax_hist.legend(loc=1, fancybox=False, frameon=False)
+        ax_hist.legend(loc=2, fancybox=False, frameon=False)
         ax_qq.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
-        ax_qq.plot([0,5],[0,5], c='tab:grey', zorder=1)
-        ax_hist.set_xlim(border[0]*3, border[1]*0.6)
-        ax_qq.set_xlim(border[0]*3, border[1]*0.6)
-        ax_qq.set_ylim(border[0]*3, border[1]*0.6)
-        ax_surv.set_ylim(1,1000)
-        ax_surv.set_xlim(border[0]*3, border[1]*0.6)
+        ax_qq.plot(border, border, c='tab:grey', zorder=1)
+        ax_qq.grid(color='silver', axis='both', alpha=0.5)
+        ax_hist.set_xlim(border[0]/1.2, border[1]/1.2)
+        ax_qq.set_xlim(border[0]/1.2, border[1]/1.2)
+        ax_qq.set_ylim(border[0]/1.2, border[1]/1.2)
+        ax_surv.set_ylim(1,10000)
+        ax_surv.set_xlim(border[0]/1.2, border[1]/1.2)
         ax_surv.set_yscale('log')
+        ax_surv.grid(color='silver', axis='both', alpha=0.5)
         ax_hist.set_title('Probability density function')
         ax_qq.set_title('Quality assessment')
         ax_qq.set_ylabel('Data quantile')
         ax_qq.set_xlabel(distrib+' quantile')
         ax_surv.set_title('Return period')
         ax_surv.set_ylabel('years')
-        ax_surv.set_xlabel('Normalized '+cfg['ax_var_label'])
-        ax_hist.set_xlabel('Normalized '+cfg['ax_var_label'])
+        ax_surv.set_xlabel(cfg['ax_var_label'] + ' anomaly, ' +cfg['var_units'])
+        ax_hist.set_xlabel(cfg['ax_var_label'] + ' anomaly, ' +cfg['var_units'])
         ax_hist.set_ylabel('Number density')
 
         if model == 'Multi-Model-Mean':
-            fig.suptitle('Normalised '+cfg['title_var_label']+' in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
+            fig.suptitle(cfg['title_var_label']+' anomalies in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
             + '-' + str(cfg['reference_period'][1])+ ' calculated from '+str(len(models) - 1) +' CMIP6 models' , fontsize = 'x-large')
         else:
-            fig.suptitle('Normalised '+cfg['title_var_label']+' in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
+            fig.suptitle(cfg['title_var_label']+' anomalies in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
             + '-' + str(cfg['reference_period'][1])+ ' calculated from '+model, fontsize = 'x-large')
         fig.set_dpi(250)
 
@@ -447,9 +401,75 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
     return
 
 
-def main(cfg):
+def make_era_figure(abs_cube, ano_cube, cfg, border, distrib = 'gev'):
 
-    # anomaly_rxNday(cfg)
+    abs_cube = abs_cube - 273.15
+    border[0] = np.floor(abs_cube.data.min()*0.8)
+    border[1] = np.ceil(abs_cube.data.max()*1.1)
+    x_gev_fine = np.arange(border[0], border[1]+0.1, 0.1)
+    n_bins = np.arange(border[0], border[1]+0.1, 1)
+
+    if distrib.lower() == 'gev':
+        era_param = gev.fit(abs_cube.data)
+        era_pdf= gev.pdf(x_gev_fine, *era_param)
+        era_sf = gev.sf(x_gev_fine, *era_param)
+    elif distrib.lower() == 'gumbel': 
+        era_param = gumbel.fit(abs_cube.data)
+        era_pdf= gumbel.pdf(x_gev_fine, *era_param)
+        era_sf = gumbel.sf(x_gev_fine, *era_param)
+
+    tims = cf_units.num2pydate(abs_cube.coord('time').points, abs_cube.coord('time').units.origin, abs_cube.coord('time').units.calendar)
+    years = np.asarray([t.year for t in tims])
+
+    fig_era = plt.figure(constrained_layout=False)
+    fig_era.set_size_inches(12., 8.)
+    gs = fig_era.add_gridspec(nrows=2, ncols=5)
+    ax_era_hist = fig_era.add_subplot(gs[0, :-2])
+    ax_era_surv= fig_era.add_subplot(gs[0, -2:])
+    ax_era_tseries= fig_era.add_subplot(gs[1, :])
+
+    ax_era_hist.hist(abs_cube.data, bins=n_bins, edgecolor='indianred', facecolor='indianred', alpha=0.3, density=True)
+    ax_era_hist.plot(x_gev_fine, era_pdf, c='indianred')
+    ylims = ax_era_hist.get_ylim()
+    ax_era_hist.text(border[1]*0.9,ylims[1]*0.3,distrib + ' params:\n' + 'shape: '+ str(np.around(era_param[0],2))+'\n  loc: '+\
+                                 str(np.around(era_param[1],2))+ '\nscale: '+str(np.around(era_param[2],2)), color='k')
+    ax_era_hist.scatter(abs_cube.data[-1], 0, c='indianred', marker='x',lw=2, s=100, label='2021', clip_on=False, zorder=4)
+    ax_era_hist.set_xlim(*border)
+    ax_era_hist.set_xlabel(cfg['ax_var_label'] +', ' + cfg['var_units'])
+    ax_era_hist.set_ylabel('Number density')
+    ax_era_hist.set_title('Probability distribution function')
+
+    ax_era_surv.plot(x_gev_fine[era_sf>0.00001], 1/era_sf[era_sf>0.00001], c='indianred')
+    ax_era_surv.set_title('ERA5 ' +  cfg['ax_var_label'] +' return period')
+    ax_era_surv.set_xlabel(cfg['ax_var_label'] +', ' + cfg['var_units'])
+    ax_era_surv.set_ylabel('years')
+    era_idx = np.argmin(np.abs(x_gev_fine-abs_cube.data[-1]))
+    ax_era_surv.scatter(abs_cube.data[-1],1/era_sf[era_idx],c='indianred', marker='x',lw=2, s=100, label='2021', clip_on=False, zorder=4)
+    ax_era_surv.text(border[1]*0.8, 5,'ERA5 return period\n    '+str(np.around(1/era_sf[era_idx], 1))+ ' years', color='k')
+    ax_era_surv.set_yscale('log')
+    ax_era_surv.grid(color='silver', axis='both', alpha=0.5)
+    ax_era_surv.set_ylim(1,10000)
+    ax_era_surv.set_xlim(*border)
+
+    ax_era_tseries.set_title('ERA5 ' + cfg['ax_var_label'] +' timeseries')
+    ax_era_tseries.plot(years, abs_cube.data, c='indianred')
+    ax_era_tseries.grid(color='silver', axis='both', alpha=0.5)
+    ax_era_tseries.set_xlabel('time')
+    ax_era_tseries.set_ylabel(cfg['ax_var_label']+', ' + cfg['var_units'])
+    ax_era_tseries.set_xlim(years[0]-0.5, years[-1]+0.5)
+    # ax_era_tseries.arrow() add here an arrow and number for 2021
+
+    fig_era.suptitle('ERA5 ' + cfg['title_var_label'] + ' in ' + cfg['region'] + ' and its ' + distrib + ' fit', fontsize = 'x-large')
+
+    plt.tight_layout()
+
+    fig_era.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_era' + diagtools.get_image_format(cfg)))
+
+
+    return
+
+
+def main(cfg):
 
     input_data = cfg['input_data']
 
@@ -457,7 +477,7 @@ def main(cfg):
 
     groups_l = list(groups.keys()) ; groups_l.remove('anomaly')
 
-    era_cube = get_era_txx(cfg)
+    abs_era_cube, ano_era_cube = get_era_txx(cfg)
 
     mins = list(); maxs = list()
 
@@ -480,15 +500,15 @@ def main(cfg):
                 mod_cb = iris.load_cube(filepath)
                 file_metadata = select_metadata(datasets[dataset], filename = filepath)
                 ens = file_metadata[0]['ensemble']
-                rxNday_cb = esmvalcore.preprocessor.annual_statistics(mod_cb, operator='max')
+                txx_cb = esmvalcore.preprocessor.annual_statistics(mod_cb, operator='max')
                 anom_cb = iris.load_cube(select_metadata(input_data.values(), dataset = dataset, ensemble = ens, variable_group = 'anomaly')[0]['filename'])
-                rxNday_ano_cb = rxNday_cb - anom_cb
-                mins.append(rxNday_ano_cb.collapsed('time', iris.analysis.MIN).data)
-                maxs.append(rxNday_ano_cb.collapsed('time', iris.analysis.MAX).data)
-                rxNday_ano_cb.attributes['ensemble_weight'] = 1 / n_real
-                rxNday_ano_cb.attributes['reverse_dtsts_n'] = 1/ len(datasets)
-                ens_cubelist.append(rxNday_ano_cb)
-                mod_cubelist.append(rxNday_ano_cb)
+                txx_ano_cb = txx_cb - anom_cb
+                mins.append(txx_ano_cb.collapsed('time', iris.analysis.MIN).data)
+                maxs.append(txx_ano_cb.collapsed('time', iris.analysis.MAX).data)
+                txx_ano_cb.attributes['ensemble_weight'] = 1 / n_real
+                txx_ano_cb.attributes['reverse_dtsts_n'] = 1/ len(datasets)
+                ens_cubelist.append(txx_ano_cb)
+                mod_cubelist.append(txx_ano_cb)
             plotting_dic[group][dataset] = mod_cubelist
         plotting_dic[group]['GEV_uncert'] = bootstrap_gev(plotting_dic[group], distrib=distrib_fit, yblock = cfg['yblock']) 
         plotting_dic[group]['Multi-Model-Mean'] = ens_cubelist
@@ -497,11 +517,11 @@ def main(cfg):
         if distrib_fit.lower() == 'gev':
             fit_param_apr[group]['shape'] = np.around(plotting_dic[group]['GEV_uncert']['shape'].mean(),3)
     
-    plotting_dic['reanalysis'] = era_cube
+    plotting_dic['reanalysis'] = ano_era_cube
 
     min_var = np.asarray(mins).min() ; max_var = np.asarray(maxs).max()  
 
-    border = [np.around(min_var*1.25,1), np.around(max_var*1.75,1)]
+    border = [np.floor(min_var*1.5), np.ceil(max_var*1.5)]
 
     st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
     plt.style.use(st_file)
@@ -509,6 +529,8 @@ def main(cfg):
     uncert_band = make_uncert_figures(plotting_dic, cfg, border, distrib = distrib_fit)
 
     make_hist_figure(plotting_dic, cfg, uncert_band, border, fit_param_apr, distrib = distrib_fit)
+
+    make_era_figure(abs_era_cube, ano_era_cube, cfg, border, distrib = distrib_fit)
 
     logger.info('Success')
 
