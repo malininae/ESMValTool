@@ -336,7 +336,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         ylims = ax_hist.get_ylim()
         ax_hist.set_ylim(*ylims)
 
-        ax_hist.text(border[0], ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
+        ax_hist.text(border[0]/1.22, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
         ax_hist.vlines(era_2021, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 (2021)')
 
         ax_surv.vlines(era_2021, 0.1, 1/era_event_prob, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 (2021)')
@@ -456,8 +456,13 @@ def make_era_figure(abs_cube, ano_cube, cfg, border, distrib = 'gev'):
     ax_era_tseries.grid(color='silver', axis='both', alpha=0.5)
     ax_era_tseries.set_xlabel('time')
     ax_era_tseries.set_ylabel(cfg['ax_var_label']+', ' + cfg['var_units'])
+    ax_era_tseries.scatter(years[np.argmax(abs_cube.data)], abs_cube.data.max(), edgecolors='indianred', marker='o', facecolors='None', s=100, lw=2)
     ax_era_tseries.set_xlim(years[0]-0.5, years[-1]+0.5)
-    # ax_era_tseries.arrow() add here an arrow and number for 2021
+    ax_era_tseries.arrow(years[-1] - len(years)*0.1, abs_cube.data.mean()*0.2 + 0.8*abs_cube.data.max(), len(years)*0.09 ,
+                                     0.19*abs_cube.data.max()-abs_cube.data.mean()*0.2, color='k', length_includes_head=True,  
+                                                                                        head_width=0.5, head_length=0.5)
+    ax_era_tseries.text(years[-1] - len(years)*0.16, abs_cube.data.mean()*0.2 + 0.77*abs_cube.data.max(), 
+                        'ERA5 2021: '+str(np.around(abs_cube.data.max(),1))+' '+cfg['var_units'])
 
     fig_era.suptitle('ERA5 ' + cfg['title_var_label'] + ' in ' + cfg['region'] + ' and its ' + distrib + ' fit', fontsize = 'x-large')
 
