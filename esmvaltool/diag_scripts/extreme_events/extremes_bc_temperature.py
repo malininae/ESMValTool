@@ -40,7 +40,9 @@ def get_era_txx(cfg):
         elif pattern == 'maximum_2m_temperature_since_previous_post_processing': 
             era_cb = esmvalcore.preprocessor.daily_statistics(era_cb, operator = 'max')
         if cfg['era_regridding_shape']:
-            reg_cube = esmvalcore.preprocessor.extract_shape(era_cb, os.path.join(aux_dir,cfg['era_shape_file']), method='contains', crop=True)
+            era_cb.coord('latitude').guess_bounds()
+            era_cb.coord('longitude').guess_bounds()
+            reg_cube = esmvalcore.preprocessor.extract_shape(era_cb, os.path.join(aux_dir,cfg['era_regridding_region']), method='contains', crop=True)
         else:
             reg_cube = esmvalcore.preprocessor.extract_region(era_cb, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
                             cfg['era_regridding_region'][2], cfg['era_regridding_region'][3])
