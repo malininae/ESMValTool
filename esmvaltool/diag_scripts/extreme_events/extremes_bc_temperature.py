@@ -189,7 +189,7 @@ def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
                 fontsize = 'x-large')
     fig_gev_distr.set_dpi(250)
     plt.tight_layout()
-    fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_exreme_distr_param_'+distrib.lower() + diagtools.get_image_format(cfg)))
+    fig_gev_distr.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region'].lower()+'_exreme_distr_param_'+distrib.lower() + diagtools.get_image_format(cfg)))
     plt.close(fig_gev_distr)
 
     ax_single_bootstrap.legend(loc=0, fancybox=False, frameon=False)
@@ -202,7 +202,7 @@ def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
                 fontsize = 'x-large')
     fig_single_bootstrap.set_dpi(250)
 
-    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_bootstrap_'+distrib.lower() + diagtools.get_image_format(cfg)))
+    fig_single_bootstrap.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region'].lower()+'_extremes_bootstrap_'+distrib.lower() + diagtools.get_image_format(cfg)))
     plt.close(fig_single_bootstrap)
                             
     return uncert_band
@@ -376,7 +376,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         plt.tight_layout()
         
 
-        fig.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_extremes_'+distrib.lower() +'_'+model + diagtools.get_image_format(cfg)))
+        fig.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region'].lower()+'_extremes_'+distrib.lower() +'_'+model + diagtools.get_image_format(cfg)))
 
         if model == 'Multi-Model-Mean':
             risk_uncert_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_uncert_risk_data.csv'), 'w', newline='')
@@ -470,7 +470,7 @@ def make_era_figure(abs_cube, ano_cube, cfg, border, distrib = 'gev'):
 
     plt.tight_layout()
 
-    fig_era.savefig(os.path.join(cfg['plot_dir'], 'figure_bc_era' + diagtools.get_image_format(cfg)))
+    fig_era.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region'].lower()+'_era' + diagtools.get_image_format(cfg)))
 
 
     return
