@@ -13,35 +13,21 @@ documentation:
 preprocessors:
   preproc_txx:
     custom_order: True
-    regrid:
-      target_grid: 0.5x0.5
-      lon_offset: 0.25
-      scheme: linear
     extract_region:
       start_longitude: -123.0
       end_longitude: -119.0
       start_latitude: 45.0
       end_latitude: 52.0
-    annual_statistics:
-      operator: max
     area_statistics:
       operator: mean
   preproc_txx_anomaly:
     custom_order: True
-    regrid:
-      target_grid: 0.5x0.5
-      lon_offset: 0.25
-      scheme: linear
     extract_region:
       start_longitude: -123.0
       end_longitude: -119.0
       start_latitude: 45.0
       end_latitude: 52.0
-    annual_statistics:
-      operator: max
     area_statistics:
-      operator: mean
-    climate_statistics:
       operator: mean
 
 datasets_tasmax: &datasets_tasmax
@@ -134,6 +120,7 @@ diagnostics:
     scripts:
       xcbox32:
         script: extreme_events/extremes_bc_temperature.py
+        analysis_year: 2021
         mpl_style: ipcc_ar6_fgd
         reference_period: [1950, 1969]
         era_fname_pattern: maximum_2m_temperature_since_previous_post_processing # era is processed from diagnostic, era stored in aux_dir
@@ -142,11 +129,10 @@ diagnostics:
         fit_distribution: GEV # which distribution to fit, gev or gumbel
         model_weighting: False # determines, if each realisation gets a weight of 1 (false) or 1/number of relisation
         name_all: 2011-2030 # this is needed for legend, it's name_{name of a group}
-        name_nat: 1850-1869 
+        name_nat: 1850-1900 
         name_ssp245: 2081-2100
         region: BC # needed for the figure title
-        ax_var_label: TXx # needed for axis name
-        title_var_label: TXx # needed for title name
-        yblock: 5 # needed for bootstrap, determines how many years in block should be pooled
-        var_units: C 
-
+        ax_var_label: TX3x # needed for axis name
+        title_var_label: TX3x # needed for title name
+        n_days: 3 # for nuber of the days to be averaged for TxNx
+        var_units: C
