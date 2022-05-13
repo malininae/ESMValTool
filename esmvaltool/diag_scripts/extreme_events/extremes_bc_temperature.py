@@ -37,8 +37,8 @@ def anomaly_txNx(cfg):
         new_fname = os.path.join(new_fdir, 'tx'+str(cfg['n_days'])+'x_'+f_name)
         ano_cb = iris.load_cube(orig_fname)
         if cfg.get('n_days')>1: 
-            txNx_cube = ano_cb.rolling_window('time', iris.analysis.MEAN, cfg['n_days'])
-        txNx_cube = eprep.annual_statistics(txNx_cube, operator='max')
+            ano_cb = ano_cb.rolling_window('time', iris.analysis.MEAN, cfg['n_days'])
+        txNx_cube = eprep.annual_statistics(ano_cb, operator='max')
         txNx_cube = eprep.climate_statistics(txNx_cube, operator='mean', period='full')
         iris.save(txNx_cube, os.path.join(new_fdir,new_fname))
         cfg['input_data'][new_fname] = cfg['input_data'].pop(orig_fname)
