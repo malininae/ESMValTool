@@ -1,0 +1,206 @@
+# ESMValTool
+# recipe_bc_extremes_rectang.yml
+---
+documentation:
+  description: This is a recipe for analysing 2021 BC heat wave.
+
+  authors:
+    - malinina_elizaveta
+
+preprocessors:
+  preproc_max:
+    custom_order: True
+    annual_statistics:
+      operator: max
+    regrid:
+      target_grid: 1.875x1.25
+      lat_offset: 0.9375
+      lon_offset: 0.625
+      scheme: linear
+    extract_region:
+      start_longitude: -123.0
+      end_longitude: -119.0
+      start_latitude: 45.0
+      end_latitude: 52.0
+    anomalies:
+      period: full
+      reference:
+        start_year: 1950
+        start_month: 1
+        start_day: 1
+        end_year: 1979
+        end_month: 12
+        end_day: 31
+    extract_time:
+      start_year: 1991
+      start_month: 1
+      start_day: 1
+      end_year: 2020
+      end_month: 12
+      end_day: 31
+    area_statistics:
+      operator: mean
+
+  preproc_max_future:
+    custom_order: True
+    annual_statistics:
+      operator: max
+    regrid:
+      target_grid: 1.875x1.25
+      lat_offset: 0.9375
+      lon_offset: 0.625
+      scheme: linear
+    extract_region:
+      start_longitude: -123.0
+      end_longitude: -119.0
+      start_latitude: 45.0
+      end_latitude: 52.0
+    anomalies:
+      period: full
+      reference:
+        start_year: 1950
+        start_month: 1
+        start_day: 1
+        end_year: 1979
+        end_month: 12
+        end_day: 31
+    extract_time:
+      start_year: 2071
+      start_month: 1
+      start_day: 1
+      end_year: 2100
+      end_month: 12
+      end_day: 31
+    area_statistics:
+      operator: mean
+
+  preproc_shape:
+    custom_order: True
+    extract_region:
+      start_longitude: -123.0
+      end_longitude: -119.0
+      start_latitude: 45.0
+      end_latitude: 52.0
+    anomalies:
+      period: full
+      reference:
+        start_year: 1950
+        start_month: 1
+        start_day: 1
+        end_year: 1979
+        end_month: 12
+        end_day: 31
+    extract_time:
+      start_year: 1991
+      start_month: 1
+      start_day: 1
+      end_year: 2020
+      end_month: 12
+      end_day: 31
+    area_statistics:
+      operator: mean
+
+
+datasets_txx: &datasets_txx
+  - { dataset: HadEX3, project: OBS, frequency: yr, tier: 2, mip: yr, type: clim, version: v20200928}
+
+datasets_hist: &datasets_hist
+  - {dataset: ACCESS-ESM1-5, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: ACCESS-CM2, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: BCC-CSM2-MR, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: CanESM5, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: CNRM-CM6-1, exp: [historical, ssp245], ensemble: r1i1p1f2, mip: day, grid: gr}
+#  - { dataset: FGOALS-g3, exp: [historical, ssp245], ensemble: r3i1p1f1, mip: day, grid: gn }
+  - { dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gr1 }
+  - { dataset: HadGEM3-GC31-LL, exp: [historical, ssp245], ensemble: r1i1p1f3, mip: day, grid: gn }
+  - { dataset: IPSL-CM6A-LR, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gr }
+  - {dataset: MIROC6, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: MRI-ESM2-0, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: NorESM2-LM, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+
+datasets_hist_extended: &datasets_hist_extended
+  - {dataset: ACCESS-ESM1-5, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: ACCESS-CM2, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: BCC-CSM2-MR, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: CanESM5, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: CNRM-CM6-1, exp: [historical, ssp245], ensemble: r1i1p1f2, mip: day, grid: gr}
+  - { dataset: FGOALS-g3, exp: [historical, ssp245], ensemble: r3i1p1f1, mip: day, grid: gn }
+  - { dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gr1 }
+  - { dataset: HadGEM3-GC31-LL, exp: [historical, ssp245], ensemble: r1i1p1f3, mip: day, grid: gn }
+  - { dataset: IPSL-CM6A-LR, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gr }
+  - {dataset: MIROC6, exp: [historical, ssp245], ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: MRI-ESM2-0, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: NorESM2-LM, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: UKESM1-0-LL, exp: [historical, ssp245], ensemble: r1i1p1f2, mip: day, grid: gn}
+  - {dataset: AWI-CM-1-1-MR, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: CMCC-ESM2, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: CNRM-ESM2-1, exp: [historical, ssp245], ensemble: r1i1p1f2, mip: day, grid: gr}
+  - { dataset: GISS-E2-1-G, exp: [historical, ssp245], ensemble: r1i1p1f2, mip: day, grid: gn }
+  - { dataset: INM-CM5-0, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gr1 }
+  - { dataset: INM-CM4-8, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gr1 }
+  - { dataset: KACE-1-0-G, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gr }
+  - {dataset: MPI-ESM1-2-LR, exp: [historical, ssp245], ensemble: "r(1:3)i1p1f1", mip: day, grid: gn}
+  - {dataset: NESM3, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: NorESM2-MM, exp: [historical, ssp245], ensemble: r2i1p1f1, mip: day, grid: gn}
+  - {dataset: TaiESM1, exp: [historical, ssp245], ensemble: r1i1p1f1, mip: day, grid: gn}
+
+datasets_nat: &datasets_nat
+  - {dataset: ACCESS-ESM1-5, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: ACCESS-CM2, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: BCC-CSM2-MR, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: CanESM5, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: CNRM-CM6-1, exp: hist-nat, ensemble: r1i1p1f2, mip: day, grid: gr}
+#  - {dataset: FGOALS-g3, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: GFDL-ESM4, institute: NOAA-GFDL, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gr1}
+  - {dataset: HadGEM3-GC31-LL, exp: hist-nat, ensemble: r1i1p1f3, mip: day, grid: gn}
+  - {dataset: IPSL-CM6A-LR, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gr}
+  - { dataset: MIROC6, exp: hist-nat, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn }
+  - {dataset: MRI-ESM2-0, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: NorESM2-LM, exp: hist-nat, ensemble: r1i1p1f1, mip: day, grid: gn}
+
+diagnostics:
+  hist_hist_nat:
+    description: Figure for BC extremes
+    variables:
+      obs:
+        short_name: txx
+        start_year: 1950
+        end_year: 2017
+        preprocessor: preproc_shape
+        additional_datasets: *datasets_txx
+      all:
+        short_name: tasmax
+        start_year: 1950
+        end_year: 2020
+        project: CMIP6
+        preprocessor: preproc_max
+        additional_datasets: *datasets_hist
+      ssp245: 
+        short_name: tasmax
+        start_year: 1950
+        end_year: 2100
+        project: CMIP6
+        preprocessor: preproc_max_future
+        additional_datasets: *datasets_hist        
+      nat: 
+        short_name: tasmax
+        start_year: 1950
+        end_year: 2020
+        project: CMIP6
+        preprocessor: preproc_max
+        additional_datasets: *datasets_nat
+    scripts:
+      xcbox32:
+        script: extreme_events/extremes_bc_txx_pdfs_mock.py
+        mpl_style: ipcc_ar6_fgd
+        reference_period: [1950, 1979]
+        plotting_period: [1991, 2020]
+        era_fname_pattern: maximum_2m_temperature_since_previous_post_processing
+        era_plotting_period: [1991, 2021]
+        era_regridding_shape: false
+        era_regridding_region: [-123.0,-119.0, 45.0, 52.0]
+        region: BC 
+        ax_var_label: Temperature
+        title_var_label: TXx
+        un_label: C
+  

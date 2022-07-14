@@ -1,0 +1,119 @@
+# ESMValTool
+# recipe_bc_extremes_rectang.yml
+---
+documentation:
+
+  title: GEVs 2021 BC floods
+
+  description: This is a recipe for analysing 2021 BC floods and Rx2day.
+
+  authors:
+    - malinina_elizaveta
+
+preprocessors:
+  preproc_sum:
+    custom_order: True
+    regrid:
+      target_grid: 0.5x0.5
+      lon_offset: 0.25
+      scheme: linear
+    extract_region:
+      start_longitude: -125.0
+      end_longitude: -120.5
+      start_latitude: 48.25
+      end_latitude: 50.25
+    area_statistics:
+      operator: mean
+
+
+datasets_hist_extended: &datasets_hist_extended
+  - {dataset: ACCESS-ESM1-5, ensemble: "r(1:15)i1p1f1", mip: day, grid: gn}  # should 1:15
+  - {dataset: ACCESS-ESM1-5, ensemble: "r(21:25)i1p1f1", mip: day, grid: gn}
+  - {dataset: ACCESS-ESM1-5, ensemble: "r(27:40)i1p1f1", mip: day, grid: gn}
+  - {dataset: ACCESS-CM2, ensemble: "r(1:5)i1p1f1", mip: day, grid: gn} # should 1:5
+  - {dataset: BCC-CSM2-MR, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: CanESM5, ensemble: "r(1:25)i1p1f1", mip: day, grid: gn} # should 1:25
+  - {dataset: CanESM5, ensemble: "r(1:25)i1p2f1", mip: day, grid: gn} # should 1:25
+  - {dataset: CMCC-ESM2, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: CMCC-CM2-SR5, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: CNRM-CM6-1, ensemble: r1i1p1f2, mip: day, grid: gr}
+  - {dataset: CNRM-ESM2-1, ensemble: r1i1p1f2, mip: day, grid: gr}
+  - { dataset: GFDL-ESM4, institute: NOAA-GFDL, ensemble: r1i1p1f1, mip: day, grid: gr1 }
+  - { dataset: GFDL-CM4, institute: NOAA-GFDL, ensemble: r1i1p1f1, mip: day, grid: gr2 }
+  - { dataset: HadGEM3-GC31-LL, ensemble: r1i1p1f3, mip: day, grid: gn }
+  - { dataset: INM-CM5-0, ensemble: r1i1p1f1, mip: day, grid: gr1 }
+  - { dataset: INM-CM4-8, ensemble: r1i1p1f1, mip: day, grid: gr1 }
+  - { dataset: IPSL-CM6A-LR, ensemble: "r(1:6)i1p1f1", mip: day, grid: gr } # should 1:6
+  - { dataset: IPSL-CM6A-LR, ensemble: "r(10:11)i1p1f1", mip: day, grid: gr }
+  - { dataset: IPSL-CM6A-LR, ensemble: r14i1p1f1, mip: day, grid: gr }
+  - { dataset: IPSL-CM6A-LR, ensemble: r22i1p1f1, mip: day, grid: gr }
+  - { dataset: KACE-1-0-G, ensemble: "r(1:3)i1p1f1", mip: day, grid: gr } # should 1:3
+  - {dataset: MIROC6, ensemble: "r(1:3)i1p1f1", mip: day, grid: gn} # should 1:3
+  - {dataset: MIROC6, ensemble: "r(21:37)i1p1f1", mip: day, grid: gn}
+  - {dataset: MIROC6, ensemble: "r(47:50)i1p1f1", mip: day, grid: gn}
+  - {dataset: MPI-ESM1-2-LR, ensemble: "r(1:3)i1p1f1", mip: day, grid: gn} # should 1:3
+  - {dataset: MPI-ESM1-2-LR, ensemble: "r(5:10)i1p1f1", mip: day, grid: gn}
+  - {dataset: MRI-ESM2-0, ensemble: "r(1:5)i1p1f1", mip: day, grid: gn} # should 1:5
+  - {dataset: NorESM2-LM, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: NorESM2-MM, ensemble: "r(1:2)i1p1f1", mip: day, grid: gn}
+  - {dataset: TaiESM1, ensemble: r1i1p1f1, mip: day, grid: gn}
+  - {dataset: UKESM1-0-LL, ensemble: "r(1:4)i1p1f2", mip: day, grid: gn}  # should 1:4
+  - {dataset: UKESM1-0-LL, ensemble: r8i1p1f2, mip: day, grid: gn} 
+  - {dataset: UKESM1-0-LL, ensemble: "r(10:12)i1p1f2", mip: day, grid: gn} 
+  - {dataset: UKESM1-0-LL, ensemble: "r(16:19)i1p1f2", mip: day, grid: gn} 
+
+diagnostics:
+  hist_hist_nat:
+    description: Figure for BC extremes
+    variables:
+      all:
+        short_name: pr
+        exp: [historical, ssp245]
+        start_year: 2011
+        end_year: 2030
+        project: CMIP6
+        preprocessor: preproc_sum
+        additional_datasets: *datasets_hist_extended
+      ssp245: 
+        short_name: pr
+        exp: ssp245
+        start_year: 2081
+        end_year: 2100
+        project: CMIP6
+        preprocessor: preproc_sum
+        additional_datasets: *datasets_hist_extended        
+      nat: 
+        short_name: pr
+        exp: historical
+        start_year: 1850
+        end_year: 1900
+        project: CMIP6
+        preprocessor: preproc_sum
+        additional_datasets: *datasets_hist_extended
+      anomaly:
+        short_name: pr
+        exp: historical
+        start_year: 1950
+        end_year: 1969
+        project: CMIP6
+        preprocessor: preproc_sum
+        additional_datasets: *datasets_hist_extended
+    scripts:
+      hist_hist_nat:
+        script: extreme_events/extremes_bc_precipitation.py
+        mpl_style: ipcc_ar6_fgd # matplotlib style file
+        reference_period: [1950, 1969] # needed for era processing 
+        era_fname_pattern: total_precipitation # era is processed from diagnostic, era stored in aux_dir
+        era_regridding_shape: false # determines if needs shapefile or region
+        era_regridding_region: [-125.0,-120.5, 48.25, 50.25] # region to extract from era
+        fit_distribution: GEV # which distribution to fit, gev or gumbel
+        mult_factor: 84600 # if model data needs to be multiplied
+        model_weighting: False # determines, if each realisation gets a weight of 1 (false) or 1/number of relisation
+        n_days: 2 # number of days for RxNday
+        name_all: 2011-2030 # this is needed for legend, it's name_{name of a group}
+        name_nat: 1850-1869 
+        name_ssp245: 2081-2100
+        region: BC # needed for the figure title
+        ax_var_label: Rx2day # needed for axis name
+        title_var_label: Rx2day # needed for title name
+        yblock: 5 # needed for bootstrap, determines how many years in block should be pooled
