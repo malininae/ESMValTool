@@ -1,0 +1,70 @@
+# ESMValTool
+# recipe_sia_anomalies_so.yml
+---
+documentation:
+
+  title: Assessment of the SIA varibility in the SO.
+
+  description: This is a recipe for analysing SIA anomlies in the SO.
+
+  authors:
+    - malinina_elizaveta
+
+preprocessors: 
+  preproc_cmip:
+    custom_order: True
+    regrid:
+      target_grid: 1x1
+      lon_offset: True
+      lat_offset: True
+      scheme: nearest
+    extract_region:
+      start_longitude: -180.
+      end_longitude: 180.
+      start_latitude: -90
+      end_latitude: -50
+
+  preproc_obs:
+    anomalies:
+      period: month
+      reference: 
+        start_year: 1979
+        start_month: 1
+        start_day: 1
+        end_year: 2019
+        end_month: 12
+        end_day: 31
+
+cmip6_list: &cmip6_list
+ - {dataset: ACCESS-CM2, institute: CSIRO-ARCCSS, grid: gn, project: CMIP6, ensemble: r1i1p1f1}
+
+    
+obs: &obs
+  - {dataset: UHH-OSISAF, project: OBS, mip: OImon, tier: 2, type: clim, version: v2021}
+  - {dataset: UHH-Bootstrap, project: OBS, mip: OImon, tier: 2, type: clim, version: v2021}
+  - {dataset: UHH-NASATeam, project: OBS, mip: OImon, tier: 2, type: clim, version: v2021}
+
+diagnostics: 
+  sia_ano_so:
+    description: calculates sia, its anomalies and creates plot
+    variables: 
+      cmip_sia:
+        short_name: siconc
+        preprocessor: preproc_cmip
+        mip: SImon
+        exp: ['historical', 'ssp245']
+        start_year: 1979
+        end_year: 2021
+        additional_datasets: *cmip6_list
+      obs_sia: 
+        short_name: siareas
+        start_year: 1979
+        end_year: 2019
+        additional_datasets: *obs
+    
+    scripts: 
+      script: seaice/sia_ano_so.py
+      mpl_style: ipcc_ar6_fgd
+      months: [2,6,9,12]
+      ref_period: [1979, 2000]
+
