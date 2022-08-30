@@ -36,7 +36,23 @@ preprocessors:
         end_day: 31
 
 cmip6_list: &cmip6_list
- - {dataset: ACCESS-CM2, institute: CSIRO-ARCCSS, grid: gn, project: CMIP6, ensemble: r1i1p1f1}
+#  - {dataset: ACCESS-CM2, institute: CSIRO-ARCCSS, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: BCC-CSM2-MR, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: CanESM5, grid: gn, ensemble: "r(1:25)i1p1f1"}
+ - {dataset: CanESM5, grid: gn, ensemble: "r(1:25)i1p2f1"}
+ - {dataset: CAMS-CSM1-0, grid: gn, ensemble: "r(1:2)i1p1f1"}
+ - {dataset: CMCC-CM2-SR5, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: CMCC-ESM2, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: EC-Earth3, grid: gn, ensemble: "r(1:2)i1p1f1"}
+ - {dataset: EC-Earth3, grid: gn, ensemble: r4i1p1f1}
+ - {dataset: EC-Earth3, grid: gn, ensemble: r6i1p1f1}
+ - {dataset: EC-Earth3, grid: gn, ensemble: r9i1p1f1}
+ - {dataset: EC-Earth3, grid: gn, ensemble: "r(11:22)i1p1f1"}
+  - {dataset: EC-Earth3, grid: gn, ensemble: r24i1p1f1}
+ - {dataset: FGOALS-f3-L, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: FGOALS-g3, grid: gn, ensemble: "r(1:4)i1p1f1"}
+ - {dataset: MPI-ESM1-2-HR, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: TaiESM1, grid: gn, ensemble: r1i1p1f1}
 
     
 obs: &obs
@@ -52,6 +68,7 @@ diagnostics:
         short_name: siconc
         preprocessor: preproc_cmip
         mip: SImon
+        project: CMIP6
         exp: ['historical', 'ssp245']
         start_year: 1979
         end_year: 2021
