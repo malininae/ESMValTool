@@ -1,4 +1,3 @@
-from turtle import color
 import iris
 import esmvalcore.preprocessor as eprep
 from iris.util import equalise_attributes

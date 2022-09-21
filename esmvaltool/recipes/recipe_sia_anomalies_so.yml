@@ -23,10 +23,15 @@ preprocessors:
       end_longitude: 180.
       start_latitude: -90
       end_latitude: -50
+    extract_season:
+      season: DJF
 
   preproc_obs:
+    custom_order: True
+    extract_season:
+      season: DJF
     anomalies:
-      period: month
+      period: season
       reference: 
         start_year: 1979
         start_month: 1
@@ -34,6 +39,7 @@ preprocessors:
         end_year: 2019
         end_month: 12
         end_day: 31
+
 
 cmip6_list: &cmip6_list
 #  - {dataset: ACCESS-CM2, institute: CSIRO-ARCCSS, grid: gn, ensemble: r1i1p1f1}
@@ -103,6 +109,5 @@ diagnostics:
       sia_ano:
         script: seaice/sia_ano_so.py
         mpl_style: ipcc_ar6_fgd
-        months: [2,6,9,12]
-        ref_period: [1979, 2000]
+        ref_period: [1850, 1900]
 
