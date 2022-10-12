@@ -1,0 +1,147 @@
+# ESMValTool
+# recipe_sia_anomalies_so.yml
+---
+documentation:
+
+  title: Assessment of the SIA varibility in the SO.
+
+  description: This is a recipe for analysing SIA anomlies in the SO.
+
+  authors:
+    - malinina_elizaveta
+
+preprocessors: 
+  preproc_cmip:
+    custom_order: True
+    extract_season:
+      season: DJF
+    regrid:
+      target_grid: 1x1
+      lon_offset: True
+      lat_offset: True
+      scheme: nearest
+    extract_region:
+      start_longitude: 0.
+      end_longitude: 360.
+      start_latitude: -90
+      end_latitude: -50
+
+
+  preproc_obs:
+    custom_order: True
+    extract_season:
+      season: DJF
+    seasonal_statistics:
+      operator: mean 
+      seasons: ['DJF']
+    anomalies:
+      period: season
+      reference: 
+        start_year: 1985
+        start_month: 1
+        start_day: 1
+        end_year: 2004
+        end_month: 12
+        end_day: 31
+
+
+cmip6_list: &cmip6_list
+ - {dataset: ACCESS-CM2, institute: CSIRO-ARCCSS, grid: gn, ensemble: "r(2:5)i1p1f1"}
+ - {dataset: ACCESS-ESM1-5, grid: gn, ensemble:  "r(2:40)i1p1f1"}
+ - {dataset: CanESM5, grid: gn, ensemble: "r(1:25)i1p1f1"}
+ - {dataset: CanESM5, grid: gn, ensemble: "r(1:25)i1p2f1"}
+ - {dataset: CAMS-CSM1-0, grid: gn, ensemble: "r(1:2)i1p1f1"}
+ - {dataset: CESM2, grid: gn, ensemble: "r(1:3)i1p1f1"}
+ - {dataset: CMCC-CM2-SR5, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: CMCC-ESM2, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: FGOALS-g3, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: GFDL-CM4, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: GFDL-ESM4, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: HadGEM3-GC31-LL, grid: gn, ensemble: r1i1p1f3}
+ - {dataset: INM-CM4-8, grid: gr1, ensemble: r1i1p1f1}
+ - {dataset: INM-CM5-0, grid: gr1, ensemble: r1i1p1f1}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: "r(1:4)i1p1f1"}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: r6i1p1f1}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: "r(10:11)i1p1f1"}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: r14i1p1f1}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: r22i1p1f1}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: r25i1p1f1}
+ - {dataset: MIROC6, grid: gn, ensemble: "r(1:3)i1p1f1"}
+ - {dataset: MIROC-ES2L, grid: gn, ensemble: r1i1p1f2}
+ - {dataset: MPI-ESM1-2-HR, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: MPI-ESM1-2-LR, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: NorESM2-LM, grid: gn, ensemble: "r(2:3)i1p1f1"}
+ - {dataset: UKESM1-0-LL, grid: gn, ensemble: "r(1:4)i1p1f2"}
+ - {dataset: UKESM1-0-LL, grid: gn, ensemble: r8i1p1f2}
+
+cmip6_picontrol_list: &cmip6_picontrol_list
+ - {dataset: ACCESS-CM2, institute: CSIRO-ARCCSS, start_year: 984, end_year: 1094, grid: gn, ensemble: r1i1p1f1 }
+ - {dataset: ACCESS-ESM1-5, grid: gn, start_year: 984, end_year: 1094, ensemble:  r1i1p1f1 }
+ - {dataset: CanESM5, grid: gn, start_year: 5984, end_year: 6094, ensemble: r1i1p1f1}
+ - {dataset: CanESM5, grid: gn, start_year: 5984, end_year: 6094, ensemble: r1i1p2f1}
+ - {dataset: CAMS-CSM1-0, grid: gn, start_year: 2984, end_year: 3094, ensemble: r1i1p1f1}
+ - {dataset: CESM2, grid: gn, start_year: 284, end_year: 394, ensemble: r1i1p1f1}
+ - {dataset: CMCC-CM2-SR5, grid: gn, start_year: 1984, end_year: 2094, ensemble: r1i1p1f1}
+ - {dataset: CMCC-ESM2, grid: gn, start_year: 1984, end_year: 2094, ensemble: r1i1p1f1}
+ - {dataset: FGOALS-g3, grid: gn, start_year: 284, end_year: 394, ensemble: r1i1p1f1}
+ - {dataset: GFDL-CM4, grid: gn, start_year: 284, end_year: 394, ensemble: r1i1p1f1}
+ - {dataset: GFDL-ESM4, grid: gn, start_year: 284, end_year: 394, ensemble: r1i1p1f1}
+ - {dataset: HadGEM3-GC31-LL, grid: gn, start_year: 1984, end_year: 2094, ensemble: r1i1p1f1}
+ - {dataset: INM-CM4-8, grid: gr1, start_year: 1984, end_year: 2094, ensemble: r1i1p1f1}
+ - {dataset: INM-CM5-0, grid: gr1, start_year: 2284, end_year: 2394, ensemble: r1i1p1f1}
+ - {dataset: IPSL-CM6A-LR, grid: gn, start_year: 3284, end_year: 3394, ensemble: r1i1p1f1}
+ - {dataset: MIROC6, grid: gn, start_year: 3284, end_year: 3394, ensemble: r1i1p1f1}
+ - {dataset: MIROC-ES2L, grid: gn, start_year: 1984, end_year: 2094, ensemble: r1i1p1f2}
+ - {dataset: MPI-ESM1-2-HR, grid: gn, start_year: 1984, end_year: 2094, ensemble: r1i1p1f1}
+ - {dataset: MPI-ESM1-2-LR, grid: gn, start_year: 1984, end_year: 2094, ensemble: r1i1p1f1}
+ - {dataset: NorESM2-LM, grid: gn, start_year: 1984, end_year: 2094, ensemble: r1i1p1f1}
+ - {dataset: UKESM1-0-LL, grid: gn, start_year: 1984, end_year: 2094, ensemble: r1i1p1f2}
+    
+obs: &obs
+  - {dataset: UHH-OSISAF, tier: 2, type: clim, version: v2021}
+  - {dataset: UHH-Bootstrap, tier: 2, type: clim, version: v2021}
+  - {dataset: UHH-NASATeam, tier: 2, type: clim, version: v2021}
+
+diagnostics: 
+  sia_ano_so:
+    description: calculates sia, its anomalies and creates plot
+    variables: 
+      cmip_hist_sia:
+        short_name: siconc
+        preprocessor: preproc_cmip
+        mip: SImon
+        project: CMIP6
+        exp: [ 'historical', 'ssp245']
+        start_year: 1984
+        start_month: 12
+        start_day: 1 
+        end_year: 2094
+        additional_datasets: *cmip6_list
+      cmip_pic_sia:
+        short_name: siconc
+        preprocessor: preproc_cmip
+        mip: SImon
+        project: CMIP6
+        exp: piControl
+        start_month: 12
+        start_day: 1 
+        additional_datasets: *cmip6_picontrol_list
+      obs_sia: 
+        short_name: siareas
+        preprocessor: preproc_obs
+        project: OBS
+        mip: OImon
+        start_year: 1984
+        start_month: 12
+        start_day: 1 
+        end_year: 2014
+        additional_datasets: *obs
+    
+    scripts: 
+      sia_ano:
+        script: seaice/sia_ano_so.py
+        mpl_style: ipcc_ar6_fgd_large
+        ref_period_len: 20
+        n_year_std: 10
+        obs_time_range: [1985, 2014]
+        cmip6_time_range: [1985, 2094]
