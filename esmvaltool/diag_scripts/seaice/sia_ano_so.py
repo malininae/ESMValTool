@@ -134,7 +134,7 @@ def calculate_multi_stats(proj_dic, project, proj_time_range, n_y=10):
     else:
         for dtst in proj_dic.keys():
             out_dic[dtst] = {'ts': proj_dic[dtst]}
-            out_dic[dtst][str(n_y)+'_y_std'] = calculate_n_y_stats(proj_dic['UHH-Bootstrap'].data, proj_time_range, n_y=n_y)
+            out_dic[dtst][str(n_y)+'_y_std'] = calculate_n_y_stats(proj_dic[dtst].data, proj_time_range, n_y=n_y)
 
     return out_dic    
 
@@ -233,13 +233,15 @@ def plot_stds(data_dic, cfg):
             ax_ts[-1].set_xticks(np.arange(xlim[0]+0.5*step, xlim[1], step))
             ax_ts[-1].set_xticklabels([str(y)+'-\n'+str(y+9) for y in np.arange(1985, 2090, 10)])
             [a.spines['bottom'].set_visible(False) for a in ax_ts]
+            [a.spines['left'].set_visible(False) for a in ax_ts]
+            [a.tick_params(axis='x', length=0) for a in ax_ts[:-1]]
             [a.get_yaxis().set_visible(False) for a in ax_ts]
             plt.tight_layout()
             cax = fig_ts.add_axes([0.2,0.075,0.6,0.025])
             cbar = fig_ts.colorbar(pmesh, cax=cax, orientation='horizontal')
             cbar.ax.set_xlabel(r'10$^6$ km$^2$' +' SIAa standard deviation')
             fig_ts.subplots_adjust(left=0.01, right=0.99, top=0.9, bottom=0.17, wspace=0.23)  # , hspace=0.2)
-            fig_ts.suptitle('Standard deviation of '+str(ny)+' year DJF SIAa', fontsize='x-large')
+            fig_ts.suptitle('Standard deviation of '+str(ny)+' year DJF Sea Ice Area Anomalies (SIAa)', fontsize='x-large')
             fig_ts.savefig(os.path.join(cfg['plot_dir'], 'std_'+ proj +'_'+ model + diagtools.get_image_format(cfg)))
 
     return   
@@ -275,18 +277,32 @@ def main(cfg):
                         sia_seas_cb = eprep.seasonal_statistics(sia_cb, operator='mean', seasons=['DJF'])
                         # determine the first year of the dataset
                         start_year = input_data[filepath]['start_year']
-                        end_ref_year = start_year + cfg['ref_period_len'] - 1
-                        sia_ano_cb = eprep.anomalies(sia_seas_cb, 'monthly',
+                        end_ref_year = start_year + cfg['ref_period_len']
+                        # including the 1st of January next year depending on how time stamp falls 
+                        sia_ano_cb = eprep.anomalies(sia_seas_cb, 'full',
                             reference={'start_year': start_year,
                             'start_month': 1, 'start_day':1,
                             'end_year': end_ref_year,
-                            'end_month': 12, 'end_day':31})
+                            'end_month': 1, 'end_day':1})
                         mod_cubes.append(sia_ano_cb)
                     proj_dic[dataset][exp] = mod_cubes
             else: 
                 filepath = list(group_metadata(datasets[dataset], 'filename').keys())[0]
                 obs_cb = iris.load_cube(filepath)
-                proj_dic[dataset] = obs_cb
+                # that'a temporary fix. We remove 1987-88 because 2 months out of 3 didn't have data
+                # so far it's done through mask assignment of the 4th year. TODO: improve
+                if obs_cb.data.mask == False:
+                    obs_cb.data.mask = np.zeros(len(obs_cb.data), dtype=bool)
+                obs_cb.data.mask[3] = True
+                obs_cb.data.data[3] = obs_cb.data.fill_value
+                start_year= input_data[filepath]['start_year']
+                end_ref_year = start_year + cfg['ref_period_len']
+                obs_ano_cb = eprep.anomalies(obs_cb, 'full',
+                            reference={'start_year': start_year,
+                            'start_month': 1, 'start_day':1,
+                            'end_year': end_ref_year,
+                            'end_month': 1, 'end_day':1})
+                proj_dic[dataset] = obs_ano_cb
         sia_dic[project] = calculate_multi_stats(proj_dic, project, cfg[project.lower()+'_time_range'], 
                                                                                 n_y = cfg['n_year_std'])
     plot_timeseries(sia_dic, cfg)

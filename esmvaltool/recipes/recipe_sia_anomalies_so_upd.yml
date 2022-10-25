@@ -34,15 +34,15 @@ preprocessors:
     seasonal_statistics:
       operator: mean 
       seasons: ['DJF']
-    anomalies:
-      period: season
-      reference: 
-        start_year: 1985
-        start_month: 1
-        start_day: 1
-        end_year: 2004
-        end_month: 12
-        end_day: 31
+    # anomalies:
+    #   period: season
+    #   reference: 
+    #     start_year: 1985
+    #     start_month: 1
+    #     start_day: 1
+    #     end_year: 2004
+    #     end_month: 12
+    #     end_day: 31
 
 
 cmip6_list: &cmip6_list
