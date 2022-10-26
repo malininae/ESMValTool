@@ -1,0 +1,119 @@
+# ESMValTool
+# recipe_extremes_wind_fiona.yml
+---
+documentation:
+
+  title: 2022 Atlantic Canada storm
+
+  description: This is a recipe for analysing 2022 Atlantic Canada storm Fiona. 
+
+  authors:
+    - malinina_elizaveta
+
+preprocessors:
+  preproc_wsx: 
+    custom_order: True
+    extract_shape:
+      shapefile: atlantic_canada_no_labrador.shp
+      method: contains
+      crop: True
+    area_statistics:
+      operator: max
+    annual_statistics:
+      operator: max
+
+  preproc_gst: 
+    custom_order: True
+    area_statistics:
+      operator: mean
+    annual_statistics:
+      operator: mean
+    anomalies:  
+      period: full
+      reference:
+        start_year: 1950
+        start_month: 1
+        start_day: 1
+        end_year: 1969
+        end_month: 12
+        end_day: 31
+
+  preproc_nast: 
+    custom_order: True
+    extract_shape:
+      shapefile: atlantic_canada_no_labrador.shp
+      method: contains
+      crop: True
+    area_statistics:
+      operator: mean
+    annual_statistics:
+      operator: mean
+    anomalies:  
+      period: full
+      reference:
+        start_year: 1950
+        start_month: 1
+        start_day: 1
+        end_year: 1969
+        end_month: 12
+        end_day: 31
+    
+
+datasets_highresmip: &datasets_highresmip
+  - {dataset: ACCESS-ESM1-5, ensemble: "r(1:18)i1p1f1", mip: day, grid: gn}
+
+diagnostics:
+  wind:
+    description: Figure for NA wind storms
+    variables:
+      wind_now_fut:
+        short_name: sfcWindmax
+        exp: [highresSST-present, highresSST-future]
+        start_year: 1990
+        end_year: 2050
+        project: CMIP6
+        preprocessor: preproc_wsx
+        additional_datasets: *datasets_highresmip      
+      wind_nat: 
+        short_name: sfcWindmax
+        exp: highresSST-present
+        start_year: 1950
+        end_year: 1969
+        project: CMIP6
+        preprocessor: preproc_wsx
+        additional_datasets: *datasets_highresmip
+      gst:
+        short_name: tas
+        exp: [highresSST-present, highresSST-future]
+        start_year: 1990
+        end_year: 2050
+        project: CMIP6
+        preprocessor: preproc_gst
+        additional_datasets: *datasets_highresmip
+      nast:
+        short_name: tas
+        exp: [highresSST-present, highresSST-future]
+        start_year: 1990
+        end_year: 2050
+        project: CMIP6
+        preprocessor: preproc_nast
+        additional_datasets: *datasets_highresmip
+    scripts:
+      xcbox32:
+        script: extreme_events/extremes_wind.py
+        mpl_style: ipcc_ar6_fgd
+        reference_period: [1950, 1969]
+        era_fname_pattern: maximum_2m_temperature_since_previous_post_processing # era is processed from diagnostic, era stored in aux_dir
+        era_regridding_shape: true # determines if needs shapefile or region
+        era_regridding_region: atlantic_canada_no_labrador.shp # region to extract from era, either rectang coords or shape file name
+        fit_distribution: GEV # which distribution to fit, gev or gumbel
+        model_weighting: False # determines, if each realisation gets a weight of 1 (false) or 1/number of relisation
+        name_all: 2011-2030 # this is needed for legend, it's name_{name of a group}
+        name_nat: 1950-1969 
+        name_ssp245: 2081-2100
+        region: Atlantic Canada # needed for the figure title
+        ax_var_label: windspeed # needed for axis name
+        title_var_label: windspeed # needed for title name
+        var_units: km/h 
+        analysis_year: 2022
+
