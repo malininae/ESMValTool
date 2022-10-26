@@ -1,5 +1,5 @@
 import iris
-from iris.experimental.equalise_cubes import equalise_attributes
+from iris.util import equalise_attributes
 import logging
 import numpy as np
 import matplotlib.pyplot as plt

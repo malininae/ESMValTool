@@ -1,0 +1,167 @@
+# ESMValTool
+# recipe_ipcc_ar6_wg1_fgd_sea_ice_joint.yml
+---
+documentation:
+
+  title: Assessment of the SIA trends in CanESM5.1
+  description: plots scatter plot 3.20 for IPCC AR6 WGI Ch 3
+  authors:
+    - malinina_elizaveta
+
+preprocessors:
+  sh_cmip_preproc:
+    custom_order: true
+    extract_month:
+      month: 2
+    regrid:
+      target_grid: 1x1
+      lon_offset: True
+      lat_offset: True
+      scheme: nearest
+    extract_region:
+      start_longitude: 0
+      end_longitude: 360
+      start_latitude: -90
+      end_latitude: -50
+  nh_cmip_preproc:
+    custom_order: true
+    extract_month:
+      month: 9
+    regrid:
+      target_grid: 1x1
+      lon_offset: True
+      lat_offset: True
+      scheme: nearest
+    extract_region:
+      start_longitude: 0
+      end_longitude: 360
+      start_latitude: 50
+      end_latitude: 90
+  mh_cmip_preproc:
+    custom_order: true
+    extract_month:
+      month: 3
+    regrid:
+      target_grid: 1x1
+      lon_offset: True
+      lat_offset: True
+      scheme: nearest
+    extract_region:
+      start_longitude: 0
+      end_longitude: 360
+      start_latitude: 50
+      end_latitude: 90
+  sh_obs_preproc:
+    extract_month:
+      month: 2
+  nh_obs_preproc:
+    extract_month:
+      month: 9
+  mh_obs_preproc:
+    extract_month:
+      month: 3
+
+models_cmip6_list: &models_cmip6_list
+# CMIP6_ALL
+ - {dataset: ACCESS-CM2, institute: CSIRO-ARCCSS, grid: gn, project: CMIP6, ensemble: "r(2:5)i1p1f1"}
+ - {dataset: ACCESS-ESM1-5, grid: gn, project: CMIP6, ensemble:  "r(2:40)i1p1f1"}
+ - {dataset: CAMS-CSM1-0, grid: gn, project: CMIP6, ensemble: "r(1:2)i1p1f1"}
+ - {dataset: CanESM5, grid: gn, project: CMIP6, ensemble: "r(1:25)i1p2f1"}
+ - {dataset: CanESM5.1-p1, institute: CCCma, grid: gn, project: CMIP6, ensemble: "r(1:20)i1p1f1"}
+ - {dataset: CanESM5.1-p1, institute: CCCma, grid: gn, project: CMIP6, ensemble: r22i1p1f1}
+ - {dataset: CanESM5.1-p1, institute: CCCma, grid: gn, project: CMIP6, ensemble: "r(24:39)i1p1f1"}
+ - {dataset: CanESM5.1-p1, institute: CCCma, grid: gn, project: CMIP6, ensemble: "r(41:50)i1p1f1"}
+ - {dataset: CanESM5.1-p2, institute: CCCma, grid: gn, project: CMIP6, ensemble: "r(1:25)i1p2f1"}
+ - {dataset: CESM2, grid: gn, ensemble: "r(1:3)i1p1f1"}
+ - {dataset: EC-Earth3, grid: gn, ensemble: "r(1:2)i1p1f1"}
+ - {dataset: EC-Earth3, grid: gn, ensemble: r6i1p1f1}
+ - {dataset: EC-Earth3, grid: gn, ensemble: r9i1p1f1}
+ - {dataset: EC-Earth3, grid: gn, ensemble: "r(11:17)i1p1f1"}
+ - {dataset: EC-Earth3, grid: gn, ensemble: "r(19:20)i1p1f1"}
+ - {dataset: EC-Earth3, grid: gn, ensemble: r24i1p1f1}
+ - {dataset: EC-Earth3-Veg, grid: gn, ensemble: r2i1p1f1}
+ - {dataset: EC-Earth3-Veg, grid: gn, ensemble: r4i1p1f1}
+ - {dataset: FGOALS-g3, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: GFDL-CM4, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: GFDL-ESM4, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: HadGEM3-GC31-LL, grid: gn, ensemble: "r(1:4)i1p1f3"}
+ - {dataset: INM-CM4-8, grid: gr1, project: CMIP6, ensemble: r1i1p1f1}
+ - {dataset: INM-CM5-0, grid: gr1, project: CMIP6, ensemble: r1i1p1f1 }
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: "r(1:4)i1p1f1"}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: r6i1p1f1}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: "r(10:11)i1p1f1"}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: r14i1p1f1}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: r22i1p1f1}
+ - {dataset: IPSL-CM6A-LR, grid: gn, ensemble: r25i1p1f1}
+ - {dataset: MIROC6, grid: gn, project: CMIP6, ensemble: "r(1:3)i1p1f1"}
+ - {dataset: MIROC-ES2L, grid: gn, ensemble: r1i1p1f2}
+ - {dataset: MPI-ESM1-2-HR, grid: gn, ensemble: r1i1p1f1}
+ - {dataset: MPI-ESM1-2-LR, grid: gn, ensemble: r1i1p1f1}
+ - { dataset: MRI-ESM2-0, grid: gn, project: CMIP6, ensemble: "r(2:5)i1p1f1" }
+ - {dataset: NorESM2-LM, grid: gn, ensemble: "r(2:3)i1p1f1"}
+ - {dataset: UKESM1-0-LL, grid: gn, ensemble: "r(1:4)i1p1f2"}
+ - {dataset: UKESM1-0-LL, grid: gn, ensemble: r8i1p1f2}
+
+observations: &observations
+  - {dataset: UHH-OSISAF, project: OBS, mip: OImon, tier: 2, type: clim, version: v2021}
+  - {dataset: UHH-Bootstrap, project: OBS, mip: OImon, tier: 2, type: clim, version: v2021}
+  - {dataset: UHH-NASATeam, project: OBS, mip: OImon, tier: 2, type: clim, version: v2021}
+
+diagnostics:
+  ipcc_ar6_wg1_fgd_3_20:
+    description: plot the sia scatter plot
+    variables:
+      siconc_cmip_sh:
+        short_name: siconc
+        preprocessor: sh_cmip_preproc
+        project: CMIP6
+        mip: SImon
+        exp: historical 
+        start_year: 1979
+        end_year: 2014
+        additional_datasets: *models_cmip6_list
+      siconc_cmip_nh:
+        short_name: siconc
+        preprocessor: nh_cmip_preproc
+        project: CMIP6
+        mip: SImon
+        exp: historical 
+        start_year: 1979
+        end_year: 2014
+        additional_datasets: *models_cmip6_list
+      siconc_cmip_mh:
+        short_name: siconc
+        preprocessor: mh_cmip_preproc
+        project: CMIP6
+        mip: SImon
+        exp: historical 
+        start_year: 1979
+        end_year: 2014
+        additional_datasets: *models_cmip6_list
+      siarea_obs_nh:
+        short_name: siarean
+        preprocessor: nh_obs_preproc
+        start_year: 1979
+        end_year: 2014
+        additional_datasets: *observations
+      siarea_obs_mh:
+        short_name: siarean
+        preprocessor: mh_obs_preproc
+        start_year: 1979
+        end_year: 2014
+        additional_datasets: *observations
+      siarea_obs_sh:
+        short_name: siareas
+        preprocessor: sh_obs_preproc
+        start_year: 1979
+        end_year: 2014
+        additional_datasets: *observations
+
+    scripts:
+      ipcc_ar6_wg1_fgd_3_20:
+        script: seaice/sie_ipcc_ar6_wg1_fgd_3_20.py
+        mpl_style: ipcc_ar6_fgd
+        seaiceextent: false # if sea ice extent is false, sea ice area is used instead
+        month_NH: 9 # month and latitude for NH panel
+        month_MH: 3 # month and latitude for MH (Northern hemisphere in March) panel
+        month_SH: 2 # month and latitude for SH panel
