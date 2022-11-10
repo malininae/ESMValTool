@@ -24,43 +24,6 @@ preprocessors:
     annual_statistics:
       operator: max
 
-  preproc_gst: 
-    custom_order: True
-    area_statistics:
-      operator: mean
-    annual_statistics:
-      operator: mean
-    anomalies:  
-      period: full
-      reference:
-        start_year: 1950
-        start_month: 1
-        start_day: 1
-        end_year: 1969
-        end_month: 12
-        end_day: 31
-
-  preproc_nast: 
-    custom_order: True
-    extract_shape:
-      shapefile: atlantic_canada_no_labrador.shp
-      method: contains
-      crop: True
-    area_statistics:
-      operator: mean
-    annual_statistics:
-      operator: mean
-    anomalies:  
-      period: full
-      reference:
-        start_year: 1950
-        start_month: 1
-        start_day: 1
-        end_year: 1969
-        end_month: 12
-        end_day: 31
-    
-
 datasets_highresmip: &datasets_highresmip
   # - {dataset: FGOALS-f3-H, ensemble: r1i1p1f1, grid: gr} # res 0.25 d # 1953 monotonic time coord sfcwindmax
   - {dataset: CMCC-CM2-VHR4, ensemble: r1i1p1f1, grid: gn} # res 0.25d 
@@ -75,15 +38,6 @@ datasets_highresmip: &datasets_highresmip
   - {dataset: MRI-AGCM3-2-S, ensemble: r1i1p1f1, grid: gn} # res 0.56° × 0.56° 
   - {dataset: GFDL-CM4C192, ensemble: r1i1p1f1, grid: gr3} #  res 0.56
 
-  # datasets_low_highresmip: &datasets_low_highresmip
-  # - {dataset: FGOALS-f3-L, ensemble: r1i1p1f1, grid: gr} # res 1d # wind works
-  # - {dataset: CMCC-CM2-HR4, ensemble: r1i1p1f1, grid: gn} # res 1d # wind works
-  # - {dataset: CNRM-CM6-1, ensemble: "r(1:10)i1p1f2", grid: gr} # res 1d # fails: wind 6 60s
-  # - {dataset: EC-Earth3P, ensemble: r1i1p1f1, grid: gr} #  res 80km # 1:3, fails: wind 3 1957
-  # - {dataset: HadGEM3-GC31-LM, ensemble: "r1i(1:3)p1f1", grid: gn} # fails: tas 1 1951 # 3 tas 2017
-  # - {dataset: HadGEM3-GC31-LM, ensemble: "r1i(14:15)p1f1", grid: gn} # i14 tas 52 fails
-  # - {dataset: HadGEM3-GC31-MM, ensemble: "r1i(2:3)p1f1", grid: gn} # res 0.56° × 0.83° # 1 tas 50 fails
-  # - {dataset: MPI-ESM1-2-HR, ensemble: r1i1p1f1, grid: gn} # tas 2018 doesn't load
 
 diagnostics:
   wind:
@@ -110,47 +64,29 @@ diagnostics:
       wind_fut: 
         short_name: sfcWindmax
         exp: highresSST-future
-        start_year: 2015
+        start_year: 2031
         end_year: 2050
         project: CMIP6
         mip: day
         preprocessor: preproc_wsx
-        additional_datasets: *datasets_highresmip
-      gst:
-        short_name: tas
-        exp: [highresSST-present, highresSST-future]
-        start_year: 1950
-        end_year: 2050
-        project: CMIP6
-        mip: Amon
-        preprocessor: preproc_gst
-        additional_datasets: *datasets_highresmip
-      nast:
-        short_name: tas
-        exp: [highresSST-present, highresSST-future]
-        start_year: 1950
-        end_year: 2050
-        project: CMIP6
-        mip: Amon
-        preprocessor: preproc_nast
         additional_datasets: *datasets_highresmip
     scripts:
       xcbox32:
         script: extreme_events/extremes_wind.py
         mpl_style: ipcc_ar6_fgd
         reference_period: [1950, 1969]
-        era_fname_pattern: maximum_2m_temperature_since_previous_post_processing # era is processed from diagnostic, era stored in aux_dir
+        era_year_span: [1950, 2022]
         era_regridding_shape: true # determines if needs shapefile or region
         era_regridding_region: atlantic_canada_no_labrador.shp # region to extract from era, either rectang coords or shape file name
         fit_distribution: GEV # which distribution to fit, gev or gumbel
         model_weighting: False # determines, if each realisation gets a weight of 1 (false) or 1/number of relisation
-        name_now: 2011-2030 # this is needed for legend, it's name_{name of a group}
-        name_nat: 1950-1969 
-        name_fut: 2031-2050
+        name_wind_now: 2011-2030 # this is needed for legend, it's name_{name of a group}
+        name_wind_nat: 1950-1969 
+        name_wind_fut: 2031-2050
         region: Atlantic Canada # needed for the figure title
         season: JJASON
         ax_var_label: windspeed # needed for axis name
-        title_var_label: windspeed # needed for title name
-        var_units: km/h 
+        title_var_label: Wind speed # needed for title name
+        var_units: m/s 
         analysis_year: 2022
 
