@@ -1,0 +1,19 @@
+---
+# Filename
+filename: 'td_hadisst2.2_cis_great_cmc_monthly_360x180_195901_202201_sicn.nc'
+
+# Common global attributes for Cmorizer output
+attributes:
+  dataset_id: Had2CIS
+  version: 'v1'
+  tier: 2
+  modeling_realm: clim
+  project_id: OBS
+  source: 'https://crd-data-donnees-rdc.ec.gc.ca/CCCMA/products/TMP/'
+  reference: 'had2cis'
+  comment: ''
+
+# Variables to cmorize
+variables:
+  sic:
+    mip: OImon
