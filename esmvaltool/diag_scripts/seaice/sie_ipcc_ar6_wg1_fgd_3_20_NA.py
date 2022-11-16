@@ -120,8 +120,8 @@ def make_panel(data_dict, nrow, ncol, idx, obs_dic, verb_month, hemisph, proj):
     obs_scat = list()
     for n_o, obs in enumerate(obs_dic.keys()):
         obs_scat_p = ax.scatter(obs_dic[obs]['mean'], obs_dic[obs]['dec_slope'],
-                                label='OBS: '+obs.split('-')[0], s=200, marker="*", zorder=2,
-                                c=obs_cbar(n_o * obs_cmap_step))
+                                label='OBS: '+obs, s=250, marker="*", zorder=2,
+                                facecolor=obs_cbar(n_o * obs_cmap_step), edgecolor='k')
         obs_scat.append(obs_scat_p)
 
     mme_sty = eplot.get_dataset_style('MultiModelMean', proj.lower() +'_canesm.yml')
@@ -139,17 +139,10 @@ def make_panel(data_dict, nrow, ncol, idx, obs_dic, verb_month, hemisph, proj):
             mod_obs_p = ax.errorbar(data_dict[model]['mean'], data_dict[model]['dec_slope'], label = model, 
                                 yerr=data_dict[model]['slope_std'],xerr=data_dict[model]['mean_std'], 
                                 c=sty['color'], marker=sty['mark'], ms=7, zorder=3)
-            # mod_obs_p = ax.scatter(data_dict[model]['mean'], data_dict[model]['dec_slope'],
-            #         label=model, c=sty['color'], marker=sty['mark'], s=50, zorder=2)
-            # ax.scatter(data_dict[model]['means_all'], data_dict[model]['slopes_all'], edgecolor='none',
-            #            facecolor = sty['color'], linewidth=0, alpha=0.2, s=50, zorder=4)
         else:
-            # mod_obs_p = ax.scatter(data_dict[model]['mean'], data_dict[model]['dec_slope'],
-            #         edgecolor=sty['color'], facecolor='none',
-            #         linewidths=2, marker=sty['mark'], s=50, zorder=2)
             mod_obs_p = ax.errorbar(data_dict[model]['mean'], data_dict[model]['dec_slope'],
                                     yerr=data_dict[model]['slope_std'],xerr=data_dict[model]['mean_std'], 
-                                    c=sty['color'], marker=sty['mark'], ms=7, zorder=3)
+                                    c=sty['color'], marker=sty['mark'], ms=7, zorder=1)
         mod_obs.append(mod_obs_p)
         xs.append(data_dict[model]['mean'])
 
@@ -182,8 +175,8 @@ def make_panel(data_dict, nrow, ncol, idx, obs_dic, verb_month, hemisph, proj):
         ax.set_ylim(-0.3, 0.05)
         ax.set_xlim(-0.1, 2)
         ax.set_yticks(np.arange(-0.3, 0.06, 0.1))
-        y_text = -0.28
-        x_text = 1.5
+        y_text = -0.29
+        x_text = 1.0
 
 
     ax.text(x_text, y_text, 'r=' + str(np.around(stat_params['corr_coef'], 2)) +
@@ -209,7 +202,7 @@ def make_plot(data_dict, cfg):
                        12: 'December'}
 
     fig = plt.figure()
-    fig.set_size_inches(7.5, 5.5)
+    fig.set_size_inches(12., 5.5)
     fig.set_dpi(300)
 
     for n_h, hemisph in enumerate(sorted(data_dict.keys())):
@@ -222,7 +215,7 @@ def make_plot(data_dict, cfg):
 
     fig.suptitle('Mean (x-axis) sea ice area (SIA) and its trend (y-axis)',
                  fontsize='x-large', x=0.38)
-    fig.subplots_adjust(left=0.11, right=0.73, top=0.88, bottom=0.1, wspace=0.25, hspace=0.4)
+    fig.subplots_adjust(left=0.06, right=0.835, top=0.88, bottom=0.1, wspace=0.25, hspace=0.4)
 
     # for np, proj in enumerate(data_dict[hemisph].keys()):
     #     fig.text(0.37, 0.92-0.47*np, proj, fontsize = 'x-large')
@@ -235,7 +228,7 @@ def main(cfg):
     dtsts = Datasets(cfg)
 
     # here we create the dictionary which afterwards will be plotted
-    data_dict = {'NA': {'CMIP6': {}, 'OBS':{}}}
+    data_dict = {'NH': {'CMIP6': {}, 'OBS':{}}, 'SH': {'CMIP6': {}, 'OBS':{}},'NA': {'CMIP6': {}, 'OBS':{}}}
 
     for hemisph in data_dict.keys():
         # here we choose the month and the part of hemisphere
@@ -243,7 +236,13 @@ def main(cfg):
         for project in data_dict[hemisph].keys():
             models = set(dtsts.get_info_list('dataset', project=project))
             for model in models:
-                ens_fnames = dtsts.get_info_list('filename', dataset=model, project=project)
+                if project == 'CMIP6': 
+                    grp = 'siconc_cmip_'+hemisph.lower()
+                elif model == 'Had2CIS':
+                    grp = 'sic_had2cis_'+hemisph.lower()
+                else: 
+                    grp= 'sic_nsidc_'+hemisph.lower()
+                ens_fnames = dtsts.get_info_list('filename', dataset=model, project=project, variable_group=grp)
                 ens_cubelist = iris.load(ens_fnames)
                 # calculating sea ice area or extent, depending on seaiceextent
                 sea_ice_cubelist = ipcc_sea_ice_diag.calculate_siparam(ens_cubelist, cfg['seaiceextent'])
