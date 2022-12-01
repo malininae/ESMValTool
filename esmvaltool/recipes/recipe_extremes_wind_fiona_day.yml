@@ -11,7 +11,7 @@ documentation:
     - malinina_elizaveta
 
 preprocessors:
-  preproc_wsx: 
+  preproc_wsx_nat: 
     custom_order: True
     extract_season:
       season: JJASON
@@ -23,6 +23,71 @@ preprocessors:
       operator: max
     annual_statistics:
       operator: max
+    anomalies:
+      period: full
+      reference:
+        start_year: 1950
+        start_month: 1
+        start_day: 1
+        end_year: 1969
+        end_month: 12
+        end_day: 31
+  preproc_wsx_all: 
+    custom_order: True
+    extract_season:
+      season: JJASON
+    extract_shape:
+      shapefile: atlantic_canada_no_labrador.shp
+      method: contains
+      crop: True
+    area_statistics:
+      operator: max
+    annual_statistics:
+      operator: max
+    anomalies:
+      period: full
+      reference:
+        start_year: 1950
+        start_month: 1
+        start_day: 1
+        end_year: 1969
+        end_month: 12
+        end_day: 31
+    extract_time:
+      start_year: 2011
+      start_month: 1
+      start_day: 1
+      end_year: 2030
+      end_month: 12
+      end_day: 31
+  preproc_wsx_fut: 
+    custom_order: True
+    extract_season:
+      season: JJASON
+    extract_shape:
+      shapefile: atlantic_canada_no_labrador.shp
+      method: contains
+      crop: True
+    area_statistics:
+      operator: max
+    annual_statistics:
+      operator: max
+    anomalies:
+      period: full
+      reference:
+        start_year: 1950
+        start_month: 1
+        start_day: 1
+        end_year: 1969
+        end_month: 12
+        end_day: 31
+    extract_time:
+      start_year: 2031
+      start_month: 1
+      start_day: 1
+      end_year: 2050
+      end_month: 12
+      end_day: 31
 
 datasets_highresmip: &datasets_highresmip
   # - {dataset: FGOALS-f3-H, ensemble: r1i1p1f1, grid: gr} # res 0.25d #cmor time frequency
@@ -47,11 +112,11 @@ diagnostics:
       wind_now:
         short_name: sfcWind
         exp: [highresSST-present, highresSST-future]
-        start_year: 2011
+        start_year: 1950
         end_year: 2030
         project: CMIP6
         mip: day
-        preprocessor: preproc_wsx
+        preprocessor: preproc_wsx_all
         additional_datasets: *datasets_highresmip      
       wind_nat: 
         short_name: sfcWind
@@ -60,16 +125,16 @@ diagnostics:
         end_year: 1969
         project: CMIP6
         mip: day
-        preprocessor: preproc_wsx
+        preprocessor: preproc_wsx_nat
         additional_datasets: *datasets_highresmip
       wind_fut: 
         short_name: sfcWind
-        exp: highresSST-future
-        start_year: 2031
+        exp: [highresSST-present, highresSST-future]
+        start_year: 1950
         end_year: 2050
         project: CMIP6
         mip: day
-        preprocessor: preproc_wsx
+        preprocessor: preproc_wsx_fut
         additional_datasets: *datasets_highresmip
     scripts:
       xcbox32:
