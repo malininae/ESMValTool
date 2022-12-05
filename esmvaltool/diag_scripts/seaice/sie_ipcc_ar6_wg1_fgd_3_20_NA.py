@@ -139,6 +139,8 @@ def make_panel(data_dict, nrow, ncol, idx, obs_dic, verb_month, hemisph, proj):
             mod_obs_p = ax.errorbar(data_dict[model]['mean'], data_dict[model]['dec_slope'], label = model, 
                                 yerr=data_dict[model]['slope_std'],xerr=data_dict[model]['mean_std'], 
                                 c=sty['color'], marker=sty['mark'], ms=7, zorder=3)
+            ax.scatter(data_dict[model]['means_all'], data_dict[model]['slopes_all'], edgecolor='none',
+                       facecolor = sty['color'], linewidth=0, alpha=0.2, s=50, zorder=1)
         else:
             mod_obs_p = ax.errorbar(data_dict[model]['mean'], data_dict[model]['dec_slope'],
                                     yerr=data_dict[model]['slope_std'],xerr=data_dict[model]['mean_std'], 
@@ -205,7 +207,8 @@ def make_plot(data_dict, cfg):
     fig.set_size_inches(12., 5.5)
     fig.set_dpi(300)
 
-    for n_h, hemisph in enumerate(sorted(data_dict.keys())):
+    for n_h, hemisph in enumerate(data_dict.keys()):
+    # for n_h, hemisph in enumerate(sorted(data_dict.keys())):
         verb_month = verb_month_dict[data_dict[hemisph].pop('month')]
         obs_dic = data_dict[hemisph].pop('OBS')
         nrows = len(data_dict[hemisph].keys())
