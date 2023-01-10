@@ -36,40 +36,6 @@ preprocessors:
         end_month: 12
         end_day: 31
 
-  preproc_txx_map:
-    custom_order: True
-    regrid:
-      target_grid: 0.5x0.5
-      lon_offset: 0.25
-      lat_offset: 0.25
-      scheme: linear
-    extract_region:
-      start_longitude: 217
-      end_longitude: 310
-      start_latitude: 38
-      end_latitude: 85     
-    annual_statistics:
-      operator: max
-    anomalies:
-      period: full
-      reference:
-        start_year: 1950
-        start_month: 1
-        start_day: 1
-        end_year: 1969
-        end_month: 12
-        end_day: 31
-    extract_time:
-      start_year: 1991
-      start_month: 1
-      start_day: 1
-      end_year: 2020
-      end_month: 12
-      end_day: 31
-    climate_statistics: 
-      operator: mean
-      period: full  
-
 datasets:
   - {dataset: ACCESS-ESM1-5, ensemble: "r(1:15)i1p1f1", grid: gn}
   - {dataset: ACCESS-ESM1-5, ensemble: "r(21:24)i1p1f1", grid: gn}
@@ -126,7 +92,7 @@ datasets_tasmax: &datasets_tasmax
 
 
 diagnostics:
-  xcbox32:
+  analytics:
     description: Figure for BC extremes
     variables:
       txx_all:
@@ -138,20 +104,14 @@ diagnostics:
         project: CMIP6
         preprocessor: preproc_txx_flat
         additional_datasets: *datasets_tasmax  
-      map_txx:
-        short_name: tasmax
-        exp: [historical, ssp245]
-        start_year: 1950
-        end_year: 2020
-        mip: day
-        project: CMIP6
-        preprocessor: preproc_txx_map
-        additional_datasets: *datasets_tasmax  
     scripts:
-      xcbox32:
+      analytics:
         script: extreme_events/extremes_bc_temp_analytics.py
         mpl_style: ipcc_ar6_fgd
         reference_period: [1950, 1969]
+        model_weighting: False
+        era_fname_pattern: maximum_2m_temperature_since_previous_post_processing
+        era_regridding_region: british_columbia.shp
         fit_distribution: GEV # which distribution to fit, gev or gumbel
         name_all: 1950-2022 # this is needed for legend, it's name_{name of a group}
         region: BC # needed for the figure title

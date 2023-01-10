@@ -175,7 +175,8 @@ def create_gev_plot(data_dic, mixns, fit_param_apr, uncert_dic, ano_shp_cb, cfg)
     head_row = ['model', 'shape', 'shape_min', 'shape_5', 'shape_95', 'shape_max',
                 'loc', 'loc_min', 'loc_5', 'loc_95', 'loc_max',
                 'scale', 'scale_min', 'scale_5', 'scale_95', 'scale_max', 
-                'ks_stat', 'ks_p_value', 'cvm_stat', 'cvm_p_value']
+                'ks_mod_stat', 'ks_mod_p_value', 'cvm_mod_stat', 'cvm_mod_p_value',
+                'ks_obs_stat', 'ks_obs_p_value', 'cvm_obs_stat', 'cvm_obs_p_value']
     gevs_csv_writer.writerow(head_row)
 
     quantile_measures = np.arange(0, 1.01, 0.01); quantile_measures[0] = 0.001
@@ -226,8 +227,10 @@ def create_gev_plot(data_dic, mixns, fit_param_apr, uncert_dic, ano_shp_cb, cfg)
         w_survival = gev.sf(x_gev, *w_distr_par)
         theor_quants = gev(*w_distr_par).ppf(quantile_measures)
         era_surv = gev.sf(x_gev, *era_gevs)
-        ks_res = kstest(distrib_data, gev(*w_distr_par).cdf)
-        cvm_res = cramervonmises(distrib_data, gev(*w_distr_par).cdf)
+        ks_mod_res = kstest(distrib_data, gev(*w_distr_par).cdf)
+        cvm_mod_res = cramervonmises(distrib_data, gev(*w_distr_par).cdf)
+        ks_obs_res = kstest(distrib_data, gev(*era_gevs).cdf)
+        cvm_obs_res = cramervonmises(distrib_data, gev(*era_gevs).cdf)
         event_idx = np.argmin(np.abs(x_gev - ana_year))
         era_event_prob = era_surv[event_idx]
         model_row.extend([w_distr_par[-3], uncert_dic[model]['shape_min'], uncert_dic[model]['shape_5']])
@@ -236,7 +239,8 @@ def create_gev_plot(data_dic, mixns, fit_param_apr, uncert_dic, ano_shp_cb, cfg)
         model_row.extend([uncert_dic[model]['loc_95'], uncert_dic[model]['loc_max']])            
         model_row.extend([w_distr_par[-1], uncert_dic[model]['scale_min'], uncert_dic[model]['scale_5']])
         model_row.extend([uncert_dic[model]['scale_95'], uncert_dic[model]['scale_max']])            
-        model_row.extend([ks_res.statistic, ks_res.pvalue, cvm_res.statistic, cvm_res.pvalue])
+        model_row.extend([ks_mod_res.statistic, ks_mod_res.pvalue, cvm_mod_res.statistic, cvm_mod_res.pvalue])
+        model_row.extend([ks_obs_res.statistic, ks_obs_res.pvalue, cvm_obs_res.statistic, cvm_obs_res.pvalue])
         n_bins = np.arange(border[0], border[1]+0.1, 1)
         ax_hist.hist(distrib_data, bins=n_bins, edgecolor=col_mod,
                 facecolor = col_mod, alpha=0.3, label=cfg['name_all'] , density=True, weights=weights, zorder = 5)
@@ -424,7 +428,7 @@ def main(cfg):
     input_data = cfg['input_data']
 
     groups = group_metadata(input_data.values(), 'variable_group', sort=True)
-    groups_l = list(groups.keys()); groups_l.remove('map_txx') # change before running the others
+    groups_l = list(groups.keys()) # ; groups_l.remove('map_txx') # change before running the others
 
     distrib_fit= cfg['fit_distribution']
 
