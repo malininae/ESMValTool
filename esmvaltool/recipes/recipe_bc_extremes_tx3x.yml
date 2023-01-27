@@ -24,6 +24,10 @@ preprocessors:
       crop: True
     area_statistics:
       operator: mean
+    rolling_window_statistics:
+      coordinate: time
+      operator: mean
+      window_length: 3
     annual_statistics:
       operator: max
     anomalies:
@@ -74,6 +78,10 @@ preprocessors:
       crop: True
     area_statistics:
       operator: mean
+    rolling_window_statistics:
+      coordinate: time
+      operator: mean
+      window_length: 3
     annual_statistics:
       operator: max
 
@@ -236,8 +244,8 @@ diagnostics:
         name_nat: 1850-1900 
         name_ssp245: 2081-2100
         region: BC # needed for the figure title
-        ax_var_label: TXx # needed for axis name
-        title_var_label: TXx # needed for title name
+        ax_var_label: TX3x # needed for axis name
+        title_var_label: TX3x # needed for title name
         var_units: C 
         analysis_year: 2021
 

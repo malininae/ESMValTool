@@ -27,51 +27,6 @@ logger = logging.getLogger(os.path.basename(__file__))
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
 
-def get_era_txx(cfg):
-
-    aux_dir = cfg['auxiliary_data_dir']
-    work_dir = cfg['work_dir']
-    pattern = cfg['era_fname_pattern']
-    years = np.arange(cfg['era_year_span'][0], cfg['era_year_span'][1]+1)
-
-    era_dir = os.path.join(work_dir, 'era5')
-    if not os.path.exists(era_dir):
-        os.makedirs(era_dir)
-
-    shp_arr = list()
-
-    for n, y in enumerate(years): 
-        era_fname = glob.glob(os.path.join(aux_dir, 'era5_'+pattern+'_'+str(y)+'*.nc'))[0]
-        f_ending = era_fname[len(aux_dir)+6+len(pattern):] 
-        era_cb = iris.load_cube(era_fname) 
-        era_cb = eprep.daily_statistics(era_cb, operator = 'max')
-        era_cb.coord('latitude').guess_bounds()
-        era_cb.coord('longitude').guess_bounds()
-        shp_cb = eprep.extract_shape(era_cb, os.path.join(aux_dir,cfg['era_regridding_region']), method='contains', crop=True)
-        shp_cb_ar = eprep.area_statistics(shp_cb, 'mean')
-        iris.save(shp_cb_ar, os.path.join(era_dir,'daily_era5_'+pattern +'_'+f_ending)) 
-        shp_y_max = eprep.annual_statistics(shp_cb_ar, 'max').data[0]
-        shp_arr.append(shp_y_max)
-
-    shp_arr = np.asarray(shp_arr)
-
-    tims = [cftime.datetime(y, 7, 15, calendar='gregorian') for y in years]
-    tim_dim = iris.coords.DimCoord(cftime.date2num(tims,'days since 1850-01-01', calendar='gregorian'), 
-                                   standard_name='time', long_name='time', var_name='time',
-                                    units=cf_units.Unit('days since 1850-01-01', calendar='gregorian'))
-    tim_dim.guess_bounds()   
-
-    era_txx_shp_big_cube = iris.cube.Cube(shp_arr, long_name='TXx', var_name='txx', 
-                                    units="K", dim_coords_and_dims=[(tim_dim,0)])
-
-    ano_shp_cb = eprep.anomalies(era_txx_shp_big_cube, 'full',
-                        reference={'start_year': cfg['reference_period'][0],
-                        'start_month': 1, 'start_day':1,
-                        'end_year': cfg['reference_period'][1],
-                        'end_month': 12, 'end_day':31})
-
-    return ano_shp_cb
-
 def calculate_uncert_band(data_dic, mixns, cfg):
 
     border = [np.floor(mixns['min']*1.5), np.ceil(mixns['max']*1.5)]
@@ -106,9 +61,8 @@ def calculate_uncert_band(data_dic, mixns, cfg):
 
     return uncert_band
 
-def get_ref_params(data_cb, cfg, distrib = 'gev'):
+def get_ref_params(data_cb, ana_year, cfg, distrib = 'gev'):
 
-    era_2021 = data_cb.data[-2]
     if distrib.lower() == 'gev':
         era_gev_params = gev.fit(data_cb.data)
     elif distrib.lower() == 'gumbel':
@@ -117,24 +71,24 @@ def get_ref_params(data_cb, cfg, distrib = 'gev'):
     era_ks = kstest(data_cb.data, gev(*era_gev_params).cdf)
     era_cvm = cramervonmises(data_cb.data, gev(*era_gev_params).cdf)
     
-    orig_rp = np.around(1/gev.sf(era_2021, *era_gev_params), 1)
+    orig_rp = np.around(1/gev.sf(ana_year, *era_gev_params), 1)
     bootstrap_rps = list()
     rng = np.random.default_rng(501)
 
     for i in range(1000): 
         for_fit = rng.choice(data_cb.data, size=len(data_cb.data), replace=True)
-        for_fit = np.append(for_fit, era_2021)
+        for_fit = np.append(for_fit, ana_year)
         temp_gev = gev.fit(for_fit)
-        temp_rp = np.around(1/gev.sf(era_2021, *temp_gev), 1)
+        temp_rp = np.around(1/gev.sf(ana_year, *temp_gev), 1)
         bootstrap_rps.append(temp_rp)
     
     bootstrap_rps = np.asarray(bootstrap_rps)
 
     rp_perc = np.percentile(bootstrap_rps, [5,10,50,90,95]).round(1)
 
-    era_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_era_data.csv'), 'w', newline='')
+    era_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_era_data_'+cfg['region'].lower()+'_'+cfg['ax_var_label'].lower()+'.csv'), 'w', newline='')
     era_csv_writer = csv.writer(era_csv, delimiter=',')
-    era_csv_writer.writerow(['2021 ERA value '+str(era_2021)])
+    era_csv_writer.writerow([str(cfg['analysis_year'])+' ERA value '+str(ana_year)])
     era_csv_writer.writerow(['ERA ' +distrib +' params'])
     if distrib.lower() == 'gev':
         era_csv_writer.writerow(['shape', 'loc', 'scale'])
@@ -145,7 +99,7 @@ def get_ref_params(data_cb, cfg, distrib = 'gev'):
     era_csv_writer.writerow([era_ks.statistic, era_ks.pvalue])
     era_csv_writer.writerow(['CvM test params: statistic', 'pvalue'])
     era_csv_writer.writerow([era_cvm.statistic, era_cvm.pvalue])
-    era_csv_writer.writerow(['2021 ERA return period', str(np.around(orig_rp,1))])
+    era_csv_writer.writerow([str(cfg['analysis_year'])+' ERA return period', str(np.around(orig_rp,1))])
     era_csv_writer.writerow(['Bootstrapped uncertanties on ERA return period'])
     era_csv_writer.writerow(['5_perc', '10_perc', '50_perc', '90_perc', '95_perc'])
     era_csv_writer.writerow(rp_perc)
@@ -156,8 +110,10 @@ def get_ref_params(data_cb, cfg, distrib = 'gev'):
 
 def create_gev_plot(data_dic, mixns, fit_param_apr, uncert_dic, ano_shp_cb, cfg):
 
-    ana_year = ano_shp_cb.data[-2]
-    era_gevs = get_ref_params(ano_shp_cb, cfg)
+    ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
+    ana_year =  ano_shp_cb.extract(ana_year_const).data
+
+    era_gevs = get_ref_params(ano_shp_cb, ana_year, cfg)
 
     x_gev = uncert_dic.pop('x_gev')
     border = [np.floor(mixns['min']*1.5), np.ceil(mixns['max']*1.5)]
@@ -165,12 +121,12 @@ def create_gev_plot(data_dic, mixns, fit_param_apr, uncert_dic, ano_shp_cb, cfg)
     col_mod = (25/255, 14/255, 79/255)
     col_obs = 'indianred'
 
-    risk_csv = open(os.path.join(cfg['work_dir'], 'gev_risk_data.csv'), 'w', newline='')
+    risk_csv = open(os.path.join(cfg['work_dir'], 'gev_risk_data_'+cfg['region'].lower()+'_'+cfg['ax_var_label'].lower()+'.csv'), 'w', newline='')
     risk_csv_writer = csv.writer(risk_csv, delimiter=',')
     risk_head_row = ['model','prob', 'RP', 'RP5', 'RP95', 'intens', 'intens5', 'intens95']
     risk_csv_writer.writerow(risk_head_row)
 
-    csv_file = open(os.path.join(cfg['work_dir'], 'gev_parameters.csv'), 'w', newline='')
+    csv_file = open(os.path.join(cfg['work_dir'], 'gev_parameters'+cfg['region'].lower()+'_'+cfg['ax_var_label'].lower()+'.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
     head_row = ['model', 'shape', 'shape_min', 'shape_5', 'shape_95', 'shape_max',
                 'loc', 'loc_min', 'loc_5', 'loc_95', 'loc_max',
@@ -271,9 +227,9 @@ def create_gev_plot(data_dic, mixns, fit_param_apr, uncert_dic, ano_shp_cb, cfg)
         ax_hist.set_ylim(*ylims)
 
         ax_hist.text(border[0]/1.22, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
-        ax_hist.vlines(ana_year, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 (2021)')
+        ax_hist.vlines(ana_year, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 ('+str(cfg['analysis_year'])+')')
 
-        ax_surv.vlines(ana_year, 0.1, 1/era_event_prob, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 (2021)')
+        ax_surv.vlines(ana_year, 0.1, 1/era_event_prob, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 ('+str(cfg['analysis_year'])+')')
         ax_surv.hlines(1/era_event_prob, x_gev[0], ana_year,linestyle = 'solid', color='indianred', zorder=2)
 
         ax_hist.legend(loc=2, fancybox=False, frameon=False)
@@ -307,14 +263,14 @@ def create_gev_plot(data_dic, mixns, fit_param_apr, uncert_dic, ano_shp_cb, cfg)
 
         plt.tight_layout()
         
-        fig.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region'].lower()+'_extremes_' +model + diagtools.get_image_format(cfg)))
+        fig.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region'].lower()+'_'+cfg['ax_var_label'].lower()+'_extremes_' +model + diagtools.get_image_format(cfg)))
 
     csv_file.close()
     risk_csv.close()
 
     return
 
-def  calculate_stds(data_dic, ano_shp_cb, cfg):   
+def calculate_stds(data_dic, ano_shp_cb, cfg):   
 
     era_var = ano_shp_cb.data.std()
     
@@ -361,7 +317,7 @@ def  calculate_stds(data_dic, ano_shp_cb, cfg):
 
     plt.tight_layout()
 
-    fig_stds.savefig(os.path.join(cfg['plot_dir'], 'stds.'+cfg['output_file_type']))           
+    fig_stds.savefig(os.path.join(cfg['plot_dir'], 'stds_'+cfg['region'].lower()+'_'+cfg['ax_var_label'].lower()+'.'+cfg['output_file_type']))           
 
 
     return
@@ -374,7 +330,7 @@ def create_timeseries(data_dic, mixns, ano_shp_cb, cfg):
     col_mod = (25/255, 14/255, 79/255)
     col_obs = 'indianred'
 
-    t_s = np.arange(cfg['era_year_span'][0], cfg['era_year_span'][1]+1)
+    t_s = np.arange(cfg['year_span'][0], cfg['year_span'][1]+1)
 
     for dataset in data_dic.keys(): 
         fig_ts, ax_ts = plt.subplots(nrows=1, ncols=1)
@@ -416,19 +372,20 @@ def create_timeseries(data_dic, mixns, ano_shp_cb, cfg):
 
         plt.tight_layout()
 
-        fig_ts.savefig(os.path.join(cfg['plot_dir'], 'ts_'+dataset+'.'+cfg['output_file_type']))
+        fig_ts.savefig(os.path.join(cfg['plot_dir'], 'ts_'+cfg['region'].lower()+'_'+cfg['ax_var_label'].lower()+'_'+dataset+'.'+cfg['output_file_type']))
 
     return
 
 
 def main(cfg):
 
-    ano_shp_cb = get_era_txx(cfg)
-
     input_data = cfg['input_data']
 
     groups = group_metadata(input_data.values(), 'variable_group', sort=True)
-    groups_l = list(groups.keys()) # ; groups_l.remove('map_txx') # change before running the others
+    obs_info = groups.pop('obs')
+    ano_shp_cb = iris.load_cube(obs_info[0]['filename'])
+
+    groups_l = list(groups.keys())
 
     distrib_fit= cfg['fit_distribution']
 

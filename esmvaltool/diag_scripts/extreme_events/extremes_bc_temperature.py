@@ -23,90 +23,6 @@ logger = logging.getLogger(os.path.basename(__file__))
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
 
-def anomaly_txNx(cfg):
-
-    anomaly_metadata = select_metadata(cfg['input_data'].values(), variable_group='anomaly')
-
-    new_fdir = os.path.join(cfg['work_dir'], 'anomaly')
-    if not os.path.exists(new_fdir):    
-        os.makedirs(new_fdir)
-
-    for single_anomaly in anomaly_metadata: 
-        orig_fname = single_anomaly['filename']
-        f_name = orig_fname.split('/')[-1]
-        new_fname = os.path.join(new_fdir, 'tx'+str(cfg['n_days'])+'x_'+f_name)
-        ano_cb = iris.load_cube(orig_fname)
-        if cfg.get('n_days')>1: 
-            ano_cb = ano_cb.rolling_window('time', iris.analysis.MEAN, cfg['n_days'])
-        txNx_cube = eprep.annual_statistics(ano_cb, operator='max')
-        txNx_cube = eprep.climate_statistics(txNx_cube, operator='mean', period='full')
-        iris.save(txNx_cube, os.path.join(new_fdir,new_fname))
-        cfg['input_data'][new_fname] = cfg['input_data'].pop(orig_fname)
-        cfg['input_data'][new_fname]['filename'] = new_fname
-
-    return
-
-
-def get_era_txx(cfg):
-
-    analysis_year = cfg['analysis_year']
-    aux_dir = cfg['auxiliary_data_dir']
-    work_dir = cfg['work_dir']
-    pattern = cfg['era_fname_pattern']
-    cont_aux = sorted(glob.glob(aux_dir + '/era5_' + pattern+'*.nc'))
-
-    era_dir = os.path.join(work_dir, 'era5')
-    if not os.path.exists(era_dir):
-        os.makedirs(era_dir)
-
-    for n, era_fname in enumerate(cont_aux): 
-        f_ending = era_fname[len(aux_dir)+6+len(pattern):] 
-        current_year = int(era_fname[len(aux_dir)+6+len(pattern)+1:len(aux_dir)+6+len(pattern)+5])
-        era_cb = iris.load_cube(era_fname) 
-        if pattern == 'total_precipitation':
-            era_cb = eprep.daily_statistics(era_cb, operator = 'sum')*1000
-        elif pattern == 'maximum_2m_temperature_since_previous_post_processing': 
-            era_cb = eprep.daily_statistics(era_cb, operator = 'max')
-        if cfg['era_regridding_shape']:
-            era_cb.coord('latitude').guess_bounds()
-            era_cb.coord('longitude').guess_bounds()
-            reg_cube = eprep.extract_shape(era_cb, os.path.join(aux_dir,cfg['era_regridding_region']), method='contains', crop=True)
-        else:
-            reg_cube = eprep.extract_region(era_cb, cfg['era_regridding_region'][0], cfg['era_regridding_region'][1], 
-                            cfg['era_regridding_region'][2], cfg['era_regridding_region'][3])
-        era_cb_pr = eprep.area_statistics(reg_cube, 'mean')
-        iris.save(era_cb_pr, os.path.join(era_dir,'daily_era5_'+pattern +'_'+f_ending)) 
-
-    era_files = sorted(glob.glob(era_dir + '/daily_era5_'+pattern +'*'))
-
-    era_cubelist = iris.load(era_files)
-    equalise_attributes(era_cubelist)
-
-    for n in range(len(era_cubelist)): 
-        era_cubelist[n].data = era_cubelist[n].data.astype('float32')
-        if era_cubelist[n].coord('time').units != era_cubelist[0].coord('time').units: 
-            era_cubelist[n].coord('time').units = era_cubelist[0].coord('time').units
-
-    era_big_cube = era_cubelist.concatenate_cube()
-
-    if cfg.get('n_days')>1: 
-            era_big_cube = era_big_cube.rolling_window('time', iris.analysis.MEAN, cfg['n_days'])
-    era_txx_big_cube = eprep.annual_statistics(era_big_cube, 'max')  
-
-    ref_era_cb = eprep.extract_time(era_txx_big_cube,
-                        start_year=cfg['reference_period'][0],
-                        start_month=1, start_day=1,
-                        end_year=cfg['reference_period'][1]+1,
-                        end_month=1, end_day=1)
-
-    ref_era_cb = eprep.climate_statistics(ref_era_cb, operator='mean',
-                                                           period='full')
-
-    ano_era_cb = era_txx_big_cube - ref_era_cb 
-
-    return era_txx_big_cube, ano_era_cb
-
-
 def bootstrap_gev(data_dic, distrib = 'gev'): 
 
     if type(data_dic) == dict:  
@@ -270,7 +186,8 @@ def make_uncert_figures(data_dic, cfg, border, distrib='gev'):
 
 def get_ref_params(ref_data_cb, cfg, distrib = 'gev'):
 
-    era_2021 = ref_data_cb.data[-1]
+    ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
+    era_2021 = ref_data_cb.extract(ana_year_const).data
     if distrib.lower() == 'gev':
         era_gev_params = gev.fit(ref_data_cb.data)
     elif distrib.lower() == 'gumbel':
@@ -294,9 +211,9 @@ def get_ref_params(ref_data_cb, cfg, distrib = 'gev'):
 
     rp_perc = np.percentile(bootstrap_rps, [5,10,50,90,95]).round(1)
 
-    era_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_era_data.csv'), 'w', newline='')
+    era_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_'+cfg['region']+'_'+cfg['ax_var_label'] +'_era_data.csv'), 'w', newline='')
     era_csv_writer = csv.writer(era_csv, delimiter=',')
-    era_csv_writer.writerow(['2021 ERA value '+str(era_2021)])
+    era_csv_writer.writerow([str(cfg['analysis_year'])+' ERA value '+str(era_2021)])
     era_csv_writer.writerow(['ERA ' +distrib +' params'])
     if distrib.lower() == 'gev':
         era_csv_writer.writerow(['shape', 'loc', 'scale'])
@@ -307,7 +224,7 @@ def get_ref_params(ref_data_cb, cfg, distrib = 'gev'):
     era_csv_writer.writerow([era_ks.statistic, era_ks.pvalue])
     era_csv_writer.writerow(['CvM test params: statistic', 'pvalue'])
     era_csv_writer.writerow([era_cvm.statistic, era_cvm.pvalue])
-    era_csv_writer.writerow(['2021 ERA return period', str(np.around(orig_rp,1))])
+    era_csv_writer.writerow([str(cfg['analysis_year'])+' ERA return period', str(np.around(orig_rp,1))])
     era_csv_writer.writerow(['Bootstrapped uncertanties on ERA return period'])
     era_csv_writer.writerow(['5_perc', '10_perc', '50_perc', '90_perc', '95_perc'])
     era_csv_writer.writerow(rp_perc)
@@ -319,15 +236,16 @@ def get_ref_params(ref_data_cb, cfg, distrib = 'gev'):
 def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'gev'):
 
     era_cb = data_dic['reanalysis']
-    event = era_cb.data[-1]
+    ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
+    event = era_cb.extract(ana_year_const).data
 
     era_params = get_ref_params(era_cb, cfg, distrib)
 
-    risk_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_risk_data.csv'), 'w', newline='')
+    risk_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_'+cfg['region']+'_'+cfg['ax_var_label'] +'_risk_data.csv'), 'w', newline='')
     risk_csv_writer = csv.writer(risk_csv, delimiter=',')
     risk_head_row = ['model']
 
-    risk_uncert_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_uncert_risk_data.csv'), 'w', newline='')
+    risk_uncert_csv = open(os.path.join(cfg['work_dir'], distrib.lower()+'_'+cfg['region']+'_'+cfg['ax_var_label'] +'_uncert_risk_data.csv'), 'w', newline='')
     risk_uncert_csv_writer = csv.writer(risk_uncert_csv, delimiter=',')
     risk_uncert_head_row = ['model','all/nat_r_r_5', 'all/nat_r_r_10', 'all/nat_r_r_50','all/nat_r_r_90', 'all/nat_r_r_95',
                             'ssp/nat_r_r_5', 'ssp/nat_r_r_10', 'ssp/nat_r_r_50', 'ssp/nat_r_r_90', 'ssp/nat_r_r_95',
@@ -342,7 +260,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
               'nat' : (0, 79 / 255, 0), 
               'ssp245' : (69 / 255, 118 / 255, 191 / 255)}
 
-    csv_file = open(os.path.join(cfg['work_dir'], distrib.lower()+'_parameters.csv'), 'w', newline='')
+    csv_file = open(os.path.join(cfg['work_dir'], distrib.lower()+'_'+cfg['region']+'_'+cfg['ax_var_label'] +'_parameters.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
     head_row = ['model']
     for exp_key in exp_list:
@@ -450,9 +368,9 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         ax_hist.set_ylim(*ylims)
 
         ax_hist.text(border[0]/1.22, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
-        ax_hist.vlines(event, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 (2021)')
+        ax_hist.vlines(event, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 ('+ str(cfg['analysis_year'])+')')
 
-        ax_surv.vlines(event, 0.1, 1/era_event_prob, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 (2021)')
+        ax_surv.vlines(event, 0.1, 1/era_event_prob, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 ('+ str(cfg['analysis_year'])+')')
         ax_surv.hlines(1/era_event_prob, x_gev[0], event,linestyle = 'solid', color='indianred', zorder=2)
 
         ax_hist.legend(loc=2, fancybox=False, frameon=False)
@@ -486,7 +404,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
 
         plt.tight_layout()
         
-        fig.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region'].lower()+'_extremes_'+distrib.lower() +'_'+model + diagtools.get_image_format(cfg)))
+        fig.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region']+'_'+cfg['ax_var_label'] +'_extremes_'+distrib.lower() +'_'+model + diagtools.get_image_format(cfg)))
 
         all_to_nat = list(); ssp_to_nat = list(); ssp_to_all = list()
         for i in range(uncert_band['all'][model]['sf_data_full'].shape[1]):
@@ -497,7 +415,8 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
         all_to_nat_perc = np.percentile(all_to_nat, [5,10,50,90,95])
         ssp_to_nat_perc = np.percentile(ssp_to_nat, [5,10,50,90,95])
         ssp_to_all_perc = np.percentile(ssp_to_all, [5,10,50,90,95])
-        risk_uncert_row = np.concatenate((all_to_nat_perc, ssp_to_nat_perc, ssp_to_all_perc))
+        risk_uncert_row = [model]
+        risk_uncert_row.extend(np.concatenate((all_to_nat_perc, ssp_to_nat_perc, ssp_to_all_perc)))
         risk_uncert_csv_writer.writerow(risk_uncert_row)
     
     risk_uncert_csv.close()
@@ -505,9 +424,11 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param, distrib = 'g
     return
 
 
-def make_era_dist_figure(abs_cube, ano_cube, cfg, border, distrib = 'gev'):
+def make_era_dist_figure(abs_cube, cfg, border, distrib = 'gev'):
 
     abs_cube = abs_cube - 273.15
+    ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
+
     border[0] = np.floor(abs_cube.data.min()*0.8)
     border[1] = np.ceil(abs_cube.data.max()*1.1)
     x_gev_fine = np.arange(border[0], border[1]+0.1, 0.1)
@@ -537,7 +458,7 @@ def make_era_dist_figure(abs_cube, ano_cube, cfg, border, distrib = 'gev'):
     ylims = ax_era_hist.get_ylim()
     ax_era_hist.text(border[1]*0.9,ylims[1]*0.3,distrib + ' params:\n' + 'shape: '+ str(np.around(era_param[0],2))+'\n  loc: '+\
                                  str(np.around(era_param[1],2))+ '\nscale: '+str(np.around(era_param[2],2)), color='k')
-    ax_era_hist.scatter(abs_cube.data[-1], 0, c='indianred', marker='x',lw=2, s=100, label='2021', clip_on=False, zorder=4)
+    ax_era_hist.scatter(abs_cube.extract(ana_year_const).data, 0, c='indianred', marker='x',lw=2, s=100, label=str(cfg['analysis_year']), clip_on=False, zorder=4)
     ax_era_hist.set_xlim(*border)
     ax_era_hist.set_xlabel(cfg['ax_var_label'] +', ' + cfg['var_units'])
     ax_era_hist.set_ylabel('Number density')
@@ -547,8 +468,8 @@ def make_era_dist_figure(abs_cube, ano_cube, cfg, border, distrib = 'gev'):
     ax_era_surv.set_title('ERA5 ' +  cfg['ax_var_label'] +' return period')
     ax_era_surv.set_xlabel(cfg['ax_var_label'] +', ' + cfg['var_units'])
     ax_era_surv.set_ylabel('years')
-    era_idx = np.argmin(np.abs(x_gev_fine-abs_cube.data[-1]))
-    ax_era_surv.scatter(abs_cube.data[-1],1/era_sf[era_idx],c='indianred', marker='x',lw=2, s=100, label='2021', clip_on=False, zorder=4)
+    era_idx = np.argmin(np.abs(x_gev_fine-abs_cube.extract(ana_year_const).data))
+    ax_era_surv.scatter(abs_cube.extract(ana_year_const).data,1/era_sf[era_idx],c='indianred', marker='x',lw=2, s=100, label= str(cfg['analysis_year']), clip_on=False, zorder=4)
     ax_era_surv.text(border[1]*0.8, 5,'ERA5 return period\n    '+str(np.around(1/era_sf[era_idx], 1))+ ' years', color='k')
     ax_era_surv.set_yscale('log')
     ax_era_surv.grid(color='silver', axis='both', alpha=0.5)
@@ -566,13 +487,13 @@ def make_era_dist_figure(abs_cube, ano_cube, cfg, border, distrib = 'gev'):
                                      0.19*abs_cube.data.max()-abs_cube.data.mean()*0.2, color='k', length_includes_head=True,  
                                                                                         head_width=0.5, head_length=0.5)
     ax_era_tseries.text(years[-1] - len(years)*0.16, abs_cube.data.mean()*0.2 + 0.77*abs_cube.data.max(), 
-                        'ERA5 2021: '+str(np.around(abs_cube.data.max(),1))+' '+cfg['var_units'])
+                        'ERA5 '+ str(cfg['analysis_year'])+': '+str(np.around(abs_cube.data.max(),1))+' '+cfg['var_units'])
 
     fig_era.suptitle('ERA5 ' + cfg['title_var_label'] + ' in ' + cfg['region'] + ' and its ' + distrib + ' fit', fontsize = 'x-large')
 
     plt.tight_layout()
 
-    fig_era.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region'].lower()+'_era' + diagtools.get_image_format(cfg)))
+    fig_era.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region']+'_'+cfg['ax_var_label'] +'_era' + diagtools.get_image_format(cfg)))
 
 
     return
@@ -580,15 +501,14 @@ def make_era_dist_figure(abs_cube, ano_cube, cfg, border, distrib = 'gev'):
 
 def main(cfg):
 
-    anomaly_txNx(cfg)
-
     input_data = cfg['input_data']
 
     groups = group_metadata(input_data.values(), 'variable_group', sort=True)
 
-    groups_l = list(groups.keys()) ; groups_l.remove('anomaly')
+    abs_obs_info = groups.pop('obs_abs') ; ano_obs_info = groups.pop('obs_ano')
+    abs_era_cube = iris.load_cube(abs_obs_info[0]['filename']) ; ano_era_cube = iris.load_cube(ano_obs_info[0]['filename'])
 
-    abs_era_cube, ano_era_cube = get_era_txx(cfg)
+    groups_l = list(groups.keys())
 
     mins = list(); maxs = list()
 
@@ -610,18 +530,12 @@ def main(cfg):
             for filepath in filepaths:
                 mod_cb = iris.load_cube(filepath)
                 file_metadata = select_metadata(datasets[dataset], filename = filepath)
-                ens = file_metadata[0]['ensemble']
-                if cfg.get('n_days')>1: 
-                    mod_cb = mod_cb.rolling_window('time', iris.analysis.MEAN, cfg['n_days'])
-                txx_cb = eprep.annual_statistics(mod_cb, operator='max')
-                anom_cb = iris.load_cube(select_metadata(input_data.values(), dataset = dataset, ensemble = ens, variable_group = 'anomaly')[0]['filename'])
-                txx_ano_cb = txx_cb - anom_cb
-                mins.append(txx_ano_cb.collapsed('time', iris.analysis.MIN).data)
-                maxs.append(txx_ano_cb.collapsed('time', iris.analysis.MAX).data)
-                txx_ano_cb.attributes['ensemble_weight'] = 1 / n_real
-                txx_ano_cb.attributes['reverse_dtsts_n'] = 1/ len(datasets)
-                ens_cubelist.append(txx_ano_cb)
-                mod_cubelist.append(txx_ano_cb)
+                mins.append(mod_cb.collapsed('time', iris.analysis.MIN).data)
+                maxs.append(mod_cb.collapsed('time', iris.analysis.MAX).data)
+                mod_cb.attributes['ensemble_weight'] = 1 / n_real
+                mod_cb.attributes['reverse_dtsts_n'] = 1/ len(datasets)
+                ens_cubelist.append(mod_cb)
+                mod_cubelist.append(mod_cb)
             plotting_dic[group][dataset] = {'data': mod_cubelist}
             plotting_dic[group][dataset]['uncert'] = bootstrap_gev(mod_cubelist, distrib=distrib_fit)
         plotting_dic[group]['Multi-Model-Mean'] = {'data' : ens_cubelist}
@@ -644,7 +558,7 @@ def main(cfg):
 
     make_hist_figure(plotting_dic, cfg, uncert_band, border, fit_param_apr, distrib = distrib_fit)
 
-    make_era_dist_figure(abs_era_cube, ano_era_cube, cfg, border, distrib = distrib_fit)
+    make_era_dist_figure(abs_era_cube, cfg, border, distrib = distrib_fit)
 
     logger.info('Success')
 

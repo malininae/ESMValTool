@@ -18,10 +18,11 @@ preprocessors:
       lon_offset: 0.25
       lat_offset: 0.25
       scheme: linear    
-    extract_shape:
-      shapefile: british_columbia.shp
-      method: contains
-      crop: True
+    extract_region:
+      start_longitude: -123.0
+      end_longitude: -119.0
+      start_latitude: 45.0
+      end_latitude: 52.0
     area_statistics:
       operator: mean
     annual_statistics:
@@ -68,10 +69,11 @@ preprocessors:
 
   preproc_era_abs: &prep_era_abs
     custom_order: True 
-    extract_shape:
-      shapefile: british_columbia.shp
-      method: contains
-      crop: True
+    extract_region:
+      start_longitude: -123.0
+      end_longitude: -119.0
+      start_latitude: 45.0
+      end_latitude: 52.0
     area_statistics:
       operator: mean
     annual_statistics:
@@ -235,7 +237,7 @@ diagnostics:
         name_all: 2011-2030 # this is needed for legend, it's name_{name of a group}
         name_nat: 1850-1900 
         name_ssp245: 2081-2100
-        region: BC # needed for the figure title
+        region: PNW # needed for the figure title
         ax_var_label: TXx # needed for axis name
         title_var_label: TXx # needed for title name
         var_units: C 

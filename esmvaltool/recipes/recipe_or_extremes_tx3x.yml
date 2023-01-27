@@ -19,11 +19,15 @@ preprocessors:
       lat_offset: 0.25
       scheme: linear    
     extract_shape:
-      shapefile: british_columbia.shp
+      shapefile: oregon.shp
       method: contains
       crop: True
     area_statistics:
       operator: mean
+    rolling_window_statistics:
+      coordinate: time
+      operator: mean
+      window_length: 3
     annual_statistics:
       operator: max
     anomalies:
@@ -69,11 +73,15 @@ preprocessors:
   preproc_era_abs: &prep_era_abs
     custom_order: True 
     extract_shape:
-      shapefile: british_columbia.shp
+      shapefile: oregon.shp
       method: contains
       crop: True
     area_statistics:
       operator: mean
+    rolling_window_statistics:
+      coordinate: time
+      operator: mean
+      window_length: 3
     annual_statistics:
       operator: max
 
@@ -235,9 +243,9 @@ diagnostics:
         name_all: 2011-2030 # this is needed for legend, it's name_{name of a group}
         name_nat: 1850-1900 
         name_ssp245: 2081-2100
-        region: BC # needed for the figure title
-        ax_var_label: TXx # needed for axis name
-        title_var_label: TXx # needed for title name
+        region: Oregon # needed for the figure title
+        ax_var_label: TX3x # needed for axis name
+        title_var_label: TX3x # needed for title name
         var_units: C 
         analysis_year: 2021
 

@@ -19,7 +19,7 @@ preprocessors:
       lat_offset: 0.25
       scheme: linear    
     extract_shape:
-      shapefile: 'british_columbia.shp'
+      shapefile: 'alberta.shp'
       method: 'contains'
       crop: True
     area_statistics:
@@ -39,7 +39,7 @@ preprocessors:
   preproc_era:
     custom_order: True  
     extract_shape:
-      shapefile: 'british_columbia.shp'
+      shapefile: 'alberta.shp'
       method: 'contains'
       crop: True
     area_statistics:
@@ -131,7 +131,7 @@ diagnostics:
         model_weighting: False
         fit_distribution: GEV # which distribution to fit, gev or gumbel
         name_all: 1950-2022 # this is needed for legend, it's name_{name of a group}
-        region: BC # needed for the figure title
+        region: Alberta # needed for the figure title
         ax_var_label: TXx # needed for axis name
         title_var_label: TXx # needed for title name
 
