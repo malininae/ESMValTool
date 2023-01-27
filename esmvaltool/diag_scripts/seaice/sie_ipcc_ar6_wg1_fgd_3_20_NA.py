@@ -101,6 +101,8 @@ def make_panel(data_dict, nrow, ncol, idx, obs_dic, verb_month, hemisph, proj):
 
     obs_cbar = plt.cm.Greys_r
 
+    alph = ['a', 'b', 'c']
+
     if (hemisph == 'NH')|(hemisph == 'MH'):
         region = 'Arctic'
     elif hemisph == 'SH':
@@ -108,7 +110,7 @@ def make_panel(data_dict, nrow, ncol, idx, obs_dic, verb_month, hemisph, proj):
     else:   
         region = 'N.Atlantic'
 
-    title = region + ' SIA in ' + verb_month
+    title = '('+alph[idx-1]+') '+ region + ' SIA in ' + verb_month
 
     ax = plt.subplot(nrow, ncol, idx)
 
@@ -181,8 +183,8 @@ def make_panel(data_dict, nrow, ncol, idx, obs_dic, verb_month, hemisph, proj):
         x_text = 1.0
 
 
-    ax.text(x_text, y_text, 'r=' + str(np.around(stat_params['corr_coef'], 2)) +
-            ' (p=' + str(np.around(stat_params['p_val'], 2)) + ')')
+    # ax.text(x_text, y_text, 'r=' + str(np.around(stat_params['corr_coef'], 2)) +
+    #         ' (p=' + str(np.around(stat_params['p_val'], 2)) + ')')
 
     if idx % ncol == 0:
         ax.legend(loc=6, bbox_to_anchor=(1.0, 0.5), fontsize=10, frameon=False,
