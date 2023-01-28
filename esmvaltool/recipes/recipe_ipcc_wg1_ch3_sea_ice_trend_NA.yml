@@ -140,19 +140,19 @@ diagnostics:
         project: CMIP6
         mip: SImon
         exp: historical 
-        start_year: 1979
+        start_year: 1981
         end_year: 2010
         additional_datasets: *models_cmip6_list
       sic_nsidc_nh:
         short_name: sic
         preprocessor: nh_gen_preproc
-        start_year: 1979
+        start_year: 1981
         end_year: 2010
         additional_datasets: *nsidc-nh
       sic_had2cis_nh: 
         short_name: sic
         preprocessor: nh_had2cis_preproc
-        start_year: 1979
+        start_year: 1981
         end_year: 2010
         additional_datasets: *had2cis
       siconc_cmip_sh:
@@ -161,19 +161,19 @@ diagnostics:
         project: CMIP6
         mip: SImon
         exp: historical 
-        start_year: 1979
+        start_year: 1981
         end_year: 2010
         additional_datasets: *models_cmip6_list
       sic_nsidc_sh:
         short_name: sic
         preprocessor: sh_gen_preproc
-        start_year: 1979
+        start_year: 1981
         end_year: 2010
         additional_datasets: *nsidc-sh
       sic_had2cis_sh: 
         short_name: sic
         preprocessor: sh_had2cis_preproc
-        start_year: 1979
+        start_year: 1981
         end_year: 2010
         additional_datasets: *had2cis
       siconc_cmip_na:
@@ -182,19 +182,19 @@ diagnostics:
         project: CMIP6
         mip: SImon
         exp: historical 
-        start_year: 1979
+        start_year: 1981
         end_year: 2010
         additional_datasets: *models_cmip6_list
       sic_nsidc_na:
         short_name: sic
         preprocessor: na_gen_preproc
-        start_year: 1979
+        start_year: 1981
         end_year: 2010
         additional_datasets: *nsidc-nh
       sic_had2cis_na: 
         short_name: sic
         preprocessor: na_had2cis_preproc
-        start_year: 1979
+        start_year: 1981
         end_year: 2010
         additional_datasets: *had2cis
 
