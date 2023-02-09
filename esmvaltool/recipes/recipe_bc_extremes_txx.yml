@@ -19,8 +19,8 @@ preprocessors:
       lat_offset: 0.25
       scheme: linear    
     extract_shape:
-      shapefile: british_columbia.shp
-      method: contains
+      shapefile: 'british_columbia.shp'
+      method: 'contains'
       crop: True
     area_statistics:
       operator: mean
@@ -69,8 +69,8 @@ preprocessors:
   preproc_era_abs: &prep_era_abs
     custom_order: True 
     extract_shape:
-      shapefile: british_columbia.shp
-      method: contains
+      shapefile: 'british_columbia.shp'
+      method: 'contains'
       crop: True
     area_statistics:
       operator: mean

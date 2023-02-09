@@ -24,6 +24,10 @@ preprocessors:
       crop: True
     area_statistics:
       operator: mean
+    rolling_window_statistics:
+      coordinate: time
+      operator: mean
+      window_length: 7
     annual_statistics:
       operator: max
     anomalies:
@@ -44,6 +48,10 @@ preprocessors:
       crop: True
     area_statistics:
       operator: mean
+    rolling_window_statistics:
+      coordinate: time
+      operator: mean
+      window_length: 7
     annual_statistics:
       operator: max
     anomalies:
@@ -132,6 +140,6 @@ diagnostics:
         fit_distribution: GEV # which distribution to fit, gev or gumbel
         name_all: 1950-2022 # this is needed for legend, it's name_{name of a group}
         region: Alberta # needed for the figure title
-        ax_var_label: TXx # needed for axis name
-        title_var_label: TXx # needed for title name
+        ax_var_label: TX7x # needed for axis name
+        title_var_label: TX7x # needed for title name
 
