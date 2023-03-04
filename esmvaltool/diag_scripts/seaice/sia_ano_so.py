@@ -96,13 +96,18 @@ def calculate_multi_stats(proj_dic, project, proj_time_range, n_y=10):
         for exp in exps:
             model_data = []
             weights = []
+            mmm_stds = []
             for dtst in dtsts:
+                dt_stds = []
                 exp_dtst_cont = proj_dic[dtst][exp]
                 mod_time = exp_dtst_cont[0].coord('time')
                 if len(exp_dtst_cont) >1:
                     data = np.zeros((len(exp_dtst_cont), len(mod_time.points)))
                     for nm, mod_cb in enumerate(exp_dtst_cont):
                         data[nm,:] = mod_cb.data
+                        dt_std = calculate_n_y_stats(mod_cb.data, proj_time_range, n_y)
+                        dt_stds.append(dt_std.data[0])
+                        mmm_stds.append(dt_std.data[0])
                         model_data.append(mod_cb.data)
                         weights.append(np.full(len(mod_time.points), 1/len(exp_dtst_cont)))
                     mod_mean = np.mean(data, axis=0)
@@ -113,10 +118,13 @@ def calculate_multi_stats(proj_dic, project, proj_time_range, n_y=10):
                     out_dic[dtst][exp][str(n_y)+'_y_std'] = n_y_std_cb
                     out_dic[dtst][exp]['mean_ts'] = mod_mean_cb
                     out_dic[dtst][exp]['individual_ts'] = exp_dtst_cont
+                    out_dic[dtst][exp]['individual_stds'] = dt_stds
                 else:
                     out_dic[dtst][exp]['mean_ts'] = exp_dtst_cont[0]
                     n_y_std_cb = calculate_n_y_stats(exp_dtst_cont[0].data, proj_time_range, n_y= n_y)
                     out_dic[dtst][exp][str(n_y)+'_y_std'] = n_y_std_cb
+                    out_dic[dtst][exp]['individual_stds'] = n_y_std_cb.data[0]
+                    mmm_stds.append(n_y_std_cb.data[0])
                     model_data.append(exp_dtst_cont[0].data)
                     weights.append(np.full(len(exp_dtst_cont[0].coord('time').points), 1))
 
@@ -125,6 +133,7 @@ def calculate_multi_stats(proj_dic, project, proj_time_range, n_y=10):
 
             out_dic['Multi-Model'][exp] = {}
             
+            out_dic['Multi-Model'][exp]['individual_stds'] = mmm_stds
             out_dic['Multi-Model'][exp][str(n_y)+'_y_std'] = calculate_n_y_stats(model_data, proj_time_range, n_y=n_y, weights=weights)
 
             mult_m_mean = np.average(model_data, axis=0, weights=weights)
@@ -246,6 +255,89 @@ def plot_stds(data_dic, cfg):
 
     return   
 
+def plot_hist(sia_dic, cfg):
+
+    cols = {'historical-ssp245': (0.37890625, 0.32421875, 0.796875),
+            'piControl': (0.61328125, 0.79296875, 0.7265625)}
+
+    for model in sia_dic['CMIP6'].keys():
+        fig_hist, ax_hist = plt.subplots(nrows=1, ncols=1)
+        fig_hist.set_size_inches(8., 5.)
+        fig_hist.set_dpi(200)
+        for exp in sia_dic['CMIP6'][model].keys():
+            dt = np.asarray(sia_dic['CMIP6'][model][exp]['individual_stds']).flatten()
+            ax_hist.hist(dt, bins=np.arange(0,1.01,0.05),edgecolor='none',
+                        facecolor = cols[exp], alpha=0.5, label = exp, density=True)  
+        ax_hist.legend(loc=0, fancybox=False, frameon=False) 
+        ax_hist.set_ylabel('number density')
+        ax_hist.set_xlabel('SIAa STDs')
+        fig_hist.suptitle('Distribution of 10-y STDs in '+model) 
+        fig_hist.savefig(os.path.join(cfg['plot_dir'],'histogram_stds_'+model+'.png'))
+
+    return    
+
+def plot_var(sia_dic, cfg):
+
+    mmm = sia_dic['CMIP6'].pop('Multi-Model')
+
+    cols = {'historical': (0.37890625, 0.32421875, 0.796875),
+            'ssp245' : (0.6484375, 0., 0.40234375),
+            'piControl': (0.61328125, 0.79296875, 0.7265625)}
+
+    for y_c in range(0,11):
+
+        fig_stds, ax_stds = plt.subplots(nrows=1, ncols=1)
+        fig_stds.set_size_inches(8., 9.)
+        fig_stds.set_dpi(200)
+
+        if y_c <3: 
+            hist_c = cols['historical']
+            for n_o, obs in enumerate(sia_dic['OBS'].keys()):
+                cnum = list(np.full(3, 10 + n_o*190/len(list(sia_dic['OBS'].keys())))/255)
+                std_cb = sia_dic['OBS'][obs]['10_y_std']
+                ax_stds.axvline(std_cb.data[0,y_c], -1, len(sia_dic['CMIP6'].keys()) + 1, c=cnum, zorder=1+y_c)
+        else:
+            hist_c = cols['ssp245']
+
+        y = 1985 + y_c*10 
+
+        y_ticks = np.arange(0, len(sia_dic['CMIP6'].keys()))
+        y_labs = np.zeros(len(sia_dic['CMIP6'].keys()), dtype='<U30')
+
+        for nm, model in enumerate(sia_dic['CMIP6'].keys()):
+            hist_cblst = sia_dic['CMIP6'][model]['historical-ssp245']
+            pi_cblst = sia_dic['CMIP6'][model]['piControl']
+            try: 
+                hist_ts = hist_cblst['individual_ts']
+                for cb in hist_ts:   
+                    std = np.std(cb.data[y_c*10:(y_c*10+10)])
+                    ax_stds.scatter(std, nm, s=50, marker='o', c=hist_c, clip_on=False, zorder=5)
+            except:
+                hist_std = hist_cblst['10_y_std']
+                ax_stds.scatter(hist_std.data[0,y_c], nm, s=50, marker='o', c=hist_c, clip_on=False, zorder=5)
+            try:
+                pi_ts = pi_cblst['individual_ts']
+                for cb in pi_ts:   
+                    std = np.std(cb.data[y_c*10:(y_c*10+10)])
+                    ax_stds.scatter(std, nm, s=50, marker='o', c=cols['piControl'], clip_on=False, zorder=10)
+            except: 
+                pi_std = pi_cblst['10_y_std']
+                ax_stds.scatter(pi_std.data[0,y_c], nm, s=50, marker='o', c=cols['piControl'], clip_on=False, zorder=10)    
+            y_labs[nm] = model
+
+        ax_stds.set_ylim(len(sia_dic.keys()) -0.8, -0.2)
+        ax_stds.set_yticks(y_ticks, labels=y_labs)
+        ax_stds.grid(which='both', c='silver')
+
+        ax_stds.set_xlabel(r'10$^6$ km$^2$' +' SIAa standard deviation')
+        fig_stds.suptitle('STDs in CMIP6 SIA anomalies('+str(y)+'-'+str(y+9)+')', fontsize = 'large')
+        
+        plt.tight_layout()
+
+        fig_stds.savefig(os.path.join(cfg['plot_dir'], 'stds_'+str(y)+'.'+cfg['output_file_type']))  
+        
+    return    
+
 def main(cfg):
     
     input_data = cfg['input_data']
@@ -308,6 +400,10 @@ def main(cfg):
     plot_timeseries(sia_dic, cfg)
 
     plot_stds(sia_dic, cfg)
+
+    plot_hist(sia_dic, cfg)
+
+    plot_var(sia_dic, cfg)
     
     # plot meshplot for obs and CMIP6 
 
