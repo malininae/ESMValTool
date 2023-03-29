@@ -87,6 +87,29 @@ All pull requests
 - 🛠 Changed dependencies are :ref:`added or removed correctly <dependencies>`
 - 🛠 The :ref:`checks shown below the pull request <pull_request_checks>` are successful
 
+If a pull request introduces a change that causes a recipe to
+no longer run successfully (*breaking change*), or which results in scientifically
+significant changes in results (*science change*), additional requirements
+defined in the :ref:`backward compatibility policy<backward-compatibility-policy>` apply.
+These include in particular:
+
+- 🛠 Instructions for the release notes to assist *recipe
+  developers* to adapt their recipe in light of the *backward-incompatible change*
+  available.
+- 🛠 If applicable, instructions for *recipe developers* working on *user
+  recipes* to enable them to adapt their code related to
+  *backward-incompatible changes* available (see `ESMValTool_Tutorial: issue
+  #263 <https://github.com/ESMValGroup/ESMValTool_Tutorial/issues/263>`__)
+  available.
+- 🛠 Core development team tagged to notify them of the
+  *backward-incompatible change*, and give at least
+  2 weeks for objections to be raised before merging to the main
+  branch. If a strong objection is raised the backward-incompatible
+  change should not be merged until the objection is resolved.
+- 🛠 Information required for the “*backward-incompatible changes*”
+  section in the PR  that introduces the *backward-incompatible change*
+  available.
+
 New or updated recipe and/or diagnostic
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -419,7 +442,7 @@ name to the list of authors in ``CITATION.cff`` and generate the entry for the
 ::
 
    pip install cffconvert
-   cffconvert --ignore-suspect-keys --outputformat zenodo --outfile .zenodo.json
+   cffconvert --format zenodo --outfile .zenodo.json
 
 Note that authors of recipes and/or diagnostics also need to be added to the file
 `esmvaltool/config-references.yml <https://github.com/ESMValGroup/ESMValTool/blob/main/esmvaltool/config-references.yml>`__,
@@ -447,22 +470,11 @@ When adding or removing dependencies, please consider applying the changes in
 the following files:
 
 - ``environment.yml``
-  contains development dependencies that cannot be installed from
-  `PyPI <https://pypi.org/>`__/`CRAN <https://cran.r-project.org/>`__/`Julia package registry <https://github.com/JuliaRegistries/General>`__
+  contains dependencies that cannot be installed from
+  `PyPI <https://pypi.org/>`__/`Julia package registry <https://github.com/JuliaRegistries/General>`__
 - ``environment_osx.yml``
   contains development dependencies for MacOSX. Should be the same as ``environment.yml``,
   but currently without multi language support.
-- ``docs/sphinx/source/requirements.txt``
-  contains Python dependencies needed to build the documentation that can be
-  installed from PyPI
-- ``docs/sphinx/source/conf.py``
-  contains a list of Python dependencies needed to build the documentation that
-  cannot be installed from PyPI and need to be mocked when building the
-  documentation.
-  (We do not use conda to build the documentation because this is too time
-  consuming.)
-- ``esmvaltool/install/R/r_requirements.txt``
-  contains R dependencies that can be installed from CRAN
 - ``esmvaltool/install/Julia/Project.toml``
   contains Julia dependencies that can be installed from the default Julia
   package registry
