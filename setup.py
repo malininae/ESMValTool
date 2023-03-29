@@ -20,12 +20,11 @@ REQUIREMENTS = {
     # Installation dependencies
     # Use with pip install . to install from source
     'install': [
+        'aiohttp',
         'cartopy',
         'cdo',
         'cdsapi',
-        # see https://github.com/SciTools/cf-units/issues/218
-        # see https://github.com/ESMValGroup/ESMValCore/issues/1655
-        'cf-units>=3.0.0,<3.1.0,!=3.0.1.post0',
+        'cf-units',
         'cftime',
         'cmocean',
         'dask',
@@ -33,6 +32,7 @@ REQUIREMENTS = {
         'eofs',
         'ESMPy',
         'esmvalcore',
+        'esmf-regrid',
         'fiona',
         'GDAL',
         'jinja2',
@@ -42,8 +42,9 @@ REQUIREMENTS = {
         'matplotlib',
         'natsort',
         'nc-time-axis',
-        'netCDF4!=1.6.1',  # github.com/ESMValGroup/ESMValCore/pull/1724
+        'netCDF4',
         'numpy',
+        'packaging',
         'openpyxl',
         'pandas',
         'pyproj',
@@ -61,28 +62,30 @@ REQUIREMENTS = {
         'scitools-iris',
         'seaborn',
         'seawater',
-        'shapely',
+        'shapely<2.0.0',  # github.com/ESMValGroup/ESMValTool/issues/2965
         'xarray',
         'xesmf==0.3.0',
         'xgboost>1.6.1',  # github.com/ESMValGroup/ESMValTool/issues/2779
         'xlsxwriter',
+        'zarr',
     ],
     # Test dependencies
     # Execute `pip install .[test]` once and the use `pytest` to run tests
     'test': [
-        'flake8<4',
+        'flake8',
         'pytest>=3.9,!=6.0.0rc1,!=6.0.0',
         'pytest-cov>=2.10.1',
         'pytest-env',
-        'pytest-flake8>=1.0.6',
         'pytest-html!=2.1.0',
         'pytest-metadata>=1.5.1',
+        'pytest-mock',
         'pytest-xdist',
     ],
     # Documentation dependencies
     'doc': [
         'autodocsumm>=0.2.2',
-        'sphinx>=5',
+        'nbsphinx',
+        'sphinx>=6.1.3',
         'sphinx_rtd_theme',
     ],
     # Development dependencies
