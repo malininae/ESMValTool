@@ -47,14 +47,12 @@ def obtain_obs_info(groups, cfg):
     ana_arg = max(np.where(ano_obs_arr == ana_year_value)[0])
     ana_gsat = gsat_smooth_arr[ana_arg]
 
-    # calculate stationary gev to make the non-stationary fit better constrained
+    # calculate stationary gev 
     obs_stat = cex.fit_gev(ano_obs_arr, returnValue=ana_year_value, getParams=True)
     orig_stat_rp = np.exp(obs_stat['logReturnPeriod'][0]) # it is the only value, we are making it a float
 
-    obs_non_stat = cex.fit_gev(ano_obs_arr, gsat_smooth_arr, locationFun=1, returnValue=ana_year_value, 
-                                            initial={'location':float(np.around(obs_stat['mle'][0],2)),
-                                            'scale':float(np.around(obs_stat['mle'][1],2)), 
-                                            'shape':float(np.around(obs_stat['mle'][2],2))}, getParams=True)
+    # calculate non-stationary GEV
+    obs_non_stat = cex.fit_gev(ano_obs_arr, gsat_smooth_arr, locationFun=1, returnValue=ana_year_value, getParams=True)
     orig_nonstat_rp = np.exp(obs_non_stat['logReturnPeriod'][ana_arg])
 
     bootstrap_rps = list()
@@ -64,9 +62,7 @@ def obtain_obs_info(groups, cfg):
         for_fit_indices = rng.integers(low=0, high=len(ano_obs_arr), size=len(ano_obs_arr))
         for_fit_indices.sort()
         temp_gev = cex.fit_gev(ano_obs_arr[for_fit_indices], gsat_smooth_arr[for_fit_indices],
-                               locationFun=1, initial={'location':float(np.around(obs_stat['mle'][0],2)),
-                                            'scale':float(np.around(obs_stat['mle'][1],2)), 
-                                            'shape':float(np.around(obs_stat['mle'][2],2))}, getParams=True)
+                               locationFun=1, getParams=True)
         try:
             temp_loc = temp_gev['mle'][0] + temp_gev['mle'][1]*ana_gsat
             temp_rp = np.around(1/gev.sf(ana_year_value, -1*temp_gev['mle'][3],
@@ -183,7 +179,6 @@ def make_uncert_figures(data_dic, cfg, border):
 
     gev_params = ['shape', 'loc', 'scale']
 
-
     for model in models: 
 
         # this is a figure where we will plot single distributions from bootstrap
@@ -250,7 +245,7 @@ def make_uncert_figures(data_dic, cfg, border):
         ax_single_bootstrap.legend(loc=0, fancybox=False, frameon=False)
         ax_single_bootstrap.set_xlim(border[0], border[1])
         ax_single_bootstrap.set_ylim(0, ax_single_bootstrap.get_ylim()[1])
-        ax_single_bootstrap.set_xlabel('TXx anomaly, C')
+        ax_single_bootstrap.set_xlabel(cfg['ax_var_label']+' anomaly, '+ cfg['var_units'])
         ax_single_bootstrap.set_ylabel('Number density')
 
         fig_single_bootstrap.suptitle('Estimation of GEV fit uncertainty from '+model+' with Bootstrap method',
@@ -347,11 +342,11 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
                 distrib_data = np.asarray(upd_distr_data)
                 weights = np.asarray(new_weights)
             x_gev = uncert_band[exp_key][model]['x_gev']
-            # w_distr_par = cex.fit_gev(distrib_data, returnValue=event, initial={'location':float(np.around(apr_param[exp_key]['loc'],2)),
-            #                                 'scale':float(np.around(apr_param[exp_key]['scale'],2)), 
-            #                                 'shape': -1*float(np.around(apr_param[exp_key]['shape'],2))}, getParams=True)
             w_distr_par = cex.fit_gev(distrib_data, returnValue=event, getParams=True)
-            w_distr_loc = w_distr_par['mle'][0]; w_distr_scale = w_distr_par['mle'][1]; w_distr_shape = w_distr_par['mle'][2]
+            try:
+                w_distr_loc = w_distr_par['mle'][0]; w_distr_scale = w_distr_par['mle'][1]; w_distr_shape = w_distr_par['mle'][2]
+            except:
+                w_distr_loc = np.nan ; w_distr_scale = np.nan ; w_distr_shape = np.nan
             w_pdf = gev.pdf(x_gev, -1*w_distr_shape, loc=w_distr_loc, scale=w_distr_scale)
             w_survival = gev.sf(x_gev, -1*w_distr_shape, loc=w_distr_loc, scale=w_distr_scale)
             theor_quants = gev(-1*w_distr_shape, loc=w_distr_loc, scale=w_distr_scale).ppf(quantile_measures)
@@ -377,7 +372,11 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
             intens = x_gev[np.argmin(np.abs(w_survival-era_event_prob))]
             intens_95 = x_gev[np.argmin(np.abs(sf_perc_95-era_event_prob))]
             intens_5 = x_gev[np.argmin(np.abs(sf_perc_5-era_event_prob))]
-            risk_model_row.extend([1/np.exp(w_distr_par['logReturnPeriod'][0]), np.exp(w_distr_par['logReturnPeriod'][0]), np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],5),
+            try:
+                risk_model_row.extend([1/np.exp(w_distr_par['logReturnPeriod'][0]), np.exp(w_distr_par['logReturnPeriod'][0]), np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],5),
+                                    np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],95), intens, intens_5, intens_95])
+            except:
+                risk_model_row.extend([np.nan, np.nan, np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],5),
                                     np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],95), intens, intens_5, intens_95])
             pract_quants = np.quantile(distrib_data, quantile_measures)
             ax_qq.scatter(theor_quants, pract_quants, edgecolors=colors[exp_key], marker='o', facecolors='None', lw=0.75, label=cfg['name_' + exp_key], zorder=3)
