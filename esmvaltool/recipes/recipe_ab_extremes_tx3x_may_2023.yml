@@ -3,9 +3,9 @@
 ---
 documentation:
 
-  title: GEVs 2021 BC heatwave
+  title: GEVs 2023 May Alberta heatwave
 
-  description: This is a recipe for analysing 2021 BC heat wave.
+  description: This is a recipe for analysing 2023 Alberta heat wave.
 
   authors:
     - malinina_elizaveta
@@ -19,7 +19,7 @@ preprocessors:
       lat_offset: 0.25
       scheme: linear    
     extract_shape:
-      shapefile: british_columbia.shp
+      shapefile: alberta.shp
       method: contains
       crop: True
     area_statistics:
@@ -28,19 +28,11 @@ preprocessors:
       coordinate: time
       operator: mean
       window_length: 3
-    annual_statistics:
-      operator: max
-  
-  preproc_ano:
-    <<: *prep_txx
-    climate_statistics: 
-      operator: mean
-      period: full
 
   preproc_era_abs: &prep_era_abs
     custom_order: True 
     extract_shape:
-      shapefile: british_columbia.shp
+      shapefile: alberta.shp
       method: contains
       crop: True
     area_statistics:
@@ -49,11 +41,13 @@ preprocessors:
       coordinate: time
       operator: mean
       window_length: 3
-    annual_statistics:
-      operator: max
 
-  preproc_era_ano: 
-    <<: *prep_era_abs   
+  preproc_era_gsat:
+    custom_order: True  
+    area_statistics:
+      operator: mean    
+    annual_statistics:
+      operator: mean
     anomalies:
       period: full
       reference:
@@ -63,13 +57,6 @@ preprocessors:
         end_year: 1959
         end_month: 12
         end_day: 31
-
-  preproc_gsat:
-    custom_order: True  
-    area_statistics:
-      operator: mean    
-    annual_statistics:
-      operator: mean
 
 datasets_tasmax: &datasets_tasmax
   - {dataset: ACCESS-ESM1-5, ensemble: "r(1:18)i1p1f1", grid: gn}
@@ -113,11 +100,9 @@ datasets_tasmax: &datasets_tasmax
   - {dataset: NorESM2-MM, ensemble: r2i1p1f1, grid: gn}
   - {dataset: TaiESM1, ensemble: r1i1p1f1, grid: gn}
 
+
 dataset_era: &dataset_era
   - {dataset: ERA5, project: OBS6, type: reanaly, version: '1', tier: 3}
-
-dataset_hadcrut: &dataset_hadcrut
-  - {dataset: HadCRUT5, project: OBS, mip: Amon, tier: 2, type: ground, version: 5.0.1.0-analysis}
 
 diagnostics:
   xcbox32:
@@ -126,8 +111,8 @@ diagnostics:
       all:
         short_name: tasmax
         exp: [historical, ssp245]
-        start_year: 2011
-        end_year: 2030
+        start_year: 2013
+        end_year: 2032
         project: CMIP6
         mip: day
         preprocessor: preproc_txx
@@ -157,42 +142,42 @@ diagnostics:
         end_year: 1959
         project: CMIP6
         mip: day
-        preprocessor: preproc_ano
+        preprocessor: preproc_txx
         additional_datasets: *datasets_tasmax
       obs_abs:
         short_name: tasmax
         start_year: 1940
-        end_year: 2022
+        end_year: 2023
         mip: day
         preprocessor: preproc_era_abs 
-        additional_datasets: *dataset_era        
-      obs_ano:
-        short_name: tasmax
-        start_year: 1940
-        end_year: 2022
-        mip: day
-        preprocessor: preproc_era_ano 
-        additional_datasets: *dataset_era    
+        additional_datasets: *dataset_era         
       obs_gsat:
-        short_name: tasa
+        short_name: tas
         start_year: 1940
         end_year: 2022
         mip: Amon
-        preprocessor: preproc_gsat 
-        additional_datasets: *dataset_hadcrut       
+        preprocessor: preproc_era_gsat 
+        additional_datasets: *dataset_era   
     scripts:
       xcbox32:
-        script: extreme_events/extremes_bc_temperature_txnx.py
+        script: extreme_events/extremes_bc_temperature_running_mean.py
         mpl_style: ipcc_ar6_fgd
         reference_period: [1940, 1959]
         fit_distribution: GEV # which distribution to fit, gev or gumbel
         model_weighting: False # determines, if each realisation gets a weight of 1 (false) or 1/number of relisation
-        name_all: 2011-2030 # this is needed for legend, it's name_{name of a group}
+        name_all: 2013-2032 # this is needed for legend, it's name_{name of a group}
         name_nat: 1850-1900 
         name_ssp245: 2081-2100
-        region: BC # needed for the figure title
+        region: Alberta # needed for the figure title
         ax_var_label: TX3x # needed for axis name
         title_var_label: TX3x # needed for title name
         var_units: C 
-        analysis_year: 2021
+        month: 5 
+        analysis_window: 31
+        analysis_year: 2023
         smooth_gsat_years: 4
+        add_gsat_year: True
+        timerange: True
+        time_start: 2023-4-30
+        time_end: 2023-5-6
+

@@ -453,7 +453,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         ylims = ax_hist.get_ylim()
         ax_hist.set_ylim(*ylims)
 
-        ax_hist.text(border[0]/1.1, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
+        ax_hist.text(border[1]/2.5, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
         ax_hist.vlines(event, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 ('+str(cfg['analysis_year'])+')')
 
         ax_surv.vlines(event, 0.1, era_event_RP, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 ('+str(cfg['analysis_year'])+')')
@@ -495,9 +495,13 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         all_to_nat = list(); ssp_to_nat = list(); ssp_to_all = list()
         for i in range(len(uncert_band['wind_now'][model]['return_periods_all'])):
             for j in range(len(uncert_band['wind_now'][model]['return_periods_all'])):
-                all_to_nat.append(uncert_band['wind_now'][model]['return_periods_all'][i]/uncert_band['wind_nat'][model]['return_periods_all'][j])
-                ssp_to_nat.append(uncert_band['wind_fut'][model]['return_periods_all'][i]/uncert_band['wind_nat'][model]['return_periods_all'][j])
-                ssp_to_all.append(uncert_band['wind_fut'][model]['return_periods_all'][j]/uncert_band['wind_now'][model]['return_periods_all'][i])
+                # we do RPs, so they are flipped
+                all_to_nat.append(uncert_band['wind_nat'][model]['return_periods_all'][i]/uncert_band['wind_now'][model]['return_periods_all'][j])
+                ssp_to_nat.append(uncert_band['wind_nat'][model]['return_periods_all'][i]/uncert_band['wind_fut'][model]['return_periods_all'][j])
+                ssp_to_all.append(uncert_band['wind_now'][model]['return_periods_all'][i]/uncert_band['wind_fut'][model]['return_periods_all'][j])
+                # all_to_nat.append(uncert_band['wind_now'][model]['return_periods_all'][i]/uncert_band['wind_nat'][model]['return_periods_all'][j])
+                # ssp_to_nat.append(uncert_band['wind_fut'][model]['return_periods_all'][i]/uncert_band['wind_nat'][model]['return_periods_all'][j])
+                # ssp_to_all.append(uncert_band['wind_fut'][model]['return_periods_all'][j]/uncert_band['wind_now'][model]['return_periods_all'][i])
         all_to_nat_perc = np.nanpercentile(all_to_nat, [5,10,50,90,95])
         ssp_to_nat_perc = np.nanpercentile(ssp_to_nat, [5,10,50,90,95])
         ssp_to_all_perc = np.nanpercentile(ssp_to_all, [5,10,50,90,95])

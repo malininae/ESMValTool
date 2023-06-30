@@ -11,49 +11,59 @@ documentation:
     - malinina_elizaveta
 
 preprocessors:
-  preproc_txx: &prep_txx
+  preproc_txnx_flat:
     custom_order: True
     regrid:
       target_grid: 0.5x0.5
       lon_offset: 0.25
       lat_offset: 0.25
       scheme: linear    
-    extract_shape:
-      shapefile: british_columbia.shp
-      method: contains
-      crop: True
+    extract_region:
+      start_longitude: -123.0
+      end_longitude: -119.0
+      start_latitude: 45.0
+      end_latitude: 52.0
     area_statistics:
       operator: mean
-    rolling_window_statistics:
-      coordinate: time
-      operator: mean
-      window_length: 3
     annual_statistics:
       operator: max
-  
-  preproc_ano:
-    <<: *prep_txx
-    climate_statistics: 
-      operator: mean
+    anomalies:
       period: full
-
-  preproc_era_abs: &prep_era_abs
+      reference:
+        start_year: 1940
+        start_month: 1
+        start_day: 1
+        end_year: 1959
+        end_month: 12
+        end_day: 31
+        
+  preproc_gsat:
     custom_order: True 
-    extract_shape:
-      shapefile: british_columbia.shp
-      method: contains
-      crop: True
+    anomalies:
+      period: full
+      reference:
+        start_year: 1961
+        start_month: 1
+        start_day: 1
+        end_year: 1990
+        end_month: 12
+        end_day: 31
     area_statistics:
       operator: mean
-    rolling_window_statistics:
-      coordinate: time
+    annual_statistics:
       operator: mean
-      window_length: 3
+
+  preproc_era_txnx:
+    custom_order: True  
+    extract_region:
+      start_longitude: -123.0
+      end_longitude: -119.0
+      start_latitude: 45.0
+      end_latitude: 52.0
+    area_statistics:
+      operator: mean 
     annual_statistics:
       operator: max
-
-  preproc_era_ano: 
-    <<: *prep_era_abs   
     anomalies:
       period: full
       reference:
@@ -64,14 +74,14 @@ preprocessors:
         end_month: 12
         end_day: 31
 
-  preproc_gsat:
+  preproc_obs_gsat:
     custom_order: True  
     area_statistics:
       operator: mean    
     annual_statistics:
       operator: mean
 
-datasets_tasmax: &datasets_tasmax
+datasets_cmip: &datasets_cmip
   - {dataset: ACCESS-ESM1-5, ensemble: "r(1:18)i1p1f1", grid: gn}
   - {dataset: ACCESS-ESM1-5, ensemble: "r(21:24)i1p1f1", grid: gn}
   - {dataset: ACCESS-ESM1-5, ensemble: r26i1p1f1, grid: gn}
@@ -120,79 +130,52 @@ dataset_hadcrut: &dataset_hadcrut
   - {dataset: HadCRUT5, project: OBS, mip: Amon, tier: 2, type: ground, version: 5.0.1.0-analysis}
 
 diagnostics:
-  xcbox32:
+  analytics:
     description: Figure for BC extremes
     variables:
-      all:
+      txnx_all:
         short_name: tasmax
         exp: [historical, ssp245]
-        start_year: 2011
-        end_year: 2030
-        project: CMIP6
-        mip: day
-        preprocessor: preproc_txx
-        additional_datasets: *datasets_tasmax
-      ssp245: 
-        short_name: tasmax
-        exp: ssp245
-        start_year: 2081
-        end_year: 2100
-        project: CMIP6
-        mip: day
-        preprocessor: preproc_txx
-        additional_datasets: *datasets_tasmax        
-      nat: 
-        short_name: tasmax
-        exp: historical
-        start_year: 1850
-        end_year: 1900
-        project: CMIP6
-        mip: day
-        preprocessor: preproc_txx
-        additional_datasets: *datasets_tasmax
-      anomaly:
-        short_name: tasmax
-        exp: historical
         start_year: 1940
-        end_year: 1959
-        project: CMIP6
+        end_year: 2022
         mip: day
-        preprocessor: preproc_ano
-        additional_datasets: *datasets_tasmax
-      obs_abs:
+        project: CMIP6
+        preprocessor: preproc_txnx_flat
+        additional_datasets: *datasets_cmip
+      gsat_all:
+        short_name: tas
+        exp: [historical, ssp245]
+        start_year: 1940
+        end_year: 2022
+        mip: Amon
+        project: CMIP6
+        preprocessor: preproc_gsat
+        additional_datasets: *datasets_cmip
+      obs_txnx: 
         short_name: tasmax
         start_year: 1940
         end_year: 2022
         mip: day
-        preprocessor: preproc_era_abs 
-        additional_datasets: *dataset_era        
-      obs_ano:
-        short_name: tasmax
-        start_year: 1940
-        end_year: 2022
-        mip: day
-        preprocessor: preproc_era_ano 
-        additional_datasets: *dataset_era    
-      obs_gsat:
+        preprocessor: preproc_era_txnx 
+        additional_datasets: *dataset_era
+      obs_gsat: 
         short_name: tasa
         start_year: 1940
         end_year: 2022
         mip: Amon
         preprocessor: preproc_gsat 
-        additional_datasets: *dataset_hadcrut       
+        additional_datasets: *dataset_hadcrut
     scripts:
-      xcbox32:
-        script: extreme_events/extremes_bc_temperature_txnx.py
+      analytics:
+        script: extreme_events/extremes_bc_temp_analytics.py
         mpl_style: ipcc_ar6_fgd
         reference_period: [1940, 1959]
-        fit_distribution: GEV # which distribution to fit, gev or gumbel
-        model_weighting: False # determines, if each realisation gets a weight of 1 (false) or 1/number of relisation
-        name_all: 2011-2030 # this is needed for legend, it's name_{name of a group}
-        name_nat: 1850-1900 
-        name_ssp245: 2081-2100
-        region: BC # needed for the figure title
-        ax_var_label: TX3x # needed for axis name
-        title_var_label: TX3x # needed for title name
-        var_units: C 
+        smooth_gsat_years: 4 
         analysis_year: 2021
-        smooth_gsat_years: 4
+        year_span: [1940, 2022]
+        model_weighting: False
+        name_all: 1940-2022 # this is needed for legend, it's name_{name of a group}
+        region: WWA # needed for the figure title
+        ax_var_label: TXx # needed for axis name
+        title_var_label: TXx # needed for title name
+

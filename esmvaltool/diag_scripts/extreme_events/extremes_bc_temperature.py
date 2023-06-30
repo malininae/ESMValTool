@@ -41,6 +41,10 @@ def obtain_obs_info(groups, cfg):
     gsat_smooth_df = gsat_df.rolling(kernel_size, min_periods=1).mean()
     gsat_smooth_arr = gsat_smooth_df['gsat'].to_numpy()
     
+    # if analysing current year and need GSAT extrapolation
+    if cfg.get('add_gsat_year'): 
+        gsat_smooth_arr = np.append(gsat_smooth_arr, gsat_smooth_arr[-1])
+    
     ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
     ana_year_value =  float(ano_obs_cb.extract(ana_year_const).data)
     # determine the index of the ana_year_value, if several, assume the latest
@@ -144,6 +148,7 @@ def bootstrap_gev(data_dic, ana_year_value):
     for i in range(0, iter_pool):
         sample_data = list()
         mod_idxs = rng.choice(pool_data.shape[0], size = pool_size)
+        # sample_data = pool_data.flatten()[np.random.int(0, pool_data.size, pool_data.size)]
         for mod_idx in mod_idxs: 
             y_idx = rng.choice(n_years)
             sample_data.append(pool_data[mod_idx, y_idx])
@@ -212,19 +217,19 @@ def make_uncert_figures(data_dic, cfg, border):
                 all_sfs[:, i] = gev_sf
                 ax_single_bootstrap.plot(x_gev, gev_pdf, color = colors[exp], alpha=0.03)
             
-            uncert_band[exp][model] = {'x_gev': x_gev, 'pdf_5th_perc' : np.nanpercentile(all_pdfs, 5, axis = 1), 
-                                                'pdf_95th_perc': np.nanpercentile(all_pdfs, 95, axis = 1),
-                                                'sf_5th_perc' : np.nanpercentile(all_sfs, 5, axis = 1), 
-                                                'sf_95th_perc' : np.nanpercentile(all_sfs, 95, axis = 1),
-                                                'loc_min': gev_dic['loc'].min(), 'loc_max': gev_dic['loc'].max(),
-                                                'loc_5': np.nanpercentile(gev_dic['loc'], 5, interpolation='nearest'),
-                                                'loc_95': np.nanpercentile(gev_dic['loc'], 95, interpolation='nearest'),
-                                                'scale_min': gev_dic['scale'].min(), 'scale_max': gev_dic['scale'].max(),
-                                                'scale_5': np.nanpercentile(gev_dic['scale'], 5, interpolation='nearest'),
-                                                'scale_95': np.nanpercentile(gev_dic['scale'], 95, interpolation='nearest'),
-                                                'shape_min': gev_dic['shape'].min(), 'shape_max': gev_dic['shape'].max(),
-                                                'shape_5': np.nanpercentile(gev_dic['shape'], 5, interpolation='nearest'),
-                                                'shape_95': np.nanpercentile(gev_dic['shape'], 95, interpolation='nearest'),
+            uncert_band[exp][model] = {'x_gev': x_gev, 'pdf_5th_perc' : np.nanpercentile(all_pdfs, 5, axis = 1, method='closest_observation'), 
+                                                'pdf_95th_perc': np.nanpercentile(all_pdfs, 95, axis = 1, method='closest_observation'),
+                                                'sf_5th_perc' : np.nanpercentile(all_sfs, 5, axis = 1, method='closest_observation'), 
+                                                'sf_95th_perc' : np.nanpercentile(all_sfs, 95, axis = 1, method='closest_observation'),
+                                                'loc_min': np.nanmin(gev_dic['loc']), 'loc_max': np.nanmax(gev_dic['loc']),
+                                                'loc_5': np.nanpercentile(gev_dic['loc'], 5, method='closest_observation'),
+                                                'loc_95': np.nanpercentile(gev_dic['loc'], 95, method='closest_observation'),
+                                                'scale_min': np.nanmin(gev_dic['scale']), 'scale_max': np.nanmax(gev_dic['scale']),
+                                                'scale_5': np.nanpercentile(gev_dic['scale'], 5, method='closest_observation'),
+                                                'scale_95': np.nanpercentile(gev_dic['scale'], 95, method='closest_observation'),
+                                                'shape_min': np.nanmin(gev_dic['shape']), 'shape_max': np.nanmax(gev_dic['shape']),
+                                                'shape_5': np.nanpercentile(gev_dic['shape'], 5, method='closest_observation'),
+                                                'shape_95': np.nanpercentile(gev_dic['shape'], 95, method='closest_observation'),
                                                 'return_periods_all': gev_dic['return_periods']}
     
             param_str = '                             '+exp
@@ -266,7 +271,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
     era_event_prob = 1/obs_info_arr['ana_year_RP']
     era_event_RP = obs_info_arr['ana_year_RP']
 
-    risk_csv = open(os.path.join(cfg['work_dir'], 'GEV_'+cfg['region']+'_'+cfg['ax_var_label'] +'_risk_data.csv'), 'w', newline='')
+    risk_csv = open(os.path.join(cfg['work_dir'], 'gev_'+cfg['region']+'_'+cfg['ax_var_label'] +'_risk_data.csv'), 'w', newline='')
     risk_csv_writer = csv.writer(risk_csv, delimiter=',')
     risk_head_row = ['model']
 
@@ -373,11 +378,11 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
             intens_95 = x_gev[np.argmin(np.abs(sf_perc_95-era_event_prob))]
             intens_5 = x_gev[np.argmin(np.abs(sf_perc_5-era_event_prob))]
             try:
-                risk_model_row.extend([1/np.exp(w_distr_par['logReturnPeriod'][0]), np.exp(w_distr_par['logReturnPeriod'][0]), np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],5),
-                                    np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],95), intens, intens_5, intens_95])
+                risk_model_row.extend([1/np.exp(w_distr_par['logReturnPeriod'][0]), np.exp(w_distr_par['logReturnPeriod'][0]), np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],5, method='closest_observation'),
+                                    np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],95, method='closest_observation'), intens, intens_5, intens_95])
             except:
-                risk_model_row.extend([np.nan, np.nan, np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],5),
-                                    np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],95), intens, intens_5, intens_95])
+                risk_model_row.extend([np.nan, np.nan, np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],5, method='closest_observation'),
+                                    np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],95, method='closest_observation'), intens, intens_5, intens_95])
             pract_quants = np.quantile(distrib_data, quantile_measures)
             ax_qq.scatter(theor_quants, pract_quants, edgecolors=colors[exp_key], marker='o', facecolors='None', lw=0.75, label=cfg['name_' + exp_key], zorder=3)
             ax_surv.plot(x_gev, 1/w_survival, color=colors[exp_key], zorder=3)
@@ -429,12 +434,12 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         all_to_nat = list(); ssp_to_nat = list(); ssp_to_all = list()
         for i in range(len(uncert_band['all'][model]['return_periods_all'])):
             for j in range(len(uncert_band['all'][model]['return_periods_all'])):
-                all_to_nat.append(uncert_band['all'][model]['return_periods_all'][i]/uncert_band['nat'][model]['return_periods_all'][j])
-                ssp_to_nat.append(uncert_band['ssp245'][model]['return_periods_all'][i]/uncert_band['nat'][model]['return_periods_all'][j])
-                ssp_to_all.append(uncert_band['ssp245'][model]['return_periods_all'][j]/uncert_band['all'][model]['return_periods_all'][i])
-        all_to_nat_perc = np.percentile(all_to_nat, [5,10,50,90,95])
-        ssp_to_nat_perc = np.percentile(ssp_to_nat, [5,10,50,90,95])
-        ssp_to_all_perc = np.percentile(ssp_to_all, [5,10,50,90,95])
+                all_to_nat.append(uncert_band['nat'][model]['return_periods_all'][i]/uncert_band['all'][model]['return_periods_all'][j])
+                ssp_to_nat.append(uncert_band['nat'][model]['return_periods_all'][i]/uncert_band['ssp245'][model]['return_periods_all'][j])
+                ssp_to_all.append(uncert_band['all'][model]['return_periods_all'][i]/uncert_band['ssp245'][model]['return_periods_all'][j])
+        all_to_nat_perc = np.nanpercentile(all_to_nat, [5,10,50,90,95], method='closest_observation')
+        ssp_to_nat_perc = np.nanpercentile(ssp_to_nat, [5,10,50,90,95], method='closest_observation')
+        ssp_to_all_perc = np.nanpercentile(ssp_to_all, [5,10,50,90,95], method='closest_observation')
         risk_uncert_row = [model]
         risk_uncert_row.extend(np.concatenate((all_to_nat_perc, ssp_to_nat_perc, ssp_to_all_perc)))
         risk_uncert_csv_writer.writerow(risk_uncert_row)

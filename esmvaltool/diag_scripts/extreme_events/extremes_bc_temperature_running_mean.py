@@ -2,7 +2,10 @@ import csv
 import esmvalcore.preprocessor as eprep
 import iris
 from iris.util import equalise_attributes
+from iris.time import PartialDateTime
+from datetime import timedelta
 import cf_units
+import cftime 
 import climextremes as cex
 import pandas as pd
 import logging
@@ -22,15 +25,48 @@ from esmvaltool.diag_scripts.shared import ProvenanceLogger
 logger = logging.getLogger(os.path.basename(__file__))
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
+
 def obtain_obs_info(groups, cfg):
 
-    obs_txnx_info = groups.pop('obs_ano')
     obs_abs_info = groups.pop('obs_abs')
     obs_gsat_info = groups.pop('obs_gsat')
 
-    abs_obs_cb = iris.load_cube(obs_abs_info[0]['filename']) * 86400
+    raw_abs_obs_cb = iris.load_cube(obs_abs_info[0]['filename'])
 
-    ano_obs_cb = iris.load_cube(obs_txnx_info[0]['filename']) * 86400
+    ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
+    ana_year_cube = raw_abs_obs_cb.extract(ana_year_const)
+
+    ana_month_const = iris.Constraint(time = lambda cell: cell.point.month == cfg['month'])
+    abs_ana_month = ana_year_cube.extract(ana_month_const)
+
+    if cfg.get('timerange'):
+        clip_pdt_st = PartialDateTime(year=int(cfg['time_start'].split('-')[0]),
+                                      month=int(cfg['time_start'].split('-')[1]),
+                                      day=int(cfg['time_start'].split('-')[2]))
+        clip_pdt_end = PartialDateTime(year=int(cfg['time_end'].split('-')[0]),
+                                      month=int(cfg['time_end'].split('-')[1]),
+                                      day=int(cfg['time_end'].split('-')[2]))
+        clip_constr = iris.Constraint(time= lambda cell: clip_pdt_st<=cell.point <=clip_pdt_end)
+        abs_ana_month = abs_ana_month.extract(clip_constr)
+
+    max_date_idx = abs_ana_month.coord('time').points[abs_ana_month.data.argmax()]
+    max_date = cftime.num2pydate(max_date_idx, abs_ana_month.coord('time').units.origin, abs_ana_month.coord('time').units.calendar)
+
+    start_date = max_date - timedelta(days=15) ; end_date = max_date + timedelta(days=15)
+
+    pdt_start = PartialDateTime(month=start_date.month, day = start_date.day)
+    pdt_end = PartialDateTime(month=end_date.month, day = end_date.day)
+    pdt_constraint = iris.Constraint(time= lambda cell: pdt_start<=cell.point <=pdt_end)
+    crop_abs_obs_cb = raw_abs_obs_cb.extract(pdt_constraint)
+
+    abs_obs_cb = eprep.annual_statistics(crop_abs_obs_cb, operator='max')
+
+    ano_obs_cb = eprep.anomalies(abs_obs_cb, 'full', 
+                                reference = {'start_year': cfg['reference_period'][0], 
+                                'start_month': 1, 'start_day':1, 
+                                'end_year': cfg['reference_period'][1], 
+                                'end_month': 12, 'end_day':31})
+    
     ano_obs_arr = ano_obs_cb.data
 
     gsat_obs_cb = iris.load_cube(obs_gsat_info[0]['filename'])
@@ -40,6 +76,10 @@ def obtain_obs_info(groups, cfg):
     kernel_size = cfg['smooth_gsat_years']
     gsat_smooth_df = gsat_df.rolling(kernel_size, min_periods=1).mean()
     gsat_smooth_arr = gsat_smooth_df['gsat'].to_numpy()
+
+    # if analysing current year and need GSAT extrapolation
+    if cfg.get('add_gsat_year'): 
+        gsat_smooth_arr = np.append(gsat_smooth_arr, gsat_smooth_arr[-1])
     
     ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
     ana_year_value =  float(ano_obs_cb.extract(ana_year_const).data)
@@ -51,10 +91,8 @@ def obtain_obs_info(groups, cfg):
     obs_stat = cex.fit_gev(ano_obs_arr, returnValue=ana_year_value, getParams=True)
     orig_stat_rp = np.exp(obs_stat['logReturnPeriod'][0]) # it is the only value, we are making it a float
 
-    obs_non_stat = cex.fit_gev(ano_obs_arr, gsat_smooth_arr, locationFun=1, returnValue=ana_year_value, 
-                                            initial={'location':float(np.around(obs_stat['mle'][0],2)),
-                                            'scale':float(np.around(obs_stat['mle'][1],2)), 
-                                            'shape':float(np.around(obs_stat['mle'][2],2))}, getParams=True)
+    # calculate non-stationary gev
+    obs_non_stat = cex.fit_gev(ano_obs_arr, gsat_smooth_arr, locationFun=1, returnValue=ana_year_value, getParams=True)
     orig_nonstat_rp = np.exp(obs_non_stat['logReturnPeriod'][ana_arg])
 
     bootstrap_rps = list()
@@ -86,6 +124,7 @@ def obtain_obs_info(groups, cfg):
     era_csv_writer.writerow(list(obs_non_stat['mle_names']))
     era_csv_writer.writerow(list(obs_non_stat['mle']))
     era_csv_writer.writerow([str(cfg['analysis_year'])+' ERA5 return period', str(np.around(orig_nonstat_rp,1))])
+    era_csv_writer.writerow(['Date of the '+str(cfg['analysis_year'])+' maximum: '+str(max_date)])
     era_csv_writer.writerow(['Bootstrapped uncertanties on ERA5 nonstationary return period'])
     era_csv_writer.writerow(['5_perc', '10_perc', '50_perc', '90_perc', '95_perc'])
     era_csv_writer.writerow(rp_perc)
@@ -104,6 +143,8 @@ def obtain_obs_info(groups, cfg):
                   'ana_year_RP': orig_nonstat_rp,
                   'ana_year_RP_CI': rp_perc,
                   'ano_obs_cb': ano_obs_cb,
+                  'max_date': max_date,
+                  'date_constr': pdt_constraint,
                   'smoothed_gsat':gsat_smooth_arr}
 
     return obs_gev_data
@@ -167,22 +208,21 @@ def bootstrap_gev(data_dic, ana_year_value):
 def make_uncert_figures(data_dic, cfg, border):
 
     colors = {}
-    colors['pr_now'] = (196 / 255, 121 / 255, 0)
-    colors['pr_nat'] = (0, 79 / 255, 0)
-    colors['pr_fut'] = (69 / 255, 118 / 255, 191 / 255)
+    colors['all'] = (196 / 255, 121 / 255, 0)
+    colors['nat'] = (0, 79 / 255, 0)
+    colors['ssp245'] = (69 / 255, 118 / 255, 191 / 255)
 
     exp_list = list(data_dic.keys())  ; exp_list.remove('obs_info') 
     models = list(data_dic[exp_list[0]].keys())
 
     x_gev = np.arange(border[0],border[1], 0.1)
 
-    tlocs = {'pr_now': 0.04 , 'pr_nat': 0.01,  'pr_fut': 0.08}
+    tlocs = {'all': 0.04 , 'nat': 0.01,  'ssp245': 0.08}
     uncert_band = {}
     for exp in exp_list: 
         uncert_band[exp] = {}
 
     gev_params = ['shape', 'loc', 'scale']
-
 
     for model in models: 
 
@@ -216,7 +256,7 @@ def make_uncert_figures(data_dic, cfg, border):
                 all_pdfs[:, i] = gev_pdf
                 all_sfs[:, i] = gev_sf
                 ax_single_bootstrap.plot(x_gev, gev_pdf, color = colors[exp], alpha=0.03)
-            
+              
             uncert_band[exp][model] = {'x_gev': x_gev, 'pdf_5th_perc' : np.nanpercentile(all_pdfs, 5, axis = 1), 
                                                 'pdf_95th_perc': np.nanpercentile(all_pdfs, 95, axis = 1),
                                                 'sf_5th_perc' : np.nanpercentile(all_sfs, 5, axis = 1), 
@@ -236,7 +276,7 @@ def make_uncert_figures(data_dic, cfg, border):
             param_str += '\nshape mean:'+str(np.around(gev_dic['shape'].mean(),3))+', max:'+str(np.around(gev_dic['shape'].max(),3)) + ', min:' + str(np.around(gev_dic['shape'].min(),3)) 
             param_str += '\n loc mean:'+str(np.around(gev_dic['loc'].mean(),3))+', max:'+str(np.around(gev_dic['loc'].max(),3)) + ', min:' + str(np.around(gev_dic['loc'].min(),3)) \
                 + '\nscale mean:'+ str(np.around(gev_dic['scale'].mean(),3))+', max:'+str(np.around(gev_dic['scale'].max(),3)) + ', min:' + str(np.around(gev_dic['scale'].min(),3))               
-            
+             
             ax_single_bootstrap.text(-0.95*border[0], tlocs[exp], param_str, color = colors[exp])
 
         ax_gev_distr[0].legend(loc=0, fancybox=False, frameon=False)
@@ -286,10 +326,9 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
 
     quantile_measures = np.arange(0, 1.01, 0.01); quantile_measures[0] = 0.001
 
-    colors = {}
-    colors['pr_now'] = (196 / 255, 121 / 255, 0)
-    colors['pr_nat'] = (0, 79 / 255, 0)
-    colors['pr_fut'] = (69 / 255, 118 / 255, 191 / 255)
+    colors = {'all' : (196 / 255, 121 / 255, 0), 
+              'nat' : (0, 79 / 255, 0), 
+              'ssp245' : (69 / 255, 118 / 255, 191 / 255)}
 
     csv_file = open(os.path.join(cfg['work_dir'], 'gev_'+cfg['region']+'_'+cfg['ax_var_label'] +'_parameters.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
@@ -348,11 +387,11 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
                 distrib_data = np.asarray(upd_distr_data)
                 weights = np.asarray(new_weights)
             x_gev = uncert_band[exp_key][model]['x_gev']
-            # w_distr_par = cex.fit_gev(distrib_data, returnValue=event, initial={'location':float(np.around(apr_param[exp_key]['loc'],2)),
-            #                                 'scale':float(np.around(apr_param[exp_key]['scale'],2)), 
-            #                                 'shape': -1*float(np.around(apr_param[exp_key]['shape'],2))}, getParams=True)
             w_distr_par = cex.fit_gev(distrib_data, returnValue=event, getParams=True)
-            w_distr_loc = w_distr_par['mle'][0]; w_distr_scale = w_distr_par['mle'][1]; w_distr_shape = w_distr_par['mle'][2]
+            try:
+                w_distr_loc = w_distr_par['mle'][0]; w_distr_scale = w_distr_par['mle'][1]; w_distr_shape = w_distr_par['mle'][2]
+            except:
+                w_distr_loc = np.nan ; w_distr_scale = np.nan ; w_distr_shape = np.nan
             w_pdf = gev.pdf(x_gev, -1*w_distr_shape, loc=w_distr_loc, scale=w_distr_scale)
             w_survival = gev.sf(x_gev, -1*w_distr_shape, loc=w_distr_loc, scale=w_distr_scale)
             theor_quants = gev(-1*w_distr_shape, loc=w_distr_loc, scale=w_distr_scale).ppf(quantile_measures)
@@ -365,7 +404,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
             model_row.extend([w_distr_scale, uncert_band[exp_key][model]['scale_min'], uncert_band[exp_key][model]['scale_5']])
             model_row.extend([uncert_band[exp_key][model]['scale_95'], uncert_band[exp_key][model]['scale_max']])            
             model_row.extend([ks_res.statistic, ks_res.pvalue, cvm_res.statistic, cvm_res.pvalue])
-            n_bins = np.arange(border[0], border[1]+0.1, 10)
+            n_bins = np.arange(border[0], border[1]+0.1, 1)
             ax_hist.hist(distrib_data, bins=n_bins, edgecolor=colors[exp_key],
                     facecolor = colors[exp_key], alpha=0.3, label=cfg['name_' + exp_key] , density=True, weights=weights, zorder = 2)
             ax_hist.plot(x_gev, w_pdf, c = colors[exp_key], ls = 'solid', label = 'GEV fit '+cfg['name_' + exp_key], zorder=3)
@@ -378,7 +417,11 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
             intens = x_gev[np.argmin(np.abs(w_survival-era_event_prob))]
             intens_95 = x_gev[np.argmin(np.abs(sf_perc_95-era_event_prob))]
             intens_5 = x_gev[np.argmin(np.abs(sf_perc_5-era_event_prob))]
-            risk_model_row.extend([1/np.exp(w_distr_par['logReturnPeriod'][0]), np.exp(w_distr_par['logReturnPeriod'][0]), np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],5),
+            try:
+                risk_model_row.extend([1/np.exp(w_distr_par['logReturnPeriod'][0]), np.exp(w_distr_par['logReturnPeriod'][0]), np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],5),
+                                    np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],95), intens, intens_5, intens_95])
+            except:
+                risk_model_row.extend([np.nan, np.nan, np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],5),
                                     np.nanpercentile(uncert_band[exp_key][model]['return_periods_all'],95), intens, intens_5, intens_95])
             pract_quants = np.quantile(distrib_data, quantile_measures)
             ax_qq.scatter(theor_quants, pract_quants, edgecolors=colors[exp_key], marker='o', facecolors='None', lw=0.75, label=cfg['name_' + exp_key], zorder=3)
@@ -389,13 +432,13 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         ylims = ax_hist.get_ylim()
         ax_hist.set_ylim(*ylims)
 
-        ax_hist.text(border[1]/2, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
+        ax_hist.text(border[0]/1.22, ylims[1]*0.65,'  Number of\nrealisations ' +str(len(ens_cubelist)), fontsize='large')
         ax_hist.vlines(event, *ylims, color = 'indianred', linestyle = 'solid', lw=1.5, zorder=1, label = 'ERA5 ('+ str(cfg['analysis_year'])+')')
 
         ax_surv.vlines(event, 0.1, era_event_RP, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 ('+ str(cfg['analysis_year'])+')')
         ax_surv.hlines(era_event_RP, x_gev[0], event,linestyle = 'solid', color='indianred', zorder=2)
 
-        ax_hist.legend(loc=0, fancybox=False, frameon=False)
+        ax_hist.legend(loc=2, fancybox=False, frameon=False)
         ax_qq.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
         ax_qq.plot(border, border, c='tab:grey', zorder=1)
         ax_qq.grid(color='silver', axis='both', alpha=0.5)
@@ -429,14 +472,14 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         fig.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region']+'_'+cfg['ax_var_label'] +'_extremes_gev_'+model + diagtools.get_image_format(cfg)))
 
         all_to_nat = list(); ssp_to_nat = list(); ssp_to_all = list()
-        for i in range(len(uncert_band['pr_now'][model]['return_periods_all'])):
-            for j in range(len(uncert_band['pr_now'][model]['return_periods_all'])):
-                all_to_nat.append(uncert_band['pr_nat'][model]['return_periods_all'][i]/uncert_band['pr_now'][model]['return_periods_all'][j])
-                ssp_to_nat.append(uncert_band['pr_nat'][model]['return_periods_all'][i]/uncert_band['pr_fut'][model]['return_periods_all'][j])
-                ssp_to_all.append(uncert_band['pr_now'][model]['return_periods_all'][j]/uncert_band['pr_fut'][model]['return_periods_all'][i])
-        all_to_nat_perc = np.percentile(all_to_nat, [5,10,50,90,95])
-        ssp_to_nat_perc = np.percentile(ssp_to_nat, [5,10,50,90,95])
-        ssp_to_all_perc = np.percentile(ssp_to_all, [5,10,50,90,95])
+        for i in range(len(uncert_band['all'][model]['return_periods_all'])):
+            for j in range(len(uncert_band['all'][model]['return_periods_all'])):
+                all_to_nat.append(uncert_band['nat'][model]['return_periods_all'][i]/uncert_band['all'][model]['return_periods_all'][j])
+                ssp_to_nat.append(uncert_band['nat'][model]['return_periods_all'][i]/uncert_band['ssp245'][model]['return_periods_all'][j])
+                ssp_to_all.append(uncert_band['all'][model]['return_periods_all'][i]/uncert_band['ssp245'][model]['return_periods_all'][j])
+        all_to_nat_perc = np.nanpercentile(all_to_nat, [5,10,50,90,95])
+        ssp_to_nat_perc = np.nanpercentile(ssp_to_nat, [5,10,50,90,95])
+        ssp_to_all_perc = np.nanpercentile(ssp_to_all, [5,10,50,90,95])
         risk_uncert_row = [model]
         risk_uncert_row.extend(np.concatenate((all_to_nat_perc, ssp_to_nat_perc, ssp_to_all_perc)))
         risk_uncert_csv_writer.writerow(risk_uncert_row)
@@ -448,14 +491,14 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
 
 def make_era_dist_figure(obs_info_dic, cfg, border):
 
-    abs_cube = obs_info_dic['abs_obs_cb']
+    abs_cube = obs_info_dic['abs_obs_cb'] - 273.15
     ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
     ana_year_value = abs_cube.extract(ana_year_const).data; ana_arg = np.max(np.where(abs_cube.data == ana_year_value)[0])
 
     border[0] = np.floor(abs_cube.data.min()*0.9)
     border[1] = np.ceil(abs_cube.data.max()*1.1)
     x_gev_fine = np.arange(border[0], border[1]+0.1, 0.1)
-    n_bins = np.arange(border[0], border[1]+0.1, 10)
+    n_bins = np.arange(border[0], border[1]+0.1, 1)
 
     era_param = cex.fit_gev(abs_cube.data, obs_info_dic['smoothed_gsat'], locationFun=1, returnValue=float(ana_year_value), getParams=True)
     era_RP = np.exp(era_param['logReturnPeriod'][ana_arg])
@@ -500,10 +543,10 @@ def make_era_dist_figure(obs_info_dic, cfg, border):
     ax_era_tseries.set_xlim(years[0]-0.5, years[-1]+0.5)
     ax_era_tseries.set_ylim(*border)
     ax_era_tseries.arrow(years[-1] - len(years)*0.1, abs_cube.data.mean()*0.2 + 0.8*abs_cube.data.max(), len(years)*0.09 ,
-                                     0.05*abs_cube.data.max()-abs_cube.data.mean()*0.4, color='k', length_includes_head=True,  
+                                     0.19*abs_cube.data.max()-abs_cube.data.mean()*0.2, color='k', length_includes_head=True,  
                                                                                         head_width=0.5, head_length=0.5)
-    ax_era_tseries.text(years[-1] - len(years)*0.1, abs_cube.data.mean()*0.2 + 0.84*abs_cube.data.max(), 
-                        'ERA5 '+ str(cfg['analysis_year'])+': '+str(np.around(ana_year_value,1))+' '+cfg['var_units'])
+    ax_era_tseries.text(years[-1] - len(years)*0.16, abs_cube.data.mean()*0.2 + 0.77*abs_cube.data.max(), 
+                        'ERA5 '+ str(cfg['analysis_year'])+': '+str(np.around(abs_cube.data[ana_arg],1))+' '+cfg['var_units'])
 
     fig_era.suptitle('ERA5 ' + cfg['title_var_label'] + ' in ' + cfg['region'] + ' and its GEV fit', fontsize = 'x-large')
 
@@ -521,6 +564,8 @@ def main(cfg):
     groups = group_metadata(input_data.values(), 'variable_group', sort=True)
 
     obs_info = obtain_obs_info(groups, cfg)
+
+    anomalies = groups.pop('anomaly')
 
     groups_l = list(groups.keys())
 
@@ -540,7 +585,14 @@ def main(cfg):
             n_real = len(filepaths)
             mod_cubelist = iris.cube.CubeList()
             for filepath in filepaths:
-                mod_cb = iris.load_cube(filepath) * 86400
+                mod_cb = iris.load_cube(filepath)
+                mod_cb = eprep.annual_statistics(mod_cb.extract(obs_info['date_constr']))
+                file_metadata = select_metadata(datasets[dataset], filename = filepath)
+                ens = file_metadata[0]['ensemble']
+                anom_cb = iris.load_cube(select_metadata(anomalies, dataset=dataset, ensemble=ens)[0]['filename'])
+                anom_cb = eprep.annual_statistics(anom_cb.extract(obs_info['date_constr']))
+                anom_cb = eprep.climate_statistics(anom_cb, operator='mean', period='full')
+                mod_cb = mod_cb-anom_cb
                 mins.append(mod_cb.collapsed('time', iris.analysis.MIN).data)
                 maxs.append(mod_cb.collapsed('time', iris.analysis.MAX).data)
                 mod_cb.attributes['ensemble_weight'] = 1 / n_real
@@ -554,7 +606,7 @@ def main(cfg):
         fit_param_apr[group] = {'loc': np.around(plotting_dic[group]['Multi-Model-Mean']['uncert']['loc'].mean(),3),
                                 'scale': np.around(plotting_dic[group]['Multi-Model-Mean']['uncert']['scale'].mean(),3),
                                 'shape': np.around(plotting_dic[group]['Multi-Model-Mean']['uncert']['shape'].mean(),3)}
-    
+     
     plotting_dic['obs_info'] = obs_info
 
     min_var = np.asarray(mins).min() ; max_var = np.asarray(maxs).max()  

@@ -41,6 +41,10 @@ def obtain_obs_info(groups, cfg):
     kernel_size = cfg['smooth_gsat_years']
     gsat_smooth_df = gsat_df.rolling(kernel_size, min_periods=1).mean()
     gsat_smooth_arr = gsat_smooth_df['gsat'].to_numpy()
+
+    # if analysing current year and need GSAT extrapolation
+    if cfg.get('add_gsat_year'): 
+        gsat_smooth_arr = np.append(gsat_smooth_arr, gsat_smooth_arr[-1])
     
     ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
     ana_year_value =  float(ano_obs_cb.extract(ana_year_const).data)
@@ -432,12 +436,12 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         all_to_nat = list(); ssp_to_nat = list(); ssp_to_all = list()
         for i in range(len(uncert_band['all'][model]['return_periods_all'])):
             for j in range(len(uncert_band['all'][model]['return_periods_all'])):
-                all_to_nat.append(uncert_band['all'][model]['return_periods_all'][i]/uncert_band['nat'][model]['return_periods_all'][j])
-                ssp_to_nat.append(uncert_band['ssp245'][model]['return_periods_all'][i]/uncert_band['nat'][model]['return_periods_all'][j])
-                ssp_to_all.append(uncert_band['ssp245'][model]['return_periods_all'][j]/uncert_band['all'][model]['return_periods_all'][i])
-        all_to_nat_perc = np.percentile(all_to_nat, [5,10,50,90,95])
-        ssp_to_nat_perc = np.percentile(ssp_to_nat, [5,10,50,90,95])
-        ssp_to_all_perc = np.percentile(ssp_to_all, [5,10,50,90,95])
+                all_to_nat.append(uncert_band['nat'][model]['return_periods_all'][i]/uncert_band['all'][model]['return_periods_all'][j])
+                ssp_to_nat.append(uncert_band['nat'][model]['return_periods_all'][i]/uncert_band['ssp245'][model]['return_periods_all'][j])
+                ssp_to_all.append(uncert_band['all'][model]['return_periods_all'][i]/uncert_band['ssp245'][model]['return_periods_all'][j])
+        all_to_nat_perc = np.nanpercentile(all_to_nat, [5,10,50,90,95])
+        ssp_to_nat_perc = np.nanpercentile(ssp_to_nat, [5,10,50,90,95])
+        ssp_to_all_perc = np.nanpercentile(ssp_to_all, [5,10,50,90,95])
         risk_uncert_row = [model]
         risk_uncert_row.extend(np.concatenate((all_to_nat_perc, ssp_to_nat_perc, ssp_to_all_perc)))
         risk_uncert_csv_writer.writerow(risk_uncert_row)

@@ -38,20 +38,19 @@ preprocessors:
         
   preproc_gsat:
     custom_order: True 
+    anomalies:
+      period: full
+      reference:
+        start_year: 1961
+        start_month: 1
+        start_day: 1
+        end_year: 1990
+        end_month: 12
+        end_day: 31
     area_statistics:
       operator: mean
     annual_statistics:
       operator: mean
-    anomalies:
-      period: full
-      reference:
-        start_year: 1940
-        start_month: 1
-        start_day: 1
-        end_year: 1959
-        end_month: 12
-        end_day: 31
-
 
   preproc_era_txnx:
     custom_order: True  
@@ -73,22 +72,12 @@ preprocessors:
         end_month: 12
         end_day: 31
 
-  preproc_era_gsat:
+  preproc_obs_gsat:
     custom_order: True  
     area_statistics:
       operator: mean    
     annual_statistics:
       operator: mean
-    anomalies:
-      period: full
-      reference:
-        start_year: 1940
-        start_month: 1
-        start_day: 1
-        end_year: 1959
-        end_month: 12
-        end_day: 31
-
 
 datasets_cmip: &datasets_cmip
   - {dataset: ACCESS-ESM1-5, ensemble: "r(1:18)i1p1f1", grid: gn}
@@ -135,6 +124,9 @@ datasets_cmip: &datasets_cmip
 dataset_era: &dataset_era
   - {dataset: ERA5, project: OBS6, type: reanaly, version: '1', tier: 3}
 
+dataset_hadcrut: &dataset_hadcrut
+  - {dataset: HadCRUT5, project: OBS, mip: Amon, tier: 2, type: ground, version: 5.0.1.0-analysis}
+
 diagnostics:
   analytics:
     description: Figure for BC extremes
@@ -165,12 +157,12 @@ diagnostics:
         preprocessor: preproc_era_txnx 
         additional_datasets: *dataset_era
       obs_gsat: 
-        short_name: tas
+        short_name: tasa
         start_year: 1940
         end_year: 2022
         mip: Amon
-        preprocessor: preproc_era_gsat 
-        additional_datasets: *dataset_era
+        preprocessor: preproc_gsat 
+        additional_datasets: *dataset_hadcrut
     scripts:
       analytics:
         script: extreme_events/extremes_bc_temp_analytics.py
