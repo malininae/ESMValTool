@@ -19,7 +19,7 @@ attributes:
 
 # Variables to cmorize (here use only filename prefix)
 variables:
-# # monthly frequency
+# monthly frequency
   prw_mon:
     short_name: prw
     mip: Amon

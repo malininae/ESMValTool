@@ -12,20 +12,21 @@ Last access
    20230705
 
 Download and processing instructions
-   CDR2 requires registration at EUMETSAT CM SAF, the information on how to 
-            download the order will be emailed once the order is ready.
+   CDR2 requires registration at EUMETSAT CM SAF, the information on how to
+        download the order will be emailed once the order is ready.
    CDR1 can be downloaded directly from CEDA.
    All files need to be in one directory, not in yearly subdirectories.
 
 Modification history
-   20230705-malinina_elizaveta: Adjusting for daily cmorization and updated filenames. 
+   20230705-malinina_elizaveta: Adjust for daily cmorization and updated
+                                filenames.
    20210607-weigel_katja: Fix for monthly time bounds.
    20210408-weigel_katja: written.
 """
 
+import glob
 import logging
 import os
-import glob
 
 import iris
 from esmvalcore.cmor.check import _get_time_bounds
