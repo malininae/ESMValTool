@@ -445,7 +445,7 @@ def create_timeseries(data_dic, mixns, obs_gev_data, cfg):
         ax_ts[1].text(0.45, 0.95, 'Smoothed GSAT', transform=ax_ts[1].transAxes)
         ax_ts[0].plot(t_s, obs_gev_data['ano_obs_cb'].data, c=col_obs, zorder=5, label='ERA5')
         ax_ts[0].plot(t_s, mean_var_arr, c=col_mod, zorder=3, label=dataset)
-        ax_ts[1].plot(t_s, obs_gev_data['gsat_obs_cb'].data, c=col_obs, zorder=5, label='HadCRUT5')
+        ax_ts[1].plot(t_s, obs_gev_data['gsat_obs_cb'].data, c=col_obs, zorder=5, label='ERA5')
         ax_ts[1].plot(t_s, mean_gsat_arr, c=col_mod, zorder=3, label=dataset)
         if len(data_dic[dataset]['var_data'])>1:
             # clean this noncense before submitting! 
