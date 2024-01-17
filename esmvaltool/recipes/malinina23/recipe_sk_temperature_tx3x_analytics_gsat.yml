@@ -141,7 +141,7 @@ datasets_cmip: &datasets_cmip
   - {dataset: TaiESM1, ensemble: r1i1p1f1, grid: gn}
 
 dataset_era: &dataset_era
-  - {dataset: ERA5, project: OBS6, type: reanaly, version: '1', tier: 3}
+  - {dataset: ERA5, project: OBS6, type: reanaly, version: v1, tier: 3}
 
 diagnostics:
   analytics:
@@ -188,6 +188,7 @@ diagnostics:
         analysis_year: 2021
         year_span: [1940, 2022]
         model_weighting: False
+        litera: (b)
         name_all: 1940-2022 # this is needed for legend, it's name_{name of a group}
         region: SK # needed for the figure title
         ax_var_label: TX3x # needed for axis name

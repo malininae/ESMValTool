@@ -102,7 +102,7 @@ datasets_tasmax: &datasets_tasmax
 
 
 dataset_era: &dataset_era
-  - {dataset: ERA5, project: OBS6, type: reanaly, version: '1', tier: 3}
+  - {dataset: ERA5, project: OBS6, type: reanaly, version: v1, tier: 3}
 
 diagnostics:
   xcbox32:
@@ -169,8 +169,8 @@ diagnostics:
         name_nat: 1850-1900 
         name_ssp245: 2081-2100
         region: Alberta # needed for the figure title
-        ax_var_label: TX7x # needed for axis name
-        title_var_label: TX7x # needed for title name
+        ax_var_label: TX7x(pAM) # needed for axis name
+        title_var_label: TX7x(pAM) # needed for title name
         var_units: C 
         month: 5 
         analysis_window: 31

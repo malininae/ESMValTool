@@ -123,7 +123,7 @@ datasets_tasmax: &datasets_tasmax
   - {dataset: TaiESM1, ensemble: r1i1p1f1, grid: gn}
 
 dataset_era: &dataset_era
-  - {dataset: ERA5, project: OBS6, type: reanaly, version: '1', tier: 3}
+  - {dataset: ERA5, project: OBS6, type: reanaly, version: v1, tier: 3}
 
 diagnostics:
   xcbox32:

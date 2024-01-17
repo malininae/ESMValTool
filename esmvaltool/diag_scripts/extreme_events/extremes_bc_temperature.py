@@ -77,7 +77,7 @@ def obtain_obs_info(groups, cfg):
     
     bootstrap_rps = np.asarray(bootstrap_rps)
 
-    rp_perc = np.nanpercentile(bootstrap_rps, [5,10,50,90,95]).round(1)
+    rp_perc = np.nanpercentile(bootstrap_rps, [5,10,50,90,95], method='closest_observation').round(1)
 
     era_csv = open(os.path.join(cfg['work_dir'], 'gev_era_data_'+cfg['region'].lower()+'_'+cfg['ax_var_label'].lower()+'.csv'), 'w', newline='')
     era_csv_writer = csv.writer(era_csv, delimiter=',')
@@ -409,11 +409,11 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         ax_surv.set_xlim(border[0]/1.2, border[1]/1.2)
         ax_surv.set_yscale('log')
         ax_surv.grid(color='silver', axis='both', alpha=0.5)
-        ax_hist.set_title('Probability density function')
-        ax_qq.set_title('Quality assessment')
+        ax_hist.set_title('(a) Probability density function')
+        ax_qq.set_title('(b) Quality assessment')
         ax_qq.set_ylabel('Data quantile')
         ax_qq.set_xlabel('GEV quantile')
-        ax_surv.set_title('Return period')
+        ax_surv.set_title('(c) Return period')
         ax_surv.set_ylabel('years')
         ax_surv.set_xlabel(cfg['ax_var_label'] + ' anomaly, ' +cfg['var_units'])
         ax_hist.set_xlabel(cfg['ax_var_label'] + ' anomaly, ' +cfg['var_units'])
@@ -433,10 +433,9 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
 
         all_to_nat = list(); ssp_to_nat = list(); ssp_to_all = list()
         for i in range(len(uncert_band['all'][model]['return_periods_all'])):
-            for j in range(len(uncert_band['all'][model]['return_periods_all'])):
-                all_to_nat.append(uncert_band['nat'][model]['return_periods_all'][i]/uncert_band['all'][model]['return_periods_all'][j])
-                ssp_to_nat.append(uncert_band['nat'][model]['return_periods_all'][i]/uncert_band['ssp245'][model]['return_periods_all'][j])
-                ssp_to_all.append(uncert_band['all'][model]['return_periods_all'][i]/uncert_band['ssp245'][model]['return_periods_all'][j])
+                all_to_nat.append(uncert_band['nat'][model]['return_periods_all'][i]/uncert_band['all'][model]['return_periods_all'][i])
+                ssp_to_nat.append(uncert_band['nat'][model]['return_periods_all'][i]/uncert_band['ssp245'][model]['return_periods_all'][i])
+                ssp_to_all.append(uncert_band['all'][model]['return_periods_all'][i]/uncert_band['ssp245'][model]['return_periods_all'][i])
         all_to_nat_perc = np.nanpercentile(all_to_nat, [5,10,50,90,95], method='closest_observation')
         ssp_to_nat_perc = np.nanpercentile(ssp_to_nat, [5,10,50,90,95], method='closest_observation')
         ssp_to_all_perc = np.nanpercentile(ssp_to_all, [5,10,50,90,95], method='closest_observation')
@@ -481,10 +480,10 @@ def make_era_dist_figure(obs_info_dic, cfg, border):
     ax_era_hist.set_xlim(*border)
     ax_era_hist.set_xlabel(cfg['ax_var_label'] +', ' + cfg['var_units'])
     ax_era_hist.set_ylabel('Number density')
-    ax_era_hist.set_title('Probability density function')
+    ax_era_hist.set_title('(a) Histogram')
 
     ax_era_surv.plot(x_gev_fine[era_sf>0.00001], 1/era_sf[era_sf>0.00001], c='indianred')
-    ax_era_surv.set_title('ERA5 ' +  cfg['ax_var_label'] +' return period in '+ str(cfg['analysis_year']))
+    ax_era_surv.set_title('(b) ERA5 ' +  cfg['ax_var_label'] +' return period in '+ str(cfg['analysis_year']))
     ax_era_surv.set_xlabel(cfg['ax_var_label'] +', ' + cfg['var_units'])
     ax_era_surv.set_ylabel('years')
     ax_era_surv.scatter(ana_year_value, era_RP, c='indianred', marker='x',lw=2, s=100, label= str(cfg['analysis_year']), clip_on=False, zorder=4)
@@ -494,7 +493,7 @@ def make_era_dist_figure(obs_info_dic, cfg, border):
     ax_era_surv.set_ylim(1,10000)
     ax_era_surv.set_xlim(*border)
 
-    ax_era_tseries.set_title('ERA5 ' + cfg['ax_var_label'] +' timeseries')
+    ax_era_tseries.set_title('(c) ERA5 ' + cfg['ax_var_label'] +' timeseries')
     ax_era_tseries.plot(years, abs_cube.data, c='indianred')
     ax_era_tseries.grid(color='silver', axis='both', alpha=0.5)
     ax_era_tseries.set_xlabel('time')

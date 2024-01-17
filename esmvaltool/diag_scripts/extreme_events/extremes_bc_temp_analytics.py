@@ -379,19 +379,20 @@ def calculate_stds(data_dic, obs_gev_data, cfg):
                 mmm_std = np.sqrt(np.average((wdata - mmm)**2, weights=wghts))
             else: 
                 mmm_std = wdata.std()
-            ax_stds.scatter(mmm_std, 0, c = col_mod, s=70, marker='s', zorder=2)
+            ax_stds.scatter(mmm_std, 0, c = col_mod, s=70, marker='s', zorder=3)
             y_labs[0] = 'CMIP6'
     
-    ax_stds.axvline(era_var, -1, len(data_dic.keys()) + 1, c=col_obs, zorder=1)
+    ax_stds.axvline(era_var, -1, len(data_dic.keys()) + 1, c=col_obs, zorder=2, lw=3)
     ax_stds.set_ylim(len(data_dic.keys()) -0.8, -0.2)
 
     ax_stds.set_yticks(y_ticks, labels=y_labs)
-    ax_stds.grid(which='both', c='silver')
+    ax_stds.grid(which='both', c='silver', zorder=1)
 
     ax_stds.set_xlabel('StD of '+cfg['ax_var_label'] + ' anomalies, C')
+    ax_stds.text(0.02, 0.97, cfg.get('litera')+' '+cfg['region'], fontsize='xx-large', transform=ax_stds.transAxes)
 
-    fig_stds.suptitle('Standard deviations (StD) of '+cfg['title_var_label']+' anomalies in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
-            + '-' + str(cfg['reference_period'][1]))
+    # fig_stds.suptitle('Standard deviations (StD) of '+cfg['title_var_label']+' anomalies in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
+    #         + '-' + str(cfg['reference_period'][1]))
 
     plt.tight_layout()
 
@@ -429,11 +430,14 @@ def create_timeseries(data_dic, mixns, obs_gev_data, cfg):
         model_var_data = np.array(model_var_data)
         model_gsat_data = np.array(model_gsat_data)
         if (dataset == 'Multi-Model-Mean')&(cfg['model_weighting']):
-            mean_var_arr = np.average(model_var_data, axis=0, weights=weights)
-            mean_gsat_arr = np.average(model_gsat_data, axis=0, weights=weights)
-            # so far std, maybe do percentiles
-            std_var_arr = np.sqrt(np.average((model_var_data - mean_var_arr)**2, axis=0, weights=weights))
-            std_gsat_arr = np.sqrt(np.average((model_gsat_data - mean_gsat_arr)**2, axis=0, weights=weights))
+            # mean_var_arr = np.average(model_var_data, axis=0, weights=weights)
+            # mean_gsat_arr = np.average(model_gsat_data, axis=0, weights=weights)
+            # temporarily added 
+            perc_gsat_arr = np.percentile(model_gsat_data, [5,95], axis=0)
+            min_var_arr = np.min(model_var_data, axis=0)
+            max_var_arr = np.max(model_var_data, axis=0)
+            mean_var_arr = np.average(model_var_data, axis=0)
+            mean_gsat_arr = np.average(model_gsat_data, axis=0)
         else:
             mean_var_arr = np.average(model_var_data, axis=0)
             min_var_arr = np.min(model_var_data, axis=0)
@@ -449,12 +453,8 @@ def create_timeseries(data_dic, mixns, obs_gev_data, cfg):
         ax_ts[1].plot(t_s, mean_gsat_arr, c=col_mod, zorder=3, label=dataset)
         if len(data_dic[dataset]['var_data'])>1:
             # clean this noncense before submitting! 
-            try: 
-                ax_ts[0].fill_between(t_s, min_var_arr, max_var_arr, color=col_mod, lw=0, alpha=0.25)
-                ax_ts[1].fill_between(t_s, perc_gsat_arr[0], perc_gsat_arr[1], color=col_mod, lw=0, alpha=0.25)
-            except:
-                ax_ts[0].fill_between(t_s, mean_var_arr+std_var_arr, mean_var_arr-std_var_arr, color=col_mod, lw=0, alpha=0.25)
-                ax_ts[1].fill_between(t_s, mean_gsat_arr+std_gsat_arr, mean_gsat_arr-std_gsat_arr, color=col_mod, lw=0, alpha=0.25)
+            ax_ts[0].fill_between(t_s, min_var_arr, max_var_arr, color=col_mod, lw=0, alpha=0.25)
+            ax_ts[1].fill_between(t_s, perc_gsat_arr[0], perc_gsat_arr[1], color=col_mod, lw=0, alpha=0.25)
         [a.plot([t_s[0]-0.5, t_s[-1]+0.5], [0,0], c='grey') for a in ax_ts]
         [a.set_xlim(t_s[0]-0.5, t_s[-1]+0.5) for a in ax_ts]
         ax_ts[0].set_ylim(b_min, b_max); ax_ts[1].set_ylim(-1, 2)  # so far fixed, revise
@@ -463,10 +463,10 @@ def create_timeseries(data_dic, mixns, obs_gev_data, cfg):
         ax_ts[1].set_ylabel('GSAT anomaly, C')
         ax_ts[1].set_xlabel('year')
         if dataset == 'Multi-Model-Mean':
-            fig_ts.suptitle('Anomalies in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
+            fig_ts.suptitle(cfg.get('litera')+' '+cfg['ax_var_label']+' anomalies in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
             + '-' + str(cfg['reference_period'][1])+ ' from '+str(len(data_dic.keys()) - 1) +' CMIP6 models' , fontsize = 'x-large')
         else:
-            fig_ts.suptitle('Anomalies in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
+            fig_ts.suptitle(cfg.get('litera')+' '+cfg['ax_var_label']+' anomalies in '+cfg['region']+' relative to '+ str(cfg['reference_period'][0]) \
             + '-' + str(cfg['reference_period'][1])+ '  from '+dataset, fontsize = 'x-large')
 
         plt.tight_layout()
@@ -532,21 +532,21 @@ def main(cfg):
             maxs.append(mod_cb.collapsed('time', iris.analysis.MAX).data)
         plotting_dic[dataset] = {'var_data': mod_var_cubelist}
         plotting_dic[dataset]['gsat_data'] = mod_gsat_cubelist
-        plotting_dic[dataset]['uncert'] = bootstrap_gev(mod_var_cubelist, obs_gev_data, mod_gsat_cubelist)
+        # plotting_dic[dataset]['uncert'] = bootstrap_gev(mod_var_cubelist, obs_gev_data, mod_gsat_cubelist)
     mixns['max'] = np.asarray(maxs).max()
     mixns['min'] = np.asarray(mins).min()
     plotting_dic['Multi-Model-Mean'] = {'var_data' : ens_var_cubelist, 'gsat_data': ens_gsat_cubelist}
-    plotting_dic['Multi-Model-Mean']['uncert'] = bootstrap_gev(plotting_dic, obs_gev_data) 
-    fit_param_apr = {'loc': np.around(plotting_dic['Multi-Model-Mean']['uncert']['loc'].mean(),3),
-                        'scale': np.around(plotting_dic['Multi-Model-Mean']['uncert']['scale'].mean(),3),
-                        'shape': np.around(plotting_dic['Multi-Model-Mean']['uncert']['shape'].mean(),3)}
+    # plotting_dic['Multi-Model-Mean']['uncert'] = bootstrap_gev(plotting_dic, obs_gev_data) 
+    # fit_param_apr = {'loc': np.around(plotting_dic['Multi-Model-Mean']['uncert']['loc'].mean(),3),
+    #                     'scale': np.around(plotting_dic['Multi-Model-Mean']['uncert']['scale'].mean(),3),
+    #                     'shape': np.around(plotting_dic['Multi-Model-Mean']['uncert']['shape'].mean(),3)}
 
     st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
     plt.style.use(st_file)
 
-    uncert_band = calculate_uncert_band(plotting_dic, mixns, cfg)
+    # uncert_band = calculate_uncert_band(plotting_dic, mixns, cfg)
 
-    create_gev_plot(plotting_dic, mixns, fit_param_apr, uncert_band, obs_gev_data, cfg)
+    # create_gev_plot(plotting_dic, mixns, fit_param_apr, uncert_band, obs_gev_data, cfg)
 
     create_timeseries(plotting_dic, mixns, obs_gev_data, cfg)
 
