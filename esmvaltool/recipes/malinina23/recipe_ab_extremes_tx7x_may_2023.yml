@@ -163,21 +163,18 @@ diagnostics:
         script: extreme_events/extremes_bc_temperature_running_mean.py
         mpl_style: ipcc_ar6_fgd
         reference_period: [1940, 1959]
-        fit_distribution: GEV # which distribution to fit, gev or gumbel
         model_weighting: False # determines, if each realisation gets a weight of 1 (false) or 1/number of relisation
         name_all: 2013-2032 # this is needed for legend, it's name_{name of a group}
         name_nat: 1850-1900 
         name_ssp245: 2081-2100
         region: Alberta # needed for the figure title
         ax_var_label: TX7x(pAM) # needed for axis name
-        title_var_label: TX7x(pAM) # needed for title name
-        var_units: C 
-        month: 5 
-        analysis_window: 31
-        analysis_year: 2023
-        smooth_gsat_years: 4
-        add_gsat_year: True
-        timerange: True
-        time_start: 2023-4-30
+        var_units: C  # units of the data
+        month: 5 # month for which analysis is done
+        analysis_year: 2023  # year for which analysis is done
+        smooth_gsat_years: 4 # smoothing window for GSAT to fit non-stat GEV 
+        add_gsat_year: True # in case current year, need to add GSAT from the previous year to fit GEV
+        timerange: True # if analysis should be done not for month, but rather for timerange
+        time_start: 2023-4-30 # if timerange is True, timerange for which to search for TXNx maxima
         time_end: 2023-5-6
 
