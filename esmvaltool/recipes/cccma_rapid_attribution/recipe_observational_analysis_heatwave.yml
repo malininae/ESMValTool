@@ -1,0 +1,62 @@
+# ESMValTool
+# recipe_observational_analysis_heatwave.yml
+---
+documentation:
+
+  title: Analysis of ERA5 maximum temeratures. 
+
+  description: First analysis step in the Canadian extreme event attribution system
+               prototype developped in Climate Research Division (CRD), Environment 
+               and Climate Change Canada (ECCC).
+
+  authors:
+    - malinina_elizaveta
+preprocessors:
+  preproc_era_canada:
+    extract_shape:
+      shapefile: Stone_regions_WRAF05_v4_1_Canada.shp
+      method: contains
+      crop: True
+    convert_units:
+      units: degrees_C
+
+datasets: 
+  - {dataset: ERA5, project: OBS6, type: reanaly, version: v1, tier: 3}
+
+diagnostics:
+  era:
+    description: Showing map of the maximum temperature distribution, 
+                 analysing if the day is a heatwave for each subregion,
+                 calculating heatwave duration for subregions if appropriate.
+    variables:
+      tasmax:
+        start_year: 1991
+        start_month: 1
+        start_day: 1
+        end_year: 2024
+        end_month: 2
+        end_day: 3
+        mip: day
+        preprocessor: preproc_era_canada
+    scripts:
+      map:
+        script: extreme_events/map_distribution.py
+        mpl_style: ipcc_ar6_fgd
+        reference_period: [1991, 2020]
+        shape_file: Stone_regions_WRAF05_v4_1_Canada.shp # a shape file with subregions
+        region: Canada # needed for the figure title
+        var_label: Temperature # needed for axis name
+        var_units: C 
+        analysis_day: '2023-02-03'
+        half_window: 15
+      heatwave:
+        script: extreme_events/heatwave_detection.py
+        mpl_style: ipcc_ar6_fgd
+        reference_period: [1991, 2020]
+        shape_file: Stone_regions_WRAF05_v4_1_Canada.shp # a shape file with subregions
+        region: Canada # needed for the figure title
+        var_label: $T_{max}$ # needed for axis name
+        trigger_percentile: 90
+        var_units: C 
+        analysis_day: '2023-02-03'
+        half_window: 15
