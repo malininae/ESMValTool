@@ -11,33 +11,94 @@ documentation:
 
   authors:
     - malinina_elizaveta
+
 preprocessors:
-  preproc_era_canada:
+  preproc_canada_map:
+    extract_region:
+      start_longitude: 200
+      end_longitude: 345
+      start_latitude: 35
+      end_latitude: 82     
+    convert_units:
+      units: degrees_C
+
+  preproc_canada_ref:
+    custom_order: True
+    extract_region:
+      start_longitude: 200
+      end_longitude: 345
+      start_latitude: 35
+      end_latitude: 82     
+    rolling_window_statistics:
+      coordinate: time
+      operator: max
+      window_length: 31    
+    climate_statistics:
+      operator: mean
+      period: day
+    convert_units:
+      units: degrees_C
+
+  preproc_regions_current:
+    custom_order: True
     extract_shape:
       shapefile: Stone_regions_WRAF05_v4_1_Canada.shp
       method: contains
       crop: True
+      decomposed: True
+    area_statistics:
+      operator: mean
     convert_units:
       units: degrees_C
+
+  preproc_regions_reference:
+    custom_order: True
+    extract_shape:
+      shapefile: Stone_regions_WRAF05_v4_1_Canada.shp
+      method: contains
+      crop: True
+      decomposed: True
+    convert_units:
+      units: degrees_C
+    # area_statistics:
+    #   operator: mean
+    # rolling_window_statistics:
+    #   coordinate: time
+    #   operator: mean
+    #   window_length: 31
+    # climate_statistics:
+    #   operator: percentile
+    #   percent: 90
+    #   period: day
+
 
 datasets: 
   - {dataset: ERA5, project: OBS6, type: reanaly, version: v1, tier: 3}
 
 diagnostics:
-  era:
-    description: Showing map of the maximum temperature distribution, 
-                 analysing if the day is a heatwave for each subregion,
-                 calculating heatwave duration for subregions if appropriate.
+  map:
+    description: Showing map of the maximum temperature distribution.
     variables:
-      tasmax:
-        start_year: 1991
+      current:
+        short_name: tasmax
+        start_year: 2023
         start_month: 1
         start_day: 1
         end_year: 2024
         end_month: 2
         end_day: 3
         mip: day
-        preprocessor: preproc_era_canada
+        preprocessor: preproc_canada_map
+      reference:
+        short_name: tasmax
+        start_year: 1991
+        start_month: 1
+        start_day: 1
+        end_year: 2020
+        end_month: 12
+        end_day: 31
+        mip: day
+        preprocessor: preproc_canada_ref
     scripts:
       map:
         script: extreme_events/map_distribution.py
@@ -47,16 +108,43 @@ diagnostics:
         region: Canada # needed for the figure title
         var_label: Temperature # needed for axis name
         var_units: C 
-        analysis_day: '2023-02-03'
-        half_window: 15
+        last_day: True # are we analysing last day or specific dates, optional
+        analysis_day: '2024-02-03' # day for the analysis if not last day, optional
+
+
+  heatwave:
+    description: Analysing if the day is a heatwave for each subregion,
+                calculating heatwave duration for subregions if appropriate.
+    variables:
+      current:
+        short_name: tasmax
+        start_year: 2023
+        start_month: 1
+        start_day: 1
+        end_year: 2024
+        end_month: 2
+        end_day: 3
+        mip: day
+        preprocessor: preproc_regions_current
+      reference:
+        short_name: tasmax
+        start_year: 1991
+        start_month: 1
+        start_day: 1
+        end_year: 2020
+        end_month: 12
+        end_day: 31
+        mip: day
+        preprocessor: preproc_regions_reference
+    scripts:  
       heatwave:
         script: extreme_events/heatwave_detection.py
         mpl_style: ipcc_ar6_fgd
         reference_period: [1991, 2020]
-        shape_file: Stone_regions_WRAF05_v4_1_Canada.shp # a shape file with subregions
         region: Canada # needed for the figure title
         var_label: $T_{max}$ # needed for axis name
         trigger_percentile: 90
         var_units: C 
+        last_day: True
+        averaging_window: 31
         analysis_day: '2023-02-03'
-        half_window: 15
