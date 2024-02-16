@@ -15,20 +15,20 @@ documentation:
 preprocessors:
   preproc_canada_map:
     extract_region:
-      start_longitude: 200
-      end_longitude: 345
+      start_longitude: 185
+      end_longitude: 350
       start_latitude: 35
-      end_latitude: 82     
+      end_latitude: 84     
     convert_units:
       units: degrees_C
 
   preproc_canada_ref:
     custom_order: True
     extract_region:
-      start_longitude: 200
-      end_longitude: 345
+      start_longitude: 185
+      end_longitude: 350
       start_latitude: 35
-      end_latitude: 82     
+      end_latitude: 84     
     rolling_window_statistics:
       coordinate: time
       operator: max
@@ -60,16 +60,16 @@ preprocessors:
       decomposed: True
     convert_units:
       units: degrees_C
-    # area_statistics:
-    #   operator: mean
-    # rolling_window_statistics:
-    #   coordinate: time
-    #   operator: mean
-    #   window_length: 31
-    # climate_statistics:
-    #   operator: percentile
-    #   percent: 90
-    #   period: day
+    area_statistics:
+      operator: mean
+    rolling_window_statistics:
+      coordinate: time
+      operator: mean
+      window_length: 31
+    climate_statistics:
+      operator: percentile
+      percent: 90
+      period: day
 
 
 datasets: 
@@ -111,7 +111,6 @@ diagnostics:
         last_day: True # are we analysing last day or specific dates, optional
         analysis_day: '2024-02-03' # day for the analysis if not last day, optional
 
-
   heatwave:
     description: Analysing if the day is a heatwave for each subregion,
                 calculating heatwave duration for subregions if appropriate.
@@ -136,7 +135,7 @@ diagnostics:
         end_day: 31
         mip: day
         preprocessor: preproc_regions_reference
-    scripts:  
+    scripts:   
       heatwave:
         script: extreme_events/heatwave_detection.py
         mpl_style: ipcc_ar6_fgd
@@ -147,4 +146,4 @@ diagnostics:
         var_units: C 
         last_day: True
         averaging_window: 31
-        analysis_day: '2023-02-03'
+        analysis_day: '2024-02-03'

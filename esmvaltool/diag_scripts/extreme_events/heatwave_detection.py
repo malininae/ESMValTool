@@ -51,19 +51,44 @@ def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
             break                
 
     if hw_start>inp_date:
-        hw_start = None ; hw_end = None ; hw_max = None
+        hw_start = None ; hw_end = None ; hw_max = None; hw_3max = None
     else: 
-        if hw_len>1:
+        if hw_len>3:
+            hw_cb = obs_cb.extract(iris.Constraint(
+                    time=lambda cell: hw_start <= datetime.strptime(
+                    str(cell.point),'%Y-%m-%d %H:%M:%S').date() <= hw_end))
+            hw_3cb = eprep.rolling_window_statistics(hw_cb, coordinate='time', 
+                                             window_length=3, operator='mean')
+            hw_max_cell = hw_cb.collapsed('time', iris.analysis.MAX).coord('time'
+                                                                    ).cell(0).point
+            hw_max = datetime.strptime(str(hw_max_cell),'%Y-%m-%d %H:%M:%S').date()
+            hw_3max_cell = hw_3cb.collapsed('time', iris.analysis.MAX).coord('time'
+                                                                    ).cell(0).point
+            hw_3max = datetime.strptime(str(hw_3max_cell),'%Y-%m-%d %H:%M:%S').date()
+        elif hw_len==1:
+            hw_max = hw_start
+            hw_3max = 'N/A'
+        elif hw_len == 3:
+            hw_cb = obs_cb.extract(iris.Constraint(
+                    time=lambda cell: hw_start <= datetime.strptime(
+                    str(cell.point),'%Y-%m-%d %H:%M:%S').date() <= hw_end))
+            hw_3cb = eprep.rolling_window_statistics(hw_cb, coordinate='time', 
+                                             window_length=3, operator='mean')
+            hw_max_cell = hw_cb.collapsed('time', iris.analysis.MAX).coord('time'
+                                                                    ).cell(0).point
+            hw_max = datetime.strptime(str(hw_max_cell),'%Y-%m-%d %H:%M:%S').date()
+            hw_3max_cell = hw_3cb.coord('time').cell(0).point
+            hw_3max = datetime.strptime(str(hw_3max_cell),'%Y-%m-%d %H:%M:%S').date()
+        else:
             hw_cb = obs_cb.extract(iris.Constraint(
                     time=lambda cell: hw_start <= datetime.strptime(
                     str(cell.point),'%Y-%m-%d %H:%M:%S').date() <= hw_end))
             hw_max_cell = hw_cb.collapsed('time', iris.analysis.MAX).coord('time'
                                                                     ).cell(0).point
             hw_max = datetime.strptime(str(hw_max_cell),'%Y-%m-%d %H:%M:%S').date()
-        else:
-            hw_max = hw_start    
-
-    return hw_start, hw_end, hw_max, hw_len
+            hw_3max = 'N/A'
+ 
+    return hw_start, hw_end, hw_max, hw_3max, hw_len
 
 
 def plot_heatwave_length(obs_cb: Cube, ref_cb: Cube, hw_info: dict, 
@@ -141,6 +166,12 @@ def plot_heatwave_length(obs_cb: Cube, ref_cb: Cube, hw_info: dict,
 
 
 def main(cfg):
+    '''
+    This function does data processing and initiates analysis and plotting.
+
+    Input: 
+        cfg: standard ESMValTool config disctionary
+    '''
 
     last_day_l = cfg.get('last_day'); inp_day = cfg.get('analysis_day')
     if last_day_l== inp_day == None:
@@ -162,24 +193,18 @@ def main(cfg):
                      f'{dataset}_regional_heatwave_info.csv'), 'w', newline='')
         dataset_csv_w = csv.writer(dataset_csv, delimiter=',')
         dataset_csv_w.writerow(['Region', 'start_day', 'end_day',
-                                                       'max_day', 'length'])
+                                                       'max_day', '3_day_max', 'length'])
 
         for shape_id in current_cb.coord('shape_id').points:
             reg_obs_cb = current_cb.extract(iris.Constraint(shape_id=shape_id))
             reg_ref_cb = ref_cb.extract(iris.Constraint(shape_id=shape_id))
-            reg_ref_cb = eprep.area_statistics(reg_ref_cb, operator='mean')
-            reg_ref_cb = eprep.rolling_window_statistics(reg_ref_cb, coordinate='time', 
-                                        window_length=31, operator='mean')
-            reg_ref_cb = eprep.climate_statistics(reg_ref_cb, operator='percentile', 
-                                            percent=cfg['trigger_percentile'], 
-                                            period='day')
-            hw_start, hw_end, hw_max, hw_len = analyse_heatwave(reg_obs_cb,
+            hw_start, hw_end, hw_max, hw_3max, hw_len = analyse_heatwave(reg_obs_cb,
                                                           reg_ref_cb, inp_date)
             if hw_start is not None:
                 dataset_csv_w.writerow([shape_id, hw_start, 
-                                        hw_end, hw_max, hw_len])
+                                        hw_end, hw_max, hw_3max, hw_len])
                 hw_info = {'hw_start': hw_start, 'hw_end': hw_end,
-                                            'hw_max': hw_max, 'hw_len': hw_len}
+                        'hw_max': hw_max, 'hw_3max': hw_3max, 'hw_len': hw_len}
                 plot_heatwave_length(reg_obs_cb, reg_ref_cb, hw_info, dataset, cfg)
         
         dataset_csv.close()

@@ -58,13 +58,14 @@ def define_inp_date(cube: Cube, last_day: bool | None, inp_day: str | None):
     
     if last_day:
         day_cb = cube[-1]
-        day_date = day_cb.coord('time').cell(0).point
-        if (inp_day!=None)&(inp_date.year==day_date.year
-                                )&(inp_date.month==day_date.month
-                                        )&(inp_date.day==day_date.day):
+        day_date = datetime.strptime(
+            str(day_cb.coord('time').cell(0).point),'%Y-%m-%d %H:%M:%S').date()
+        if (inp_day!=None)&((inp_date.year!=day_date.year
+                                )|(inp_date.month!=day_date.month
+                                        )|(inp_date.day!=day_date.day)):
             logger.warning(f'The input date {inp_day} from the recipe does '
-                   'not correspond to the last day in the observational cube. '
-                   'Proceeding with the last day.')
+                   'not correspond to the last day in the observational cube '
+                   f'{day_date}. Proceeding with the last day.')
         inp_date = datetime.strptime(
             str(day_cb.coord('time').cell(0).point),'%Y-%m-%d %H:%M:%S').date()
 
@@ -120,7 +121,7 @@ def plot_map(cube: iris.cube.Cube, dataset: str, cfg: dict):
         ax.text(list(shape_gpd.iloc[n].geometry.centroid.coords)[0][0],
                 list(shape_gpd.iloc[n].geometry.centroid.coords)[0][1],
                 str(n+1), fontsize='x-large',  transform=ccrs.PlateCarree())
-        fig.text(0.021+(n//n_cols)*0.957/n_cols, 0.215-(n%n_rows)*0.2/n_rows, 
+        fig.text(0.021+(n//n_rows)*0.957/n_cols, 0.2-(n%n_rows)*0.19/n_rows, 
                  str(n+1)+'. '+shape_gpd.iloc[n].ID)
         
 
