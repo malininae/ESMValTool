@@ -1,10 +1,6 @@
 ---
 name: rapid_event_climex
 channels:
-  # The release candidate channel should only be activated
-  # during the rc phase right before the next release of the
-  # ESMValCore.
-  # - conda-forge/label/esmvalcore_rc
   - conda-forge
   - cascade
   - nodefaults
