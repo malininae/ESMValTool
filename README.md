@@ -12,6 +12,6 @@ The **environment.yml** differes from the official one. Please be aware that add
 `mamba env create --name rapid_event_climex --file environment.yml`
 and activating that environment, one should run **R** byt typing in the command line `R`. 
 
-After that, in the **R promt** one should run `library('climextRemes')`. In case the package was not installed properly, than please install it by typing in **R prompt** `install.packages('climextRemes')` and follow the instructions from the prompt. 
+After that, in the **R promt** one should run `library('climextRemes')`. In case the package was not installed properly, than please install it by typing in **R prompt** `install.packages('climextRemes')` and follow the instructions from the prompt. Please, don't forget to save the image after quiting R. 
 
 Otherwise for further use, please consult official ESMValTool **ESMValTool_README.md**. 
