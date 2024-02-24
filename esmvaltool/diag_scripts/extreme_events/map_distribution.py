@@ -20,7 +20,7 @@ import esmvaltool.diag_scripts.shared.plot as eplot
 logger = logging.getLogger(os.path.basename(__file__))
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
-def obtain_cubes(dataset: list):
+def obtain_cubes(dataset: list, cfg: dict):
     '''
     This function retrieves current and reference cube from datasets.
 
@@ -33,8 +33,23 @@ def obtain_cubes(dataset: list):
 
     current_f = select_metadata(dataset,variable_group='current'
                                                         )[0]['filename']
-    ref_f = select_metadata(dataset,variable_group='reference'
+    diagnostic = select_metadata(dataset,variable_group='current'
+                                                        )[0]['diagnostic']
+    try:
+        # checking if the cube exist in aux directory
+        current_base = os.path.basename(current_f)
+        f_type = current_base.split('.')[-1]
+        # 10 comes from '.' + 4 for start_year + '-' + 4 for end_year
+        # TODO come with better solution
+        ref_base = current_base[:len(f_type)+10] + \
+                                str(cfg['reference_period'][0]) + '-' + \
+                                str(cfg['reference_period'][1]+'.'+ f_type)
+        ref_f = os.path.join(cfg['auxiliary_data_dir'], diagnostic, ref_base)
+    except:
+        ref_f = select_metadata(dataset,variable_group='reference'
                                                         )[0]['filename']
+    logger.info(f'Found file {ref_f}')
+
     current_cb = iris.load_cube(current_f)
     ref_cb = iris.load_cube(ref_f)
 
@@ -100,7 +115,7 @@ def plot_map(cube: iris.cube.Cube, dataset: str, cfg: dict):
     bord = np.floor(np.abs(np.asarray([max_t, min_t]).flatten()).max()*0.95)
     ax.coastlines(linewidth=0.5)
     map_pl = iplt.contourf(cube, axes=ax, levels=np.arange(-bord, bord+1,1), 
-                                                cmap='coolwarm', extend='both')
+                                                cmap='RdBu_r', extend='both')
     ax.set_title('Maximum '+cfg['var_label'].lower()+' anomalies in ' + \
               cfg['region'] + ' (' +str(datetime.strptime(str(
               cube.coord('time').cell(0).point), '%Y-%m-%d %H:%M:%S').date())+\
@@ -144,7 +159,7 @@ def main(cfg):
 
     for dataset in datasets.keys():
         
-        current_cb, ref_cb = obtain_cubes(datasets[dataset])
+        current_cb, ref_cb = obtain_cubes(datasets[dataset], cfg)
 
         inp_date = define_inp_date(current_cb, last_day_l, inp_day)
 

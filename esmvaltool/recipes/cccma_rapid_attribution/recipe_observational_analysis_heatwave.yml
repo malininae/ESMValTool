@@ -13,7 +13,8 @@ documentation:
     - malinina_elizaveta
 
 preprocessors:
-  preproc_canada_map:
+  preproc_canada_map:  &prep_map
+    custom_order: True
     extract_region:
       start_longitude: 185
       end_longitude: 350
@@ -23,23 +24,16 @@ preprocessors:
       units: degrees_C
 
   preproc_canada_ref:
-    custom_order: True
-    extract_region:
-      start_longitude: 185
-      end_longitude: 350
-      start_latitude: 35
-      end_latitude: 84     
+    <<: *prep_map
     rolling_window_statistics:
       coordinate: time
-      operator: max
+      operator: mean
       window_length: 31    
     climate_statistics:
       operator: mean
       period: day
-    convert_units:
-      units: degrees_C
 
-  preproc_regions_current:
+  preproc_regions:
     custom_order: True
     extract_shape:
       shapefile: Stone_regions_WRAF05_v4_1_Canada.shp
@@ -50,27 +44,6 @@ preprocessors:
       operator: mean
     convert_units:
       units: degrees_C
-
-  preproc_regions_reference:
-    custom_order: True
-    extract_shape:
-      shapefile: Stone_regions_WRAF05_v4_1_Canada.shp
-      method: contains
-      crop: True
-      decomposed: True
-    convert_units:
-      units: degrees_C
-    area_statistics:
-      operator: mean
-    rolling_window_statistics:
-      coordinate: time
-      operator: mean
-      window_length: 31
-    climate_statistics:
-      operator: percentile
-      percent: 90
-      period: day
-
 
 datasets: 
   - {dataset: ERA5, project: OBS6, type: reanaly, version: v1, tier: 3}
@@ -86,7 +59,7 @@ diagnostics:
         start_day: 1
         end_year: 2024
         end_month: 2
-        end_day: 3
+        end_day: 16
         mip: day
         preprocessor: preproc_canada_map
       reference:
@@ -109,7 +82,7 @@ diagnostics:
         var_label: Temperature # needed for axis name
         var_units: C 
         last_day: True # are we analysing last day or specific dates, optional
-        analysis_day: '2024-02-03' # day for the analysis if not last day, optional
+        analysis_day: '2024-02-16' # day for the analysis if not last day, optional
 
   heatwave:
     description: Analysing if the day is a heatwave for each subregion,
@@ -122,9 +95,9 @@ diagnostics:
         start_day: 1
         end_year: 2024
         end_month: 2
-        end_day: 3
+        end_day: 16
         mip: day
-        preprocessor: preproc_regions_current
+        preprocessor: preproc_regions
       reference:
         short_name: tasmax
         start_year: 1991
@@ -134,7 +107,7 @@ diagnostics:
         end_month: 12
         end_day: 31
         mip: day
-        preprocessor: preproc_regions_reference
+        preprocessor: preproc_regions
     scripts:   
       heatwave:
         script: extreme_events/heatwave_detection.py
@@ -145,5 +118,5 @@ diagnostics:
         trigger_percentile: 90
         var_units: C 
         last_day: True
-        averaging_window: 31
-        analysis_day: '2024-02-03'
+        half_window: 15
+        analysis_day: '2024-02-16'

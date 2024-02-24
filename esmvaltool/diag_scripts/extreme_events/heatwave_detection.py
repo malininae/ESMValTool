@@ -1,5 +1,6 @@
 import iris
 import iris.plot as iplt
+import iris.coord_categorisation 
 from iris.cube import Cube
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
@@ -20,6 +21,41 @@ from esmvaltool.diag_scripts.extreme_events.map_distribution import obtain_cubes
 logger = logging.getLogger(os.path.basename(__file__))
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
+def calculate_reference_cube(ref_cb: Cube, half_window: int, percentile: int):
+    '''
+    This function calculates climatological percentile in the provided window
+
+    Input:
+        ref_cb: the reference cube (time resolved) 
+        half_window: the number of days around (+/-) the date of interest to 
+                     consider to calculate the trigger percentile
+        percentile: the trigger percentile to determine heatwave
+    Output:
+        clim_ref_cb: climatological cube with calculated percentiles
+    '''
+
+    # adding aux coord with the day of year 
+    iris.coord_categorisation.add_day_of_year(ref_cb, 'time', 'doy')
+
+    clim_perc = np.zeros(366)
+    doy = ref_cb.coord('doy').points ; ref_data = ref_cb.data
+    for day in range(1, 367):   
+        good_plus = (doy - day) % 365 <= half_window 
+        good_minus = (day - doy) % 365 <= half_window
+        good = good_plus | good_minus
+        perc = np.nanpercentile(ref_data[good], percentile)
+        clim_perc[day-1] = perc
+
+    doy_coord = iris.coords.DimCoord(np.arange(1, 367), long_name='day_of_year')
+
+    clim_ref_cb = Cube(clim_perc, standard_name=ref_cb.standard_name, 
+                       dim_coords_and_dims=[(doy_coord,0)],
+                       long_name=ref_cb.long_name, var_name=ref_cb.var_name,
+                       units=ref_cb.units, attributes=ref_cb.attributes)
+
+
+    return clim_ref_cb   
+
 
 def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
     '''
@@ -27,7 +63,7 @@ def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
 
     Input:
         obs_cb: iris cube from which the day is extracted
-        ref_cb: the reference cube 
+        ref_cb: the reference cube (time resolved) 
         inp_date: date around which needs to be extracted
     '''
 
@@ -37,7 +73,7 @@ def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
         day_cb = obs_cb.extract(iris.Constraint(
                 time=lambda cell: datetime.strptime(
                 str(cell.point),'%Y-%m-%d %H:%M:%S').date()==hw_start))    
-        day_of_y = inp_date.timetuple().tm_yday
+        day_of_y = inp_date.timetuple().tm_yday 
         ref_day_cb= ref_cb.extract(iris.Constraint(day_of_year=day_of_y))
         shape_id = day_cb.coord('shape_id').cell(0).point 
         if day_cb.data > ref_day_cb.data:
@@ -113,6 +149,8 @@ def plot_heatwave_length(obs_cb: Cube, ref_cb: Cube, hw_info: dict,
     ext_start_idx = ext_start.timetuple().tm_yday
     hw_end_idx = hw_end.timetuple().tm_yday
 
+    perc_label = '('+str(cfg['trigger_percentile'])+' perc)'
+
     current_cb = obs_cb.extract(iris.Constraint(
                         time=lambda cell: ext_start <= datetime.strptime(
                         str(cell.point),'%Y-%m-%d %H:%M:%S').date() <= hw_end))
@@ -137,8 +175,9 @@ def plot_heatwave_length(obs_cb: Cube, ref_cb: Cube, hw_info: dict,
     ax.plot(np.arange(current_cb.shape[0]), current_cb.data, 
                                  label=cfg['var_label'] + y_lbl, c='darkred')
     ax.plot(np.arange(ref_cb.shape[0]), ref_cb.data, label=cfg['var_label']+ \
-                                 '('+str(cfg['reference_period'][0])+'-'+\
-                                 str(cfg['reference_period'][1])+')', c='darkgrey')
+                        '$_{'+perc_label+'}$' + '(' + \
+                        str(cfg['reference_period'][0]) + '-' + \
+                        str(cfg['reference_period'][1])+')', c='darkgrey')
     end_fpoint = ref_cb.shape[0]
     start_fpoint = end_fpoint - hw_info['hw_len'] - 1
     ax.fill_between(np.arange(start_fpoint, end_fpoint), 
@@ -146,12 +185,12 @@ def plot_heatwave_length(obs_cb: Cube, ref_cb: Cube, hw_info: dict,
                     ref_cb.data[start_fpoint: end_fpoint],
                     where=current_cb.data[start_fpoint:end_fpoint]>ref_cb.data[start_fpoint:end_fpoint],
                     color='darkred', alpha=0.3, interpolate=True)
-    ax.legend(loc = 0, fancybox=False, frameon=False, fontsize='x-large')
+    ax.legend(loc = 0, fancybox=False, frameon=False, fontsize='large')
     ax.grid(color='silver', axis='both', alpha=0.5)
     ax.set_ylabel(cfg['var_label'] +' ,'+cfg['var_units'])
     ax.set_xlabel('date (month/day)')
     ax.set_xlim(0,end_fpoint-1)
-    ax.text(0.75, 0.15,'Heatwave length: ' +str(hw_info['hw_len'])+' days\n('+ \
+    ax.text(0.85, 0.15,'Heatwave length: ' +str(hw_info['hw_len'])+' days\n('+ \
                                     str(hw_start)[5:].replace('-', '/')+' - '+\
                                     str(hw_end)[5:].replace('-', '/')+')',transform=ax.transAxes)
     xlabels = [str(d)[5:].replace('-','/') for d in np.arange(ext_start, hw_end+timedelta(days=1), 7)]
@@ -184,7 +223,7 @@ def main(cfg):
 
     for dataset in datasets.keys():
 
-        current_cb, ref_cb = obtain_cubes(datasets[dataset])
+        current_cb, ref_cb = obtain_cubes(datasets[dataset], cfg)
 
         inp_date = define_inp_date(current_cb, last_day_l, inp_day)
 
@@ -198,6 +237,9 @@ def main(cfg):
         for shape_id in current_cb.coord('shape_id').points:
             reg_obs_cb = current_cb.extract(iris.Constraint(shape_id=shape_id))
             reg_ref_cb = ref_cb.extract(iris.Constraint(shape_id=shape_id))
+            reg_ref_cb = calculate_reference_cube(reg_ref_cb, 
+                                                  cfg['half_window'],
+                                                  cfg['trigger_percentile'])
             hw_start, hw_end, hw_max, hw_3max, hw_len = analyse_heatwave(reg_obs_cb,
                                                           reg_ref_cb, inp_date)
             if hw_start is not None:
