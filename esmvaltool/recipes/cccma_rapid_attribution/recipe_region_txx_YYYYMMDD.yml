@@ -19,28 +19,26 @@ preprocessors:
       lat_offset: 0.25
       scheme: linear    
     extract_shape:
-      shapefile: alberta.shp
+      shapefile: Stone_regions_WRAF05_v4_1_Canada.shp
       method: contains
       crop: True
+      ids:
+        ID:
+          - Alberta
     area_statistics:
       operator: mean
-    rolling_window_statistics:
-      coordinate: time
-      operator: mean
-      window_length: 3
 
   preproc_era_abs: &prep_era_abs
     custom_order: True 
     extract_shape:
-      shapefile: alberta.shp
+      shapefile: Stone_regions_WRAF05_v4_1_Canada.shp
       method: contains
       crop: True
+      ids:
+        ID:
+          - Alberta
     area_statistics:
       operator: mean
-    rolling_window_statistics:
-      coordinate: time
-      operator: mean
-      window_length: 3
 
   preproc_era_gsat:
     custom_order: True  
@@ -143,21 +141,21 @@ diagnostics:
         project: CMIP6
         mip: day
         preprocessor: preproc_txx
-        additional_datasets: *datasets_tasmax
+        additional_datasets: *datasets_tasmax 
       obs_abs:
         short_name: tasmax
         start_year: 1940
         end_year: 2023
         mip: day
         preprocessor: preproc_era_abs 
-        additional_datasets: *dataset_era         
+        additional_datasets: *dataset_era       
       obs_gsat:
         short_name: tas
         start_year: 1940
         end_year: 2022
         mip: Amon
         preprocessor: preproc_era_gsat 
-        additional_datasets: *dataset_era   
+        additional_datasets: *dataset_era              
     scripts:
       xcbox32:
         script: extreme_events/extremes_bc_temperature_running_mean.py
@@ -168,7 +166,7 @@ diagnostics:
         name_nat: 1850-1900 
         name_ssp245: 2081-2100
         region: Alberta # needed for the figure title
-        ax_var_label: TX3x(pAM) # needed for axis name
+        ax_var_label: TXx # needed for axis name 
         var_units: C  # units of the data
         month: 5 # month for which analysis is done
         analysis_year: 2023  # year for which analysis is done
