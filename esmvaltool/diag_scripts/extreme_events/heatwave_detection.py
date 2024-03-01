@@ -103,7 +103,7 @@ def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
             hw_3max = datetime.strptime(str(hw_3max_cell),'%Y-%m-%d %H:%M:%S').date()
         elif hw_len==1:
             hw_max = hw_start
-            hw_3max = 'N/A'
+            hw_3max = 'None'
         elif hw_len == 3:
             hw_cb = obs_cb.extract(iris.Constraint(
                     time=lambda cell: hw_start <= datetime.strptime(
@@ -122,7 +122,7 @@ def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
             hw_max_cell = hw_cb.collapsed('time', iris.analysis.MAX).coord('time'
                                                                     ).cell(0).point
             hw_max = datetime.strptime(str(hw_max_cell),'%Y-%m-%d %H:%M:%S').date()
-            hw_3max = 'N/A'
+            hw_3max = 'None'
  
     return hw_start, hw_end, hw_max, hw_3max, hw_len
 

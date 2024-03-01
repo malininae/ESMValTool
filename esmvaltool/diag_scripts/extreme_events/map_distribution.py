@@ -35,17 +35,16 @@ def obtain_cubes(dataset: list, cfg: dict):
                                                         )[0]['filename']
     diagnostic = select_metadata(dataset,variable_group='current'
                                                         )[0]['diagnostic']
-    try:
-        # checking if the cube exist in aux directory
-        current_base = os.path.basename(current_f)
-        f_type = current_base.split('.')[-1]
-        # 10 comes from '.' + 4 for start_year + '-' + 4 for end_year
-        # TODO come with better solution
-        ref_base = current_base[:len(f_type)+10] + \
-                                str(cfg['reference_period'][0]) + '-' + \
-                                str(cfg['reference_period'][1]+'.'+ f_type)
-        ref_f = os.path.join(cfg['auxiliary_data_dir'], diagnostic, ref_base)
-    except:
+    # checking if the cube exist in aux directory
+    current_base = os.path.basename(current_f)
+    f_type = current_base.split('.')[-1]
+    # 10 comes from '.' + 4 for start_year + '-' + 4 for end_year
+    # TODO come with better solution
+    ref_base = current_base[:-1*(len(f_type)+10)] + \
+                            str(cfg['reference_period'][0]) + '-' + \
+                            str(cfg['reference_period'][1])+'.'+ f_type
+    ref_f = os.path.join(cfg['auxiliary_data_dir'], diagnostic, ref_base)
+    if not(os.path.isfile(ref_f)):
         ref_f = select_metadata(dataset,variable_group='reference'
                                                         )[0]['filename']
     logger.info(f'Found file {ref_f}')
