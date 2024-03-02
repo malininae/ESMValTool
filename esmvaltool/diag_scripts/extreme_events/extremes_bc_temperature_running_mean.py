@@ -72,29 +72,18 @@ def obtain_obs_info(groups, cfg):
     # loading the observational cube (assumption: only 1 per group given)
     raw_abs_obs_cb = iris.load_cube(obs_abs_info[0]['filename'])
 
-    # selecting the year, for which analysis is done
-    ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
-    ana_year_cube = raw_abs_obs_cb.extract(ana_year_const)
-
-    # selecting the month for the analysis (e.g. 5 /May/)
-    ana_month_const = iris.Constraint(time = lambda cell: cell.point.month == cfg['month'])
-    abs_ana_month = ana_year_cube.extract(ana_month_const)
-
-    # In case the specific time range is provided selecting the data for that
-    # specific time range, rather than for the whole month
-    if cfg.get('timerange'):
-        clip_pdt_st = PartialDateTime(year=int(cfg['time_start'].split('-')[0]),
-                                      month=int(cfg['time_start'].split('-')[1]),
-                                      day=int(cfg['time_start'].split('-')[2]))
-        clip_pdt_end = PartialDateTime(year=int(cfg['time_end'].split('-')[0]),
-                                      month=int(cfg['time_end'].split('-')[1]),
-                                      day=int(cfg['time_end'].split('-')[2]))
-        clip_constr = iris.Constraint(time= lambda cell: clip_pdt_st<=cell.point <=clip_pdt_end)
-        abs_ana_month = abs_ana_month.extract(clip_constr)
+    # Selecting the data for the heatwave identified in the recipe
+    clip_pdt_st = PartialDateTime(year=int(cfg['time_start'].split('-')[0]),
+                                    month=int(cfg['time_start'].split('-')[1]),
+                                    day=int(cfg['time_start'].split('-')[2]))
+    clip_pdt_end = PartialDateTime(year=int(cfg['time_end'].split('-')[0]),
+                                    month=int(cfg['time_end'].split('-')[1]),
+                                    day=int(cfg['time_end'].split('-')[2]))
+    clip_constr = iris.Constraint(time= lambda cell: clip_pdt_st<=cell.point <=clip_pdt_end)
+    abs_ana_hw = raw_abs_obs_cb.extract(clip_constr)
 
     # determine the day of the absolute maximum for the time range/month specified
-    max_date_idx = abs_ana_month.coord('time').points[abs_ana_month.data.argmax()]
-    max_date = cftime.num2pydate(max_date_idx, abs_ana_month.coord('time').units.origin, abs_ana_month.coord('time').units.calendar)
+    max_date = abs_ana_hw.coord('time').cell(abs_ana_hw.data.argmax()).point
 
     # determine the window (+-) 15 days around the day of the observed maximum
     # in the selected time period and extracting it from the climatology cube
@@ -687,11 +676,11 @@ def make_era_dist_figure(obs_info_dic, cfg, border):
             minimum and maximum values encountered over the data
     '''
 
-    # absolute TXNx values are in K converting to C
-    abs_cube = obs_info_dic['abs_obs_cb'] - 273.15
+    abs_cube = obs_info_dic['abs_obs_cb']
     # deriving the values for the event of the interest
     ana_year_const = iris.Constraint(time = lambda cell: cell.point.year == cfg['analysis_year'])
-    ana_year_value = abs_cube.extract(ana_year_const).data; ana_arg = np.max(np.where(abs_cube.data == ana_year_value)[0])
+    ana_year_value = abs_cube.extract(ana_year_const).data
+    ana_arg = np.max(np.where(abs_cube.data == ana_year_value)[0])
 
     # redefining the borders values (before anomalies, now absolute)
     border[0] = np.floor(abs_cube.data.min()*0.9)

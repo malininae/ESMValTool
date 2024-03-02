@@ -47,6 +47,8 @@ preprocessors:
       coordinate: time
       operator: mean
       window_length: 3
+    convert_units:
+      units: degrees_C
 
   preproc_era_gsat:
     custom_order: True  
@@ -111,7 +113,7 @@ dataset_era: &dataset_era
   - {dataset: ERA5, project: OBS6, type: reanaly, version: v1, tier: 3}
 
 diagnostics:
-  xcbox32:
+  attribution:
     description: Figure for BC extremes
     variables:
       all:
@@ -165,7 +167,7 @@ diagnostics:
         preprocessor: preproc_era_gsat 
         additional_datasets: *dataset_era   
     scripts:
-      xcbox32:
+      attribution:
         script: extreme_events/extremes_bc_temperature_running_mean.py
         mpl_style: ipcc_ar6_fgd
         reference_period: [1940, 1959]
@@ -176,11 +178,9 @@ diagnostics:
         region: Alberta # needed for the figure title
         ax_var_label: TX3x # needed for axis name
         var_units: C  # units of the data
-        month: 5 # month for which analysis is done
         analysis_year: 2023  # year for which analysis is done
         smooth_gsat_years: 4 # smoothing window for GSAT to fit non-stat GEV 
         add_gsat_year: True # in case current year, need to add GSAT from the previous year to fit GEV
-        timerange: True # if analysis should be done not for month, but rather for timerange
         time_start: 2023-4-30 # if timerange is True, timerange for which to search for TXNx maxima
         time_end: 2023-5-6
 
