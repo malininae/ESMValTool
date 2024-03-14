@@ -166,7 +166,7 @@ def obtain_obs_info(groups, cfg):
     rp_perc = np.nanpercentile(bootstrap_rps, [5,10,50,90,95], method='closest_observation').round(1)
 
     # saving the observational return periods and fits into a csv file
-    era_csv = open(os.path.join(cfg['work_dir'], 'gev_era_data_'+cfg['region'].lower()+'_'+cfg['ax_var_label'].lower()+'.csv'), 'w', newline='')
+    era_csv = open(os.path.join(cfg['work_dir'], 'gev_era_data_'+cfg['region']+'_'+cfg['ax_var_label'].lower()+'.csv'), 'w', newline='')
     era_csv_writer = csv.writer(era_csv, delimiter=',')
     era_csv_writer.writerow([str(cfg['analysis_year'])+' ERA5 '+cfg['ax_var_label']+' value '+str(ana_year_value)+ ', ERA5 smoothed GSAT value '+str(ana_gsat)])
     era_csv_writer.writerow(['ERA5 non-stationary GEV params'])
@@ -447,12 +447,12 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
     era_event_RP = obs_info_arr['ana_year_RP']
 
     # opening a csv file with all return periods and intensities
-    risk_csv = open(os.path.join(cfg['work_dir'], 'GEV_'+cfg['region']+'_'+cfg['ax_var_label'] +'_risk_data.csv'), 'w', newline='')
+    risk_csv = open(os.path.join(cfg['work_dir'], 'gev_'+cfg['region']+'_'+cfg['ax_var_label'].lower() +'_risk_data.csv'), 'w', newline='')
     risk_csv_writer = csv.writer(risk_csv, delimiter=',')
     risk_head_row = ['model'] # header for the file
 
     # opening a csv file with risk ratios uncertainties
-    risk_uncert_csv = open(os.path.join(cfg['work_dir'], 'gev_'+cfg['region']+'_'+cfg['ax_var_label'] +'_uncert_risk_data.csv'), 'w', newline='')
+    risk_uncert_csv = open(os.path.join(cfg['work_dir'], 'gev_'+cfg['region']+'_'+cfg['ax_var_label'].lower() +'_uncert_risk_data.csv'), 'w', newline='')
     risk_uncert_csv_writer = csv.writer(risk_uncert_csv, delimiter=',')
     risk_uncert_head_row = ['model','all/nat_r_r_5', 'all/nat_r_r_10', 'all/nat_r_r_50','all/nat_r_r_90', 'all/nat_r_r_95',
                             'ssp/nat_r_r_5', 'ssp/nat_r_r_10', 'ssp/nat_r_r_50', 'ssp/nat_r_r_90', 'ssp/nat_r_r_95',
@@ -471,7 +471,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
               'ssp245' : (69 / 255, 118 / 255, 191 / 255)}
 
     # opening csv file with all GEV parameters values and their uncertainties
-    csv_file = open(os.path.join(cfg['work_dir'], 'gev_'+cfg['region']+'_'+cfg['ax_var_label'] +'_parameters.csv'), 'w', newline='')
+    csv_file = open(os.path.join(cfg['work_dir'], 'gev_'+cfg['region']+'_'+cfg['ax_var_label'].lower() +'_parameters.csv'), 'w', newline='')
     gevs_csv_writer = csv.writer(csv_file, delimiter=',')
     head_row = ['model']
     for exp_key in exp_list:
@@ -480,7 +480,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         head_row.extend(['scale_'+exp_key,'scale_min_'+exp_key,'scale_5_'+exp_key,'scale_95_'+exp_key,'scale_max_'+exp_key])
         head_row.extend(['ks_stat_'+exp_key, 'ks_pvalue_'+exp_key, 'cvm_stat_'+exp_key, 'cvm_pvalue_'+exp_key])
         risk_head_row.append(exp_key+'_prob')
-        risk_head_row.extend([exp_key+'_return_p', exp_key+'_return_p_5', exp_key+'_return_p_95', exp_key+'_return_p_5',exp_key+'_return_p_95'])
+        risk_head_row.extend([exp_key+'_return_p', exp_key+'_return_p_5', exp_key+'_return_p_95'])
         risk_head_row.extend([exp_key+'_intens', exp_key+'_intens_5',exp_key+'_intens_95'])
     gevs_csv_writer.writerow(head_row)
     risk_csv_writer.writerow(risk_head_row)
