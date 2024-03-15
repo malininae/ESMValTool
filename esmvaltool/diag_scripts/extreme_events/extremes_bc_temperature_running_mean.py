@@ -641,7 +641,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
 
         plt.tight_layout()
         
-        fig.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region']+'_'+cfg['ax_var_label'] +'_extremes_gev_'+model + diagtools.get_image_format(cfg)))
+        fig.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region']+'_'+cfg['ax_var_label'].lower() +'_extremes_gev_'+model + diagtools.get_image_format(cfg)))
 
         # calculating uncertainties of the risk ratios (RR). Best estimate RR 
         # are calculated later after the run from the return periods csv 
@@ -749,7 +749,7 @@ def make_era_dist_figure(obs_info_dic, cfg, border):
 
     plt.tight_layout()
 
-    fig_era.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region']+'_'+cfg['ax_var_label'] +'_era' + diagtools.get_image_format(cfg)))
+    fig_era.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region']+'_'+cfg['ax_var_label'].lower() +'_era' + diagtools.get_image_format(cfg)))
 
     return
 
