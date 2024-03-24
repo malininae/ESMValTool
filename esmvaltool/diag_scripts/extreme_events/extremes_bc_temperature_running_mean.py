@@ -445,6 +445,8 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
     # event probability from observations and event's return period
     era_event_prob = 1/obs_info_arr['ana_year_RP']
     era_event_RP = obs_info_arr['ana_year_RP']
+    era_event_RP5 = obs_info_arr['ana_year_RP_CI'][0]
+    era_event_RP95 = obs_info_arr['ana_year_RP_CI'][-1]
 
     # opening a csv file with all return periods and intensities
     risk_csv = open(os.path.join(cfg['work_dir'], 'gev_'+cfg['region']+'_'+cfg['ax_var_label'].lower() +'_risk_data.csv'), 'w', newline='')
@@ -609,6 +611,7 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
 
         ax_surv.vlines(event, 0.1, era_event_RP, linestyle = 'solid', color='indianred', zorder=2,  label = 'ERA5 ('+ str(cfg['analysis_year'])+')')
         ax_surv.hlines(era_event_RP, x_gev[0], event,linestyle = 'solid', color='indianred', zorder=2)
+        ax_surv.fill_between([x_gev[0], event], era_event_RP5, era_event_RP95, color='indianred', zorder=1, alpha=0.15)
 
         ax_hist.legend(loc=2, fancybox=False, frameon=False)
         ax_qq.legend(loc=2, fancybox=False, frameon=False, handletextpad=0.01)
@@ -724,7 +727,8 @@ def make_era_dist_figure(obs_info_dic, cfg, border):
     ax_era_surv.set_xlabel(cfg['ax_var_label'] +', ' + cfg['var_units'])
     ax_era_surv.set_ylabel('years')
     ax_era_surv.scatter(ana_year_value, era_RP, c='indianred', marker='x',lw=2, s=100, label= str(cfg['analysis_year']), clip_on=False, zorder=4)
-    ax_era_surv.text(border[1]*0.8, 5,'ERA5 return period\n    '+str(np.around(era_RP, 1))+ ' years', color='k')
+    ax_era_surv.text(0.15, 0.5,'ERA5 return period\n    '+str(np.around(era_RP, 1))+ ' years', color='k', 
+                                                                        transform = ax_era_surv.transAxes, clip_on=False)
     ax_era_surv.set_yscale('log')
     ax_era_surv.grid(color='silver', axis='both', alpha=0.5)
     ax_era_surv.set_ylim(1,10000)
@@ -735,15 +739,11 @@ def make_era_dist_figure(obs_info_dic, cfg, border):
     ax_era_tseries.grid(color='silver', axis='both', alpha=0.5)
     ax_era_tseries.set_xlabel('time')
     ax_era_tseries.set_ylabel(cfg['ax_var_label']+', ' + cfg['var_units'])
-    ax_era_tseries.scatter(years[np.argmax(abs_cube.data)], abs_cube.data.max(), edgecolors='indianred', marker='o', facecolors='None', s=100, lw=2)
+    ax_era_tseries.scatter(years[ana_arg], abs_cube.data[ana_arg], edgecolors='indianred', marker='o', facecolors='None', s=100, lw=2)
     ax_era_tseries.set_xlim(years[0]-0.5, years[-1]+0.5)
     ax_era_tseries.set_ylim(*border)
-    # adding arrow for the event of interest
-    ax_era_tseries.arrow(years[-1] - len(years)*0.1, abs_cube.data.mean()*0.2 + 0.8*abs_cube.data.max(), len(years)*0.09 ,
-                                     0.19*abs_cube.data.max()-abs_cube.data.mean()*0.2, color='k', length_includes_head=True,  
-                                                                                        head_width=0.5, head_length=0.5)
-    ax_era_tseries.text(years[-1] - len(years)*0.16, abs_cube.data.mean()*0.2 + 0.77*abs_cube.data.max(), 
-                        'ERA5 '+ str(cfg['analysis_year'])+': '+str(np.around(abs_cube.data[ana_arg],1))+' '+cfg['var_units'])
+    ax_era_tseries.text(0.87, 0.92, 'ERA5 '+ str(cfg['analysis_year'])+': '+str(np.around(abs_cube.data[ana_arg],1))+ \
+                        ' '+cfg['var_units'],transform = ax_era_tseries.transAxes, clip_on=False)
 
     fig_era.suptitle('ERA5 ' + cfg['ax_var_label'] + ' in ' + cfg['region'] + ' and its GEV fit', fontsize = 'x-large')
 
