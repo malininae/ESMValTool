@@ -144,7 +144,7 @@ def plot_heatwave_length(obs_cb: Cube, ref_cb: Cube, hw_info: dict,
     shape_id = obs_cb.coord('shape_id').cell(0).point
 
     hw_start = hw_info['hw_start'] ; hw_end = hw_info['hw_end']
-    ext_st_prev = hw_start - relativedelta(month=1)
+    ext_st_prev = hw_start - relativedelta(months=1)
     ext_start = datetime(ext_st_prev.year, ext_st_prev.month, 1).date()
     ext_start_idx = ext_start.timetuple().tm_yday
     hw_end_idx = hw_end.timetuple().tm_yday
