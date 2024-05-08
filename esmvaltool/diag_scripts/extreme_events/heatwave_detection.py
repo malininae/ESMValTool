@@ -73,7 +73,7 @@ def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
         day_cb = obs_cb.extract(iris.Constraint(
                 time=lambda cell: datetime.strptime(
                 str(cell.point),'%Y-%m-%d %H:%M:%S').date()==hw_start))    
-        day_of_y = inp_date.timetuple().tm_yday 
+        day_of_y = hw_start.timetuple().tm_yday 
         ref_day_cb= ref_cb.extract(iris.Constraint(day_of_year=day_of_y))
         shape_id = day_cb.coord('shape_id').cell(0).point 
         if day_cb.data > ref_day_cb.data:
