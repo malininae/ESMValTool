@@ -49,6 +49,7 @@ diagnostics:
     variables:
       tasmax:
         mip: E1hr
+        frequency: 1hr
         era5_name: maximum_2m_temperature_since_previous_post_processing
         era5_freq: hourly
         preprocessor: daily_max
