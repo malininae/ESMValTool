@@ -192,6 +192,7 @@ def obtain_obs_info(groups, cfg):
                   'ana_year_RP': orig_nonstat_rp,
                   'ana_year_RP_CI': rp_perc,
                   'ano_obs_cb': ano_obs_cb,
+                  'ano_year_value': ano_obs_cb.data[ana_arg],
                   'max_date': max_date,
                   'date_constr': pdt_constraint,
                   'smoothed_gsat':gsat_smooth_arr}
@@ -661,12 +662,12 @@ def make_hist_figure(data_dic, cfg, uncert_band, border, apr_param):
         risk_uncert_row.extend(np.concatenate((all_to_nat_perc, ssp_to_nat_perc, ssp_to_all_perc)))
         risk_uncert_csv_writer.writerow(risk_uncert_row)
     
-    risk_uncert_csv.close()
+    risk_uncert_csv.close(); csv_file.close(); risk_csv.close()
 
     return
 
 
-def make_era_dist_figure(obs_info_dic, cfg, border):
+def make_era_dist_figure(obs_info_dic, cfg):
     '''
     Plots the observational figure with GEV fit and timeseries (Ex: Fig. 3)
 
@@ -675,8 +676,6 @@ def make_era_dist_figure(obs_info_dic, cfg, border):
             dictionary with observational information
         cfg:
             config dictionary coming from ESMValTool
-        border:
-            minimum and maximum values encountered over the data
     '''
 
     abs_cube = obs_info_dic['abs_obs_cb']
@@ -686,8 +685,7 @@ def make_era_dist_figure(obs_info_dic, cfg, border):
     ana_arg = np.max(np.where(abs_cube.data == ana_year_value)[0])
 
     # redefining the borders values (before anomalies, now absolute)
-    border[0] = np.floor(abs_cube.data.min()*0.9)
-    border[1] = np.ceil(abs_cube.data.max()*1.1)
+    border = [np.floor(abs_cube.data.min()*0.9), np.ceil(abs_cube.data.max()*1.1)]
     # initializing the x for survivor function and bins for histogram
     x_gev_fine = np.arange(border[0], border[1]+0.1, 0.1)
     n_bins = np.arange(border[0], border[1]+0.1, 1)
@@ -750,6 +748,93 @@ def make_era_dist_figure(obs_info_dic, cfg, border):
     plt.tight_layout()
 
     fig_era.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region']+'_'+cfg['ax_var_label'].lower() +'_era' + diagtools.get_image_format(cfg)))
+
+    return
+
+def make_outreach_plot(obs_info, cfg, border):
+    '''
+    Plots simplified GEV figure (similar to that used in sesonal briefing 2024)
+
+    Input: 
+        obs_info_dic:
+            dictionary with observational information
+        cfg:
+            config dictionary coming from ESMValTool
+        border:
+            minimum and maximum values encountered over the data
+    '''
+
+    # defining colors
+    color_all = '#d7191c'; color_nat = '#2c7bb6'
+
+    # formating era date  
+    era_max_date = obs_info['max_date'].strftime('%B %d, %Y')
+
+    # redefining x_gev
+    x_gev = np.arange(border[0], border[1]+0.1, 0.1)
+    
+    # obtaining era value 
+    era_txx = np.around(obs_info['ano_year_value'], 1)
+    txx_id = np.abs(x_gev - era_txx).argmin()
+    # obtaining the x_gev values past event
+    x_past_event = x_gev[txx_id:]; x_past_event[0] = era_txx
+
+    # defining the labels for the plot
+    labels = {'nat' : 'Pre-industrial\n   climate', 'all' : 'Current\n climate',
+		                          'obs' : f'Observed value\n ({era_max_date})'}
+    
+    # loading GEVs param data and obtaining pdfs for plotting
+    gev_file = os.path.join(cfg['work_dir'], 
+                            'gev_'+cfg['region']+'_'+cfg['ax_var_label'].lower() +'_parameters.csv')
+    mult_model_params = pd.read_csv(gev_file, index_col=0).loc['Multi-Model-Mean']
+    pdf_all = gev.pdf(x_gev, -1*mult_model_params['shape_all'], 
+                      loc=mult_model_params['loc_all'], scale=mult_model_params['scale_all'])
+    pdf_nat = gev.pdf(x_gev, -1*mult_model_params['shape_nat'], 
+                      loc=mult_model_params['loc_nat'], scale=mult_model_params['scale_nat'])
+
+    # text coords 
+    text_y = 0.75*np.max([pdf_all, pdf_nat])
+    text_all_x = x_gev[pdf_all.argmax():][np.abs(pdf_all[pdf_all.argmax():] - text_y).argmin()]*1.5
+    text_nat_x = x_gev[:pdf_nat.argmax()][np.abs(pdf_nat[:pdf_nat.argmax()] - text_y).argmin()]*3.25
+
+    # determine the borders for the plot
+    border_x = x_gev[np.where(pdf_all == 0)[0][0]]
+
+    # plotting the figure
+    fig_simple = plt.figure(figsize=(6, 4))    
+
+    plt.plot(x_gev, pdf_nat, c=color_nat, lw=2, zorder=1)
+    plt.plot(x_gev, pdf_all, c=color_all, lw=2, zorder=3)
+
+    plt.text(text_nat_x, text_y, labels['nat'], c=color_nat, fontsize='large')
+    plt.text(text_all_x, text_y, labels['all'], c=color_all, fontsize='large')
+    plt.text(era_txx, pdf_all[txx_id]+0.005, labels['obs'], c='k', fontsize='large')
+
+    plt.fill_between(x_past_event, np.zeros(len(x_past_event)), pdf_nat[txx_id:],
+                                            color=color_nat, alpha=0.2, lw=0)
+    plt.fill_between(x_past_event, pdf_nat[txx_id:], pdf_all[txx_id:],
+                                            color=color_all, alpha=0.2, lw=0)
+
+    plt.arrow(era_txx, pdf_all[txx_id], 0, -pdf_all[txx_id]*0.995, color='k', lw=2,
+                                            length_includes_head=True, zorder=2,
+                                            head_width=0.3, head_length=0.003)
+
+    plt.ylim(0, fig_simple.axes[0].get_ylim()[1])
+    plt.xlim(-1*border_x, border_x)
+
+    plt.text(era_txx, pdf_all[txx_id]+0.005, 
+                                f'Observed value\n ({era_max_date})',
+                                            c='k', fontsize='large')
+
+    plt.ylabel('Probability')
+    plt.xlabel('Maximum temperature anomaly (C)')
+    plt.title(f'Probability of the {era_max_date} heatwave in '+ cfg['region'])
+    plt.tick_params(left = False, right = False, labelleft = False) 
+    plt.tight_layout()  
+
+    fig_simple.set_dpi(200)
+
+    fig_simple.savefig(os.path.join(cfg['plot_dir'], 'figure_'+cfg['region']+'_'+cfg['ax_var_label'].lower() +'_simple' + diagtools.get_image_format(cfg)))
 
     return
 
@@ -850,7 +935,10 @@ def main(cfg):
     make_hist_figure(plotting_dic, cfg, uncert_band, border, fit_param_apr)
 
     # making the observational figure with return periods 
-    make_era_dist_figure(obs_info, cfg, border)
+    make_era_dist_figure(obs_info, cfg)
+
+    # making the outreach fiendly figure
+    make_outreach_plot(obs_info, cfg, border)
 
     logger.info('Success')
 
