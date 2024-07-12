@@ -795,7 +795,10 @@ def make_outreach_plot(obs_info, cfg, border):
     # text coords 
     text_y = 0.75*np.max([pdf_all, pdf_nat])
     text_all_x = x_gev[pdf_all.argmax():][np.abs(pdf_all[pdf_all.argmax():] - text_y).argmin()]*1.5
-    text_nat_x = x_gev[:pdf_nat.argmax()][np.abs(pdf_nat[:pdf_nat.argmax()] - text_y).argmin()]*3.25
+    try:
+        text_nat_x = x_gev[:pdf_nat.argmax()][np.abs(pdf_nat[:pdf_nat.argmax()] - text_y).argmin()]*3.25
+    except:
+        text_nat_x = -7
 
     # determine the borders for the plot
     border_x = x_gev[np.where(pdf_all == 0)[0][0]]
