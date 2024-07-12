@@ -21,7 +21,8 @@ from esmvaltool.diag_scripts.extreme_events.map_distribution import obtain_cubes
 logger = logging.getLogger(os.path.basename(__file__))
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
-def calculate_reference_cube(ref_cb: Cube, half_window: int, percentile: int):
+def calculate_reference_perc_cube(ref_cb: Cube, half_window: int, 
+                                                            percentile: int):
     '''
     This function calculates climatological percentile in the provided window
 
@@ -31,7 +32,7 @@ def calculate_reference_cube(ref_cb: Cube, half_window: int, percentile: int):
                      consider to calculate the trigger percentile
         percentile: the trigger percentile to determine heatwave
     Output:
-        clim_ref_cb: climatological cube with calculated percentiles
+        clim_ref_perc_cb: climatological cube with calculated percentiles
     '''
 
     # adding aux coord with the day of year 
@@ -48,13 +49,38 @@ def calculate_reference_cube(ref_cb: Cube, half_window: int, percentile: int):
 
     doy_coord = iris.coords.DimCoord(np.arange(1, 367), long_name='day_of_year')
 
-    clim_ref_cb = Cube(clim_perc, standard_name=ref_cb.standard_name, 
+    clim_ref_perc_cb = Cube(clim_perc, standard_name=ref_cb.standard_name, 
                        dim_coords_and_dims=[(doy_coord,0)],
                        long_name=ref_cb.long_name, var_name=ref_cb.var_name,
                        units=ref_cb.units, attributes=ref_cb.attributes)
 
+    return clim_ref_perc_cb   
 
-    return clim_ref_cb   
+
+def calculate_climatology_cube(ref_cb: Cube, half_window: int):
+    '''
+    This function calculates climatology of a provided cube in a time window
+
+    Input:
+        ref_cb: the reference cube (time resolved) 
+        half_window: the number of days around (+/-) the date of interest to 
+                     consider to calculate the climatology
+    Output:
+        clim_cb: climatological cube with calculated means
+    '''
+
+    # interested in the day in the centre, has to be odd 
+    window = half_window*2 +1 
+
+    rolling_window_cb = eprep.rolling_window_statistics(ref_cb, 
+                                                        coordinate='time',
+                                                        operator='mean', 
+                                                        window_length=window)
+    
+    clim_cb = eprep.climate_statistics(rolling_window_cb, operator='mean', 
+                                                                period='day')
+
+    return clim_cb
 
 
 def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
@@ -127,35 +153,69 @@ def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
     return hw_start, hw_end, hw_max, hw_3max, hw_len
 
 
-def plot_heatwave_length(obs_cb: Cube, ref_cb: Cube, hw_info: dict, 
-                                                      dataset: str, cfg: dict):
+def calculate_clim_exceedance(obs_cb: Cube, clim_cb: Cube, hw_info: dict):
+    '''
+    This function calculates the exceedance of the record from climatology
+
+    obs_cb: iris cube with actual temperature info
+    clim_cb: iris cube with climatological info
+    hw_info: dictionary with the information on heat wave
+    '''
+
+    record_date = hw_info['hw_max']    
+    record_day = record_date.timetuple().tm_yday 
+
+    obs_record = obs_cb.extract(iris.Constraint(
+                time=lambda cell: datetime.strptime(
+                str(cell.point),'%Y-%m-%d %H:%M:%S').date()==record_date)).data
+
+    clim_value = clim_cb.extract(iris.Constraint(
+                            day_of_year=lambda cell: cell == record_day)).data
+
+    temp_exceed = obs_record - clim_value
+
+    return temp_exceed 
+
+
+def plot_heatwave_length(obs_cb: Cube, ref_cb: Cube, clim_cb: Cube, 
+                                       hw_info: dict, dataset: str, cfg: dict):
     '''
     This function creates a heatwave plot as Fig. 2 in  Malinina&Gillett (2024)
 
     Input:
         obs_cb: iris cube with year of analysis observations
         ref_cb: iris cube with reference period for observations
+        clim_cb: iris cube with climatologies for observations
         hw_info: dictionary with dates and length of a heatwave
         dataset: name of the dataset
-        cfg: standard ESMValTool config disctionary
+        cfg: standard ESMValTool config dictionary
     '''
 
     # define region name
     shape_id = obs_cb.coord('shape_id').cell(0).point
 
     hw_start = hw_info['hw_start'] ; hw_end = hw_info['hw_end']
+    # end date for plotting
+    plot_end = datetime.strptime(
+            str(obs_cb.coord('time').cell(-1).point),'%Y-%m-%d %H:%M:%S').date()
     ext_st_prev = hw_start - relativedelta(months=1)
     ext_start = datetime(ext_st_prev.year, ext_st_prev.month, 1).date()
     ext_start_idx = ext_start.timetuple().tm_yday
+    plot_end_idx = plot_end.timetuple().tm_yday
     hw_end_idx = hw_end.timetuple().tm_yday
+    hw_start_idx = hw_start.timetuple().tm_yday
 
     perc_label = '('+str(cfg['trigger_percentile'])+' perc)'
 
+    t_exceed = np.around(hw_info['clim_exceed'], 1)
+
     current_cb = obs_cb.extract(iris.Constraint(
                         time=lambda cell: ext_start <= datetime.strptime(
-                        str(cell.point),'%Y-%m-%d %H:%M:%S').date() <= hw_end))
+                        str(cell.point),'%Y-%m-%d %H:%M:%S').date() <= plot_end))
     ref_cb = ref_cb.extract(iris.Constraint(
-                 day_of_year=lambda cell: ext_start_idx <= cell <= hw_end_idx))
+                 day_of_year=lambda cell: ext_start_idx <= cell <= plot_end_idx))
+    clim_cb = clim_cb.extract(iris.Constraint(
+                 day_of_year=lambda cell: ext_start_idx <= cell <= plot_end_idx))
 
     years = list(sorted(set([str(ext_start.year), str(hw_end.year)])))
     if len(years)>1:
@@ -166,36 +226,44 @@ def plot_heatwave_length(obs_cb: Cube, ref_cb: Cube, hw_info: dict,
     # loading matplotlib style saved in ESMValTool folder
     st_file = eplot.get_path_to_mpl_style(cfg.get('mpl_style'))
     plt.style.use(st_file)
+    
+    # temporarily hardcode font
+    plt.rcParams.update({'font.size': 14})
 
     fig , ax = plt.subplots(1,1)
     
     fig.set_dpi(150)
     fig.set_size_inches(13,5)
 
-    ax.plot(np.arange(current_cb.shape[0]), current_cb.data, 
+    ax.plot(np.arange(current_cb.shape[0]), current_cb.data, zorder=3,
                                  label=cfg['var_label'] + y_lbl, c='darkred')
-    ax.plot(np.arange(ref_cb.shape[0]), ref_cb.data, label=cfg['var_label']+ \
-                        '$_{'+perc_label+'}$' + '(' + \
-                        str(cfg['reference_period'][0]) + '-' + \
-                        str(cfg['reference_period'][1])+')', c='darkgrey')
-    end_fpoint = ref_cb.shape[0]
-    start_fpoint = end_fpoint - hw_info['hw_len'] - 1
+    ax.plot(np.arange(ref_cb.shape[0]), ref_cb.data, label='Heatwave threshold'
+                                                            , c='darkgrey', zorder=2)
+    ax.plot(np.arange(clim_cb.shape[0]), clim_cb.data, label='Climatology (' + str(cfg['reference_period'][0]) + '-' + \
+                     str(cfg['reference_period'][1])+')', c='#333333', zorder=1)
+    if hw_end_idx == plot_end_idx:
+        end_fpoint = hw_end_idx - ext_start_idx + 1
+    else:
+        end_fpoint = hw_end_idx - ext_start_idx + 2
+    start_fpoint = hw_start_idx - ext_start_idx - 1
     ax.fill_between(np.arange(start_fpoint, end_fpoint), 
                     current_cb.data[start_fpoint: end_fpoint], 
                     ref_cb.data[start_fpoint: end_fpoint],
                     where=current_cb.data[start_fpoint:end_fpoint]>ref_cb.data[start_fpoint:end_fpoint],
                     color='darkred', alpha=0.3, interpolate=True)
-    ax.legend(loc = 0, fancybox=False, frameon=False, fontsize='large')
+    ax.legend(loc = 0, fancybox=False, frameon=False)
     ax.grid(color='silver', axis='both', alpha=0.5)
     ax.set_ylabel(cfg['var_label'] +' ,'+cfg['var_units'])
     ax.set_xlabel('date (month/day)')
-    ax.set_xlim(0,end_fpoint-1)
-    ax.text(0.85, 0.15,'Heatwave length: ' +str(hw_info['hw_len'])+' days\n('+ \
+    ax.set_xlim(0, plot_end_idx-ext_start_idx)
+    ax.text(0.65, 0.02,'Heatwave length: ' +str(hw_info['hw_len'])+' days ('+ \
                                     str(hw_start)[5:].replace('-', '/')+' - '+\
-                                    str(hw_end)[5:].replace('-', '/')+')',transform=ax.transAxes)
-    xlabels = [str(d)[5:].replace('-','/') for d in np.arange(ext_start, hw_end+timedelta(days=1), 7)]
-    ax.set_xticks(np.arange(0, end_fpoint, 7), labels=xlabels)
-    fig.suptitle(f'{dataset} temperature in {shape_id} in '+y_lbl[1:-1], fontsize='xx-large')
+                                    str(hw_end)[5:].replace('-', '/')+')\n'+\
+                                    f'Climatology exceeded by {t_exceed}$^o$C', 
+                                    transform=ax.transAxes)
+    xlabels = [str(d)[5:].replace('-','/') for d in np.arange(ext_start, plot_end+timedelta(days=1), 7)]
+    ax.set_xticks(np.arange(0, plot_end_idx - ext_start_idx + 1, 7), labels=xlabels)
+    fig.suptitle(f'{dataset} temperature in {shape_id} in '+y_lbl[1:-1], fontsize='x-large')
     fig.tight_layout()
     fig.savefig(os.path.join(cfg['plot_dir'], 
                             f'hw_{shape_id}_{dataset}.'+cfg['output_file_type']))
@@ -209,7 +277,7 @@ def main(cfg):
     This function does data processing and initiates analysis and plotting.
 
     Input: 
-        cfg: standard ESMValTool config disctionary
+        cfg: standard ESMValTool config dictionary
     '''
 
     last_day_l = cfg.get('last_day'); inp_day = cfg.get('analysis_day')
@@ -232,22 +300,29 @@ def main(cfg):
                      f'{dataset}_regional_heatwave_info.csv'), 'w', newline='')
         dataset_csv_w = csv.writer(dataset_csv, delimiter=',')
         dataset_csv_w.writerow(['Region', 'start_day', 'end_day',
-                                                       'max_day', '3_day_max', 'length'])
+                                                'max_day', '3_day_max',
+                                                'length', 'clim_exceedance'])
 
         for shape_id in current_cb.coord('shape_id').points:
             reg_obs_cb = current_cb.extract(iris.Constraint(shape_id=shape_id))
             reg_ref_cb = ref_cb.extract(iris.Constraint(shape_id=shape_id))
-            reg_ref_cb = calculate_reference_cube(reg_ref_cb, 
+            reg_clim_cb = calculate_climatology_cube(reg_ref_cb, 
+                                                     cfg['half_window'])
+            reg_ref_cb = calculate_reference_perc_cube(reg_ref_cb, 
                                                   cfg['half_window'],
                                                   cfg['trigger_percentile'])
             hw_start, hw_end, hw_max, hw_3max, hw_len = analyse_heatwave(reg_obs_cb,
-                                                          reg_ref_cb, inp_date)
+                                                            reg_ref_cb, inp_date)
             if hw_start is not None:
-                dataset_csv_w.writerow([shape_id, hw_start, 
-                                        hw_end, hw_max, hw_3max, hw_len])
                 hw_info = {'hw_start': hw_start, 'hw_end': hw_end,
                         'hw_max': hw_max, 'hw_3max': hw_3max, 'hw_len': hw_len}
-                plot_heatwave_length(reg_obs_cb, reg_ref_cb, hw_info, dataset, cfg)
+                temp_exceed = calculate_clim_exceedance(reg_obs_cb, 
+                                                        reg_clim_cb, hw_info)
+                hw_info['clim_exceed'] = temp_exceed
+                dataset_csv_w.writerow([shape_id, hw_start, hw_end, hw_max, 
+                                                hw_3max, hw_len, temp_exceed])
+                plot_heatwave_length(reg_obs_cb, reg_ref_cb, reg_clim_cb, 
+                                                        hw_info, dataset, cfg)
         
         dataset_csv.close()
 
