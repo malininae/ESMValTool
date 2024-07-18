@@ -174,7 +174,7 @@ def calculate_clim_exceedance(obs_cb: Cube, clim_cb: Cube, hw_info: dict):
 
     temp_exceed = obs_record - clim_value
 
-    return temp_exceed 
+    return temp_exceed, obs_record 
 
 
 def plot_heatwave_length(obs_cb: Cube, ref_cb: Cube, clim_cb: Cube, 
@@ -299,9 +299,9 @@ def main(cfg):
         dataset_csv = open(os.path.join(cfg['work_dir'], 
                      f'{dataset}_regional_heatwave_info.csv'), 'w', newline='')
         dataset_csv_w = csv.writer(dataset_csv, delimiter=',')
-        dataset_csv_w.writerow(['Region', 'start_day', 'end_day',
-                                                'max_day', '3_day_max',
-                                                'length', 'clim_exceedance'])
+        dataset_csv_w.writerow(['Region', 'start_day', 'end_day', 'max_day', 
+                                              '3_day_max', 'length',
+                                              'clim_exceedance', 'obs_value'])
 
         for shape_id in current_cb.coord('shape_id').points:
             reg_obs_cb = current_cb.extract(iris.Constraint(shape_id=shape_id))
@@ -316,11 +316,13 @@ def main(cfg):
             if hw_start is not None:
                 hw_info = {'hw_start': hw_start, 'hw_end': hw_end,
                         'hw_max': hw_max, 'hw_3max': hw_3max, 'hw_len': hw_len}
-                temp_exceed = calculate_clim_exceedance(reg_obs_cb, 
+                temp_exceed, obs_value = calculate_clim_exceedance(reg_obs_cb, 
                                                         reg_clim_cb, hw_info)
                 hw_info['clim_exceed'] = temp_exceed
+                hw_info['obs_value'] = obs_value
                 dataset_csv_w.writerow([shape_id, hw_start, hw_end, hw_max, 
-                                                hw_3max, hw_len, temp_exceed])
+                                                hw_3max, hw_len, 
+                                                temp_exceed, obs_value])
                 plot_heatwave_length(reg_obs_cb, reg_ref_cb, reg_clim_cb, 
                                                         hw_info, dataset, cfg)
         
