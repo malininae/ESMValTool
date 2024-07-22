@@ -121,11 +121,11 @@ def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
                     str(cell.point),'%Y-%m-%d %H:%M:%S').date() <= hw_end))
             hw_3cb = eprep.rolling_window_statistics(hw_cb, coordinate='time', 
                                              window_length=3, operator='mean')
-            hw_max_cell = hw_cb.collapsed('time', iris.analysis.MAX).coord('time'
-                                                                    ).cell(0).point
+            hw_max_id = hw_cb.data.argmax()
+            hw_max_cell = hw_cb.coord('time').cell(hw_max_id).point
             hw_max = datetime.strptime(str(hw_max_cell),'%Y-%m-%d %H:%M:%S').date()
-            hw_3max_cell = hw_3cb.collapsed('time', iris.analysis.MAX).coord('time'
-                                                                    ).cell(0).point
+            hw_3max_id = hw_3cb.data.argmax()
+            hw_3max_cell = hw_3cb.coord('time').cell(hw_3max_id).point
             hw_3max = datetime.strptime(str(hw_3max_cell),'%Y-%m-%d %H:%M:%S').date()
         elif hw_len==1:
             hw_max = hw_start
@@ -136,8 +136,8 @@ def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
                     str(cell.point),'%Y-%m-%d %H:%M:%S').date() <= hw_end))
             hw_3cb = eprep.rolling_window_statistics(hw_cb, coordinate='time', 
                                              window_length=3, operator='mean')
-            hw_max_cell = hw_cb.collapsed('time', iris.analysis.MAX).coord('time'
-                                                                    ).cell(0).point
+            hw_max_id = hw_cb.data.argmax()
+            hw_max_cell = hw_cb.coord('time').cell(hw_max_id).point
             hw_max = datetime.strptime(str(hw_max_cell),'%Y-%m-%d %H:%M:%S').date()
             hw_3max_cell = hw_3cb.coord('time').cell(0).point
             hw_3max = datetime.strptime(str(hw_3max_cell),'%Y-%m-%d %H:%M:%S').date()
@@ -145,8 +145,8 @@ def analyse_heatwave(obs_cb: Cube, ref_cb: Cube, inp_date: date):
             hw_cb = obs_cb.extract(iris.Constraint(
                     time=lambda cell: hw_start <= datetime.strptime(
                     str(cell.point),'%Y-%m-%d %H:%M:%S').date() <= hw_end))
-            hw_max_cell = hw_cb.collapsed('time', iris.analysis.MAX).coord('time'
-                                                                    ).cell(0).point
+            hw_max_id = hw_cb.data.argmax()
+            hw_max_cell = hw_cb.coord('time').cell(hw_max_id).point
             hw_max = datetime.strptime(str(hw_max_cell),'%Y-%m-%d %H:%M:%S').date()
             hw_3max = 'None'
  
