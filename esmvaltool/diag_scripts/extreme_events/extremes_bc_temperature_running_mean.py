@@ -128,11 +128,17 @@ def obtain_obs_info(groups, cfg):
 
     # calculate stationary gev 
     obs_stat = cex.fit_gev(ano_obs_arr, returnValue=ana_year_value, getParams=True)
-    orig_stat_rp = np.exp(obs_stat['logReturnPeriod'][0]) # it is the only value, we are making it a float
+    try:
+        orig_stat_rp = np.exp(obs_stat['logReturnPeriod'][0]) # it is the only value, we are making it a float
+    except: 
+        orig_stat_rp = np.nan
 
     # calculate non-stationary gev
     obs_non_stat = cex.fit_gev(ano_obs_arr, gsat_smooth_arr, locationFun=1, returnValue=ana_year_value, getParams=True)
-    orig_nonstat_rp = np.exp(obs_non_stat['logReturnPeriod'][ana_arg])
+    try:
+        orig_nonstat_rp = np.exp(obs_non_stat['logReturnPeriod'][ana_arg])
+    except: 
+        orig_nonstat_rp = np.nan
 
     # initializing the list to store bootstrap values and choosing random seed
     bootstrap_rps = list()
@@ -146,10 +152,14 @@ def obtain_obs_info(groups, cfg):
         for_fit_indices = rng.integers(low=0, high=len(ano_obs_arr), size=len(ano_obs_arr))
         for_fit_indices.sort()
         # fitting non-stationary GEV for individual bootstrap sample
-        temp_gev = cex.fit_gev(ano_obs_arr[for_fit_indices], gsat_smooth_arr[for_fit_indices],
-                               locationFun=1, initial={'location':float(np.around(obs_stat['mle'][0],2)),
-                                            'scale':float(np.around(obs_stat['mle'][1],2)), 
-                                            'shape':float(np.around(obs_stat['mle'][2],2))}, getParams=True)
+        try:
+            temp_gev = cex.fit_gev(ano_obs_arr[for_fit_indices], gsat_smooth_arr[for_fit_indices],
+                                locationFun=1, initial={'location':float(np.around(obs_stat['mle'][0],2)),
+                                                'scale':float(np.around(obs_stat['mle'][1],2)), 
+                                                'shape':float(np.around(obs_stat['mle'][2],2))}, getParams=True)
+        except:
+            temp_gev = cex.fit_gev(ano_obs_arr[for_fit_indices], gsat_smooth_arr[for_fit_indices],
+                                                                                    locationFun=1, getParams=True)            
         # the fit might be unsuccessful. If successful, save return period 
         # of the analysis values, if not assign nans
         try:
@@ -170,32 +180,55 @@ def obtain_obs_info(groups, cfg):
     era_csv_writer = csv.writer(era_csv, delimiter=',')
     era_csv_writer.writerow([str(cfg['analysis_year'])+' ERA5 '+cfg['ax_var_label']+' value '+str(ana_year_value)+ ', ERA5 smoothed GSAT value '+str(ana_gsat)])
     era_csv_writer.writerow(['ERA5 non-stationary GEV params'])
-    era_csv_writer.writerow(list(obs_non_stat['mle_names']))
-    era_csv_writer.writerow(list(obs_non_stat['mle']))
+    try:
+        era_csv_writer.writerow(list(obs_non_stat['mle_names']))
+        era_csv_writer.writerow(list(obs_non_stat['mle']))
+    except:
+        era_csv_writer.writerow(['the fit did not converge'])
+        era_csv_writer.writerow(['the fit did not converge'])
     era_csv_writer.writerow([str(cfg['analysis_year'])+' ERA5 return period', str(np.around(orig_nonstat_rp,1))])
     era_csv_writer.writerow(['Date of the '+str(cfg['analysis_year'])+' maximum: '+str(max_date)])
     era_csv_writer.writerow(['Bootstrapped uncertanties on ERA5 nonstationary return period'])
     era_csv_writer.writerow(['5_perc', '10_perc', '50_perc', '90_perc', '95_perc'])
     era_csv_writer.writerow(rp_perc)
     era_csv_writer.writerow(['ERA5 stationary GEV params'])
-    era_csv_writer.writerow(list(obs_stat['mle_names']))
-    era_csv_writer.writerow(list(obs_stat['mle']))
+    try:
+        era_csv_writer.writerow(list(obs_stat['mle_names']))
+        era_csv_writer.writerow(list(obs_stat['mle']))
+    except:
+        era_csv_writer.writerow(['the fit did not converge'])
+        era_csv_writer.writerow(['the fit did not converge'])    
     era_csv_writer.writerow(['ERA5 stationary return period', str(np.around(orig_stat_rp,1))])
     era_csv.close()
 
     # to pass the data further on saving into a dictionary
-    obs_gev_data={'gev_param_names' : obs_non_stat['mle_names'],
-                  'gev_param_values': obs_non_stat['mle'],
-                  'abs_obs_cb': abs_obs_cb,
-                  'ana_year_value': ana_year_value, 
-                  'ana_gsat_value': ana_gsat, 
-                  'ana_year_RP': orig_nonstat_rp,
-                  'ana_year_RP_CI': rp_perc,
-                  'ano_obs_cb': ano_obs_cb,
-                  'ano_year_value': ano_obs_cb.data[ana_arg],
-                  'max_date': max_date,
-                  'date_constr': pdt_constraint,
-                  'smoothed_gsat':gsat_smooth_arr}
+    try:
+        obs_gev_data={  'gev_param_names' : obs_non_stat['mle_names'],
+                        'gev_param_values': obs_non_stat['mle'],
+                        'abs_obs_cb': abs_obs_cb,
+                        'ana_year_value': ana_year_value, 
+                        'ana_gsat_value': ana_gsat, 
+                        'ana_year_RP': orig_nonstat_rp,
+                        'ana_year_RP_CI': rp_perc,
+                        'ano_obs_cb': ano_obs_cb,
+                        'ano_year_value': ano_obs_cb.data[ana_arg],
+                        'max_date': max_date,
+                        'date_constr': pdt_constraint,
+                        'smoothed_gsat':gsat_smooth_arr}
+    except:
+        obs_gev_data={  'gev_param_names' : [np.nan, np.nan, np.nan, np.nan],
+                        'gev_param_values': [np.nan, np.nan, np.nan, np.nan],
+                        'abs_obs_cb': abs_obs_cb,
+                        'ana_year_value': ana_year_value, 
+                        'ana_gsat_value': ana_gsat, 
+                        'ana_year_RP': orig_nonstat_rp,
+                        'ana_year_RP_CI': rp_perc,
+                        'ano_obs_cb': ano_obs_cb,
+                        'ano_year_value': ano_obs_cb.data[ana_arg],
+                        'max_date': max_date,
+                        'date_constr': pdt_constraint,
+                        'smoothed_gsat':gsat_smooth_arr}
+
 
     return obs_gev_data
 
