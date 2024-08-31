@@ -21,6 +21,24 @@ from esmvaltool.diag_scripts.extreme_events.map_distribution import obtain_cubes
 logger = logging.getLogger(os.path.basename(__file__))
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
+def calculate_event_perc(obs_cb: Cube, ref_cb: Cube, half_window: int, input_date, cfg):
+    event = obs_cb.extract(iris.Constraint(time=lambda cell: datetime.strptime(
+                           str(cell.point),'%Y-%m-%d %H:%M:%S').date()==input_date)).data
+    day = input_date.timetuple().tm_yday
+    
+    # adding aux coord with the day of year 
+    iris.coord_categorisation.add_day_of_year(ref_cb, 'time', 'doy')
+    doy = ref_cb.coord('doy').points;
+
+    ref_data = ref_cb.data
+    good_plus = (doy - day) % 365 <= half_window
+    good_minus = (day - doy) % 365 <= half_window
+    good = good_plus | good_minus
+    data_good = ref_data[good][~np.isnan(ref_data[good])]
+    event_perc = np.sum(data_good <= event) / len(data_good) * 100
+    return event_perc
+
+
 def calculate_reference_perc_cube(ref_cb: Cube, half_window: int, 
                                                             percentile: int):
     '''
@@ -34,9 +52,6 @@ def calculate_reference_perc_cube(ref_cb: Cube, half_window: int,
     Output:
         clim_ref_perc_cb: climatological cube with calculated percentiles
     '''
-
-    # adding aux coord with the day of year 
-    iris.coord_categorisation.add_day_of_year(ref_cb, 'time', 'doy')
 
     clim_perc = np.zeros(366)
     doy = ref_cb.coord('doy').points ; ref_data = ref_cb.data
@@ -308,6 +323,7 @@ def main(cfg):
             reg_ref_cb = ref_cb.extract(iris.Constraint(shape_id=shape_id))
             reg_clim_cb = calculate_climatology_cube(reg_ref_cb, 
                                                      cfg['half_window'])
+            event_perc = calculate_event_perc(reg_obs_cb, reg_ref_cb, cfg['half_window'], inp_date,cfg)
             reg_ref_cb = calculate_reference_perc_cube(reg_ref_cb, 
                                                   cfg['half_window'],
                                                   cfg['trigger_percentile'])
