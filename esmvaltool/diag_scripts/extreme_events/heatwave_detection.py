@@ -315,8 +315,8 @@ def main(cfg):
                      f'{dataset}_regional_heatwave_info.csv'), 'w', newline='')
         dataset_csv_w = csv.writer(dataset_csv, delimiter=',')
         dataset_csv_w.writerow(['Region', 'start_day', 'end_day', 'max_day', 
-                                              '3_day_max', 'length',
-                                              'clim_exceedance', 'obs_value'])
+                                '3_day_max', 'length', 'clim_exceedance', 'obs_value',
+                                'event_percentile', 'exceeds_95'])
 
         for shape_id in current_cb.coord('shape_id').points:
             reg_obs_cb = current_cb.extract(iris.Constraint(shape_id=shape_id))
@@ -337,8 +337,9 @@ def main(cfg):
                 hw_info['clim_exceed'] = temp_exceed
                 hw_info['obs_value'] = obs_value
                 dataset_csv_w.writerow([shape_id, hw_start, hw_end, hw_max, 
-                                                hw_3max, hw_len, 
-                                                temp_exceed, obs_value])
+                                        hw_3max, hw_len, temp_exceed, obs_value,
+                                        np.round(event_perc, 1),
+                                        True if np.round(event_perc, 1) > 95.0 else False])
                 plot_heatwave_length(reg_obs_cb, reg_ref_cb, reg_clim_cb, 
                                                         hw_info, dataset, cfg)
         
