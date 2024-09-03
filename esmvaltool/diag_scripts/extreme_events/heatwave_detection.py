@@ -323,7 +323,7 @@ def main(cfg):
             reg_ref_cb = ref_cb.extract(iris.Constraint(shape_id=shape_id))
             reg_clim_cb = calculate_climatology_cube(reg_ref_cb, 
                                                      cfg['half_window'])
-            event_perc = calculate_event_perc(reg_obs_cb, reg_ref_cb, cfg['half_window'], inp_date,cfg)
+            event_perc = calculate_event_perc(reg_obs_cb, reg_ref_cb, cfg['half_window'], inp_date, cfg)
             reg_ref_cb = calculate_reference_perc_cube(reg_ref_cb, 
                                                   cfg['half_window'],
                                                   cfg['trigger_percentile'])
