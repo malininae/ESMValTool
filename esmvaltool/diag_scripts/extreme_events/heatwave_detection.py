@@ -28,7 +28,7 @@ def calculate_event_perc(obs_cb: Cube, ref_cb: Cube, half_window: int, input_dat
     
     # adding aux coord with the day of year 
     iris.coord_categorisation.add_day_of_year(ref_cb, 'time', 'doy')
-    doy = ref_cb.coord('doy').points;
+    doy = ref_cb.coord('doy').points
 
     ref_data = ref_cb.data
     good_plus = (doy - day) % 365 <= half_window
