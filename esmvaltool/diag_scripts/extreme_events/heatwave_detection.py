@@ -21,10 +21,32 @@ from esmvaltool.diag_scripts.extreme_events.map_distribution import obtain_cubes
 logger = logging.getLogger(os.path.basename(__file__))
 # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
-def calculate_event_perc(obs_cb: Cube, ref_cb: Cube, half_window: int, input_date, cfg):
+
+def calculate_event_perc(obs_cb: Cube, ref_cb: Cube, half_window: int,
+                                                            hw_max_day: date):
+    '''
+    This function calculates percentile of the hottest day of heatwave
+
+    Parameters
+    ----------
+        obs_cb :
+            cube with the year of analysis observations
+        ref_cb :
+            cube with reference period for observations
+        half_window :
+            the number of days around (+/-) the date of interest to
+                     consider to calculate the climatology
+        hw_max_day :
+            the date of the hottest day of the heatwave 
+    Returns
+    -------
+        event_perc : float
+            the percentile of the hottest day
+    '''
+
     event = obs_cb.extract(iris.Constraint(time=lambda cell: datetime.strptime(
-                           str(cell.point),'%Y-%m-%d %H:%M:%S').date()==input_date)).data
-    day = input_date.timetuple().tm_yday
+                           str(cell.point),'%Y-%m-%d %H:%M:%S').date()==hw_max_day)).data
+    day = hw_max_day.timetuple().tm_yday
     
     # adding aux coord with the day of year 
     iris.coord_categorisation.add_day_of_year(ref_cb, 'time', 'doy')
@@ -36,6 +58,7 @@ def calculate_event_perc(obs_cb: Cube, ref_cb: Cube, half_window: int, input_dat
     good = good_plus | good_minus
     data_good = ref_data[good][~np.isnan(ref_data[good])]
     event_perc = np.sum(data_good <= event) / len(data_good) * 100
+
     return event_perc
 
 
@@ -315,15 +338,14 @@ def main(cfg):
                      f'{dataset}_regional_heatwave_info.csv'), 'w', newline='')
         dataset_csv_w = csv.writer(dataset_csv, delimiter=',')
         dataset_csv_w.writerow(['Region', 'start_day', 'end_day', 'max_day', 
-                                '3_day_max', 'length', 'clim_exceedance', 'obs_value',
-                                'event_percentile', 'exceeds_95'])
+                                '3_day_max', 'length', 'clim_exceedance', 
+                                'obs_value', 'event_percentile'])
 
         for shape_id in current_cb.coord('shape_id').points:
             reg_obs_cb = current_cb.extract(iris.Constraint(shape_id=shape_id))
             reg_ref_cb = ref_cb.extract(iris.Constraint(shape_id=shape_id))
             reg_clim_cb = calculate_climatology_cube(reg_ref_cb, 
                                                      cfg['half_window'])
-            event_perc = calculate_event_perc(reg_obs_cb, reg_ref_cb, cfg['half_window'], inp_date, cfg)
             reg_ref_cb = calculate_reference_perc_cube(reg_ref_cb, 
                                                   cfg['half_window'],
                                                   cfg['trigger_percentile'])
@@ -334,12 +356,13 @@ def main(cfg):
                         'hw_max': hw_max, 'hw_3max': hw_3max, 'hw_len': hw_len}
                 temp_exceed, obs_value = calculate_clim_exceedance(reg_obs_cb, 
                                                         reg_clim_cb, hw_info)
+                event_perc = calculate_event_perc(reg_obs_cb, reg_ref_cb, 
+                                              cfg['half_window'], hw_max)
                 hw_info['clim_exceed'] = temp_exceed
                 hw_info['obs_value'] = obs_value
                 dataset_csv_w.writerow([shape_id, hw_start, hw_end, hw_max, 
-                                        hw_3max, hw_len, temp_exceed, obs_value,
-                                        np.round(event_perc, 1),
-                                        True if np.round(event_perc, 1) > 95.0 else False])
+                                        hw_3max, hw_len, temp_exceed, 
+                                        obs_value, np.round(event_perc, 1)])
                 plot_heatwave_length(reg_obs_cb, reg_ref_cb, reg_clim_cb, 
                                                         hw_info, dataset, cfg)
         
