@@ -47,9 +47,7 @@ def calculate_event_perc(obs_cb: Cube, ref_cb: Cube, half_window: int,
     event = obs_cb.extract(iris.Constraint(time=lambda cell: datetime.strptime(
                            str(cell.point),'%Y-%m-%d %H:%M:%S').date()==hw_max_day)).data
     day = hw_max_day.timetuple().tm_yday
-    
-    # adding aux coord with the day of year 
-    iris.coord_categorisation.add_day_of_year(ref_cb, 'time', 'doy')
+
     doy = ref_cb.coord('doy').points
 
     ref_data = ref_cb.data
@@ -59,7 +57,7 @@ def calculate_event_perc(obs_cb: Cube, ref_cb: Cube, half_window: int,
     data_good = ref_data[good][~np.isnan(ref_data[good])]
     event_perc = np.sum(data_good <= event) / len(data_good) * 100
 
-    return event_perc
+    return np.around(event_perc, 1)
 
 
 def calculate_reference_perc_cube(ref_cb: Cube, half_window: int, 
@@ -77,6 +75,8 @@ def calculate_reference_perc_cube(ref_cb: Cube, half_window: int,
     '''
 
     clim_perc = np.zeros(366)
+    # adding aux coord with the day of year 
+    iris.coord_categorisation.add_day_of_year(ref_cb, 'time', 'doy')    
     doy = ref_cb.coord('doy').points ; ref_data = ref_cb.data
     for day in range(1, 367):   
         good_plus = (doy - day) % 365 <= half_window 
@@ -339,31 +339,33 @@ def main(cfg):
         dataset_csv_w = csv.writer(dataset_csv, delimiter=',')
         dataset_csv_w.writerow(['Region', 'start_day', 'end_day', 'max_day', 
                                 '3_day_max', 'length', 'clim_exceedance', 
-                                'obs_value', 'event_percentile'])
+                                'obs_value', 'max_day_percentile'])
 
         for shape_id in current_cb.coord('shape_id').points:
             reg_obs_cb = current_cb.extract(iris.Constraint(shape_id=shape_id))
             reg_ref_cb = ref_cb.extract(iris.Constraint(shape_id=shape_id))
             reg_clim_cb = calculate_climatology_cube(reg_ref_cb, 
                                                      cfg['half_window'])
-            reg_ref_cb = calculate_reference_perc_cube(reg_ref_cb, 
+            reg_ref_perc_cb = calculate_reference_perc_cube(reg_ref_cb, 
                                                   cfg['half_window'],
                                                   cfg['trigger_percentile'])
-            hw_start, hw_end, hw_max, hw_3max, hw_len = analyse_heatwave(reg_obs_cb,
-                                                            reg_ref_cb, inp_date)
+            hw_start, hw_end, hw_max, hw_3max, hw_len = analyse_heatwave(
+                                                                    reg_obs_cb,
+                                                                    reg_ref_perc_cb, 
+                                                                    inp_date)
             if hw_start is not None:
                 hw_info = {'hw_start': hw_start, 'hw_end': hw_end,
                         'hw_max': hw_max, 'hw_3max': hw_3max, 'hw_len': hw_len}
                 temp_exceed, obs_value = calculate_clim_exceedance(reg_obs_cb, 
                                                         reg_clim_cb, hw_info)
                 event_perc = calculate_event_perc(reg_obs_cb, reg_ref_cb, 
-                                              cfg['half_window'], hw_max)
+                                                    cfg['half_window'], hw_max)
                 hw_info['clim_exceed'] = temp_exceed
                 hw_info['obs_value'] = obs_value
                 dataset_csv_w.writerow([shape_id, hw_start, hw_end, hw_max, 
                                         hw_3max, hw_len, temp_exceed, 
-                                        obs_value, np.round(event_perc, 1)])
-                plot_heatwave_length(reg_obs_cb, reg_ref_cb, reg_clim_cb, 
+                                        obs_value, event_perc])
+                plot_heatwave_length(reg_obs_cb, reg_ref_perc_cb, reg_clim_cb, 
                                                         hw_info, dataset, cfg)
         
         dataset_csv.close()
