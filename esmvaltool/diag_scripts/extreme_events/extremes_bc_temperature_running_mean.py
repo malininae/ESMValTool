@@ -84,6 +84,8 @@ def obtain_obs_info(groups, cfg):
 
     # determine the day of the absolute maximum for the time range/month specified
     max_date = abs_ana_hw.coord('time').cell(abs_ana_hw.data.argmax()).point
+    # determine max value for the heatwave
+    hw_max = abs_ana_hw.data.max()
 
     # determine the window (+-) 15 days around the day of the observed maximum
     # in the selected time period and extracting it from the climatology cube
@@ -95,6 +97,9 @@ def obtain_obs_info(groups, cfg):
 
     # determining maxima in each year for the determined above time period window  
     abs_obs_cb = eprep.annual_statistics(crop_abs_obs_cb, operator='max')
+
+    # change the value for the last year to the real value of the heatwave
+    abs_obs_cb.data[-1] = hw_max
 
     # calculating anomalies. The reference period comes from the recipe
     ano_obs_cb = eprep.anomalies(abs_obs_cb, 'full', 
